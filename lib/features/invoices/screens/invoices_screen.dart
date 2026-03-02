@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
@@ -72,9 +73,12 @@ class InvoicesScreen extends ConsumerWidget {
                 const SizedBox(height: 20),
                 ...invoices.map((inv) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: _InvoiceTile(invoice: inv, fmt: fmt, onStatusChange: (status) {
-                        ref.read(invoiceProvider.notifier).updateStatus(inv.id, status);
-                      }),
+                      child: GestureDetector(
+                        onTap: () => context.go('/invoices/${inv.id}'),
+                        child: _InvoiceTile(invoice: inv, fmt: fmt, onStatusChange: (status) {
+                          ref.read(invoiceProvider.notifier).updateStatus(inv.id, status);
+                        }),
+                      ),
                     )),
               ],
             ),

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/screens/auth_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/invoices/screens/invoices_screen.dart';
+import '../../features/invoices/screens/invoice_detail_screen.dart';
 import '../../features/transactions/screens/transactions_screen.dart';
 import '../../features/taxes/screens/taxes_screen.dart';
 import '../../features/clients/screens/clients_screen.dart';
@@ -28,6 +29,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/invoices',
             builder: (_, __) => const InvoicesScreen(),
+            routes: [
+              GoRoute(
+                path: ':id',
+                builder: (_, state) => InvoiceDetailScreen(
+                  invoiceId: state.pathParameters['id']!,
+                ),
+              ),
+            ],
           ),
           GoRoute(
             path: '/transactions',
