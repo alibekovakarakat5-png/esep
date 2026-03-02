@@ -1,23 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/kz_tax_constants.dart';
+import '../../../core/providers/transaction_provider.dart';
+import '../../../core/providers/invoice_provider.dart';
+import '../../transactions/screens/add_transaction_screen.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final fmt = NumberFormat('#,##0', 'ru_RU');
-    // TODO: replace with real data from providers
-    const income = 1250000.0;
-    const expense = 380000.0;
-    const profit = income - expense;
+
+    final monthIncome = ref.watch(monthIncomeProvider);
+    final monthExpense = ref.watch(monthExpenseProvider);
+    final profit = monthIncome - monthExpense;
+    final halfYearIncome = ref.watch(halfYearIncomeProvider);
     final regimeLimit = KzTax.simplified910HalfYearLimit;
-    final usedPercent = income / regimeLimit;
+    final usedPercent = regimeLimit > 0 ? halfYearIncome / regimeLimit : 0.0;
     final social = KzTax.calculateMonthlySocial();
+    final unpaidCount = ref.watch(unpaidInvoicesProvider).length;
+    final unpaidTotal = ref.watch(totalUnpaidProvider);
     final nextDeadline = _nextDeadline();
 
     return Scaffold(
@@ -34,12 +42,12 @@ class DashboardScreen extends StatelessWidget {
           _SectionHeader(title: _monthTitle()),
           const SizedBox(height: 12),
           Row(children: [
-            Expanded(child: _MetricCard(label: 'Доход', amount: income, color: EsepColors.income, icon: Iconsax.arrow_circle_up)),
+            Expanded(child: _MetricCard(label: 'Доход', amount: monthIncome, color: EsepColors.income, icon: Iconsax.arrow_circle_up)),
             const SizedBox(width: 12),
-            Expanded(child: _MetricCard(label: 'Расход', amount: expense, color: EsepColors.expense, icon: Iconsax.arrow_circle_down)),
+            Expanded(child: _MetricCard(label: 'Расход', amount: monthExpense, color: EsepColors.expense, icon: Iconsax.arrow_circle_down)),
           ]),
           const SizedBox(height: 12),
-          _MetricCard(label: 'Прибыль', amount: profit, color: EsepColors.primary, icon: Iconsax.wallet_3, large: true),
+          _MetricCard(label: 'Прибыль', amount: profit, color: profit >= 0 ? EsepColors.primary : EsepColors.expense, icon: Iconsax.wallet_3, large: true),
 
           const SizedBox(height: 24),
           _SectionHeader(title: 'Лимит упрощёнки (полугодие)'),
@@ -64,14 +72,14 @@ class DashboardScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${fmt.format(income)} ₸ из ${fmt.format(regimeLimit)} ₸',
+                  '${fmt.format(halfYearIncome)} ₸ из ${fmt.format(regimeLimit)} ₸',
                   style: const TextStyle(fontSize: 12, color: EsepColors.textSecondary),
                 ),
               ]),
             ),
           ),
 
-          // Ежемесячные соцплатежи
+          // Social payments
           const SizedBox(height: 24),
           _SectionHeader(title: 'Соцплатежи "за себя"'),
           const SizedBox(height: 12),
@@ -116,26 +124,32 @@ class DashboardScreen extends StatelessWidget {
             daysLeft: _daysUntilSocialPayment(),
             color: EsepColors.warning,
           ),
-          const SizedBox(height: 8),
-          const _EventCard(
-            icon: Iconsax.receipt_item,
-            title: '3 неоплаченных счёта',
-            subtitle: '450 000 ₸ к получению',
-            daysLeft: null,
-            color: EsepColors.info,
-          ),
+          if (unpaidCount > 0) ...[
+            const SizedBox(height: 8),
+            _EventCard(
+              icon: Iconsax.receipt_item,
+              title: '$unpaidCount неоплаченных счетов',
+              subtitle: '${fmt.format(unpaidTotal)} ₸ к получению',
+              daysLeft: null,
+              color: EsepColors.info,
+            ),
+          ],
 
           const SizedBox(height: 24),
           _SectionHeader(title: 'Быстрые действия'),
           const SizedBox(height: 12),
           Row(children: [
-            Expanded(child: _QuickAction(icon: Iconsax.receipt_add, label: 'Новый счёт', onTap: () {})),
+            Expanded(child: _QuickAction(icon: Iconsax.receipt_add, label: 'Новый счёт', onTap: () => context.go('/invoices'))),
             const SizedBox(width: 12),
-            Expanded(child: _QuickAction(icon: Iconsax.money_add, label: 'Доход', onTap: () {})),
+            Expanded(child: _QuickAction(icon: Iconsax.money_add, label: 'Доход', onTap: () {
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AddTransactionScreen(isIncome: true)));
+            })),
             const SizedBox(width: 12),
-            Expanded(child: _QuickAction(icon: Iconsax.money_remove, label: 'Расход', onTap: () {})),
+            Expanded(child: _QuickAction(icon: Iconsax.money_remove, label: 'Расход', onTap: () {
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AddTransactionScreen(isIncome: false)));
+            })),
             const SizedBox(width: 12),
-            Expanded(child: _QuickAction(icon: Iconsax.calculator, label: 'Налоги', onTap: () {})),
+            Expanded(child: _QuickAction(icon: Iconsax.calculator, label: 'Налоги', onTap: () => context.go('/taxes'))),
           ]),
           const SizedBox(height: 32),
         ],
@@ -143,14 +157,13 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  String _monthTitle() {
+  static String _monthTitle() {
     final now = DateTime.now();
     return DateFormat('LLLL yyyy', 'ru_RU').format(now);
   }
 
   static _DeadlineInfo _nextDeadline() {
     final now = DateTime.now();
-    // 1 полугодие: подать до 15 авг, 2 полугодие: подать до 15 фев
     DateTime next;
     String label;
     if (now.month < 8 || (now.month == 8 && now.day <= 15)) {
