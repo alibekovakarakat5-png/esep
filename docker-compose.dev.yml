@@ -1,0 +1,19 @@
+# Только PostgreSQL для локальной разработки.
+# Flutter и backend запускаются нативно (flutter run / npm run dev)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: esep-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       esep
+      POSTGRES_USER:     esep_user
+      POSTGRES_PASSWORD: esep_dev_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_dev_data:

@@ -1,0 +1,54 @@
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: esep-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       esep
+      POSTGRES_USER:     esep_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-esep_dev_pass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U esep_user -d esep"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend (Node.js/Express) ───────────────────────────────────────────────
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: esep-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://esep_user:${DB_PASSWORD:-esep_dev_pass}@postgres:5432/esep
+      JWT_SECRET:   ${JWT_SECRET:-change-in-production}
+      PORT:         3001
+      NODE_ENV:     production
+    ports:
+      - "3001:3001"   # убрать в проде (backend только через nginx)
+
+  # ── Flutter Web (Nginx) ─────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: esep-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"  # для SSL в проде
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro  # сертификаты Let's Encrypt
+
+volumes:
+  postgres_data:
