@@ -82,7 +82,7 @@ flutter pub get
 docker compose -f docker-compose.dev.yml up -d
 ```
 
-> БД будет доступна на `localhost:5433` (user: `esep_user`, pass: `esep_dev_pass`, db: `esep`)
+> БД будет доступна на `localhost:5433` (параметры подключения см. в `docker-compose.dev.yml`)
 
 ### 4. Запустить приложение
 
@@ -138,10 +138,16 @@ lib/
 
 ## Переменные окружения
 
-| Переменная | Описание | По умолчанию |
-|------------|----------|--------------|
-| `DB_PASSWORD` | Пароль PostgreSQL | `esep_dev_pass` |
-| `JWT_SECRET` | Секрет для JWT-токенов | `change-in-production` |
+Скопируйте `.env.example` в `.env` и заполните своими значениями:
+
+```bash
+cp .env.example .env
+```
+
+| Переменная | Описание |
+|------------|----------|
+| `DB_PASSWORD` | Пароль PostgreSQL |
+| `JWT_SECRET` | Секрет для JWT-токенов (мин. 32 символа) |
 
 ---
 
