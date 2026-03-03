@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/models/transaction.dart' as model;
 import '../../../core/providers/transaction_provider.dart';
 import 'add_transaction_screen.dart';
+import 'kaspi_import_screen.dart';
 
 class TransactionsScreen extends ConsumerStatefulWidget {
   const TransactionsScreen({super.key});
@@ -39,6 +40,16 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Учёт'),
+        actions: [
+          IconButton(
+            icon: const Icon(Iconsax.import),
+            tooltip: 'Импорт Kaspi',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const KaspiImportScreen()),
+            ),
+          ),
+          const SizedBox(width: 4),
+        ],
         bottom: TabBar(
           controller: _tabs,
           labelColor: EsepColors.primary,
