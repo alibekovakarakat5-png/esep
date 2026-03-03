@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/providers/company_provider.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/user_mode_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -137,12 +139,47 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final reminders = NotificationService.getUpcomingReminders();
     final company = ref.watch(companyProvider);
+    final mode = ref.watch(userModeProvider) ?? UserMode.ip;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Настройки')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+
+          // ── Режим работы ─────────────────────────────────────────────────
+          const _SectionHeader(title: 'Режим работы'),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              leading: Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(
+                  color: (mode == UserMode.ip ? EsepColors.primary : const Color(0xFF7B2FBE))
+                      .withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  mode == UserMode.ip ? Icons.person_rounded : Icons.work_rounded,
+                  color: mode == UserMode.ip ? EsepColors.primary : const Color(0xFF7B2FBE),
+                  size: 20,
+                ),
+              ),
+              title: Text(
+                mode == UserMode.ip ? 'ИП — Учёт своего бизнеса' : 'Бухгалтер — Несколько клиентов',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+              subtitle: const Text('Нажмите чтобы сменить режим',
+                  style: TextStyle(fontSize: 12, color: EsepColors.textSecondary)),
+              trailing: const Icon(Icons.swap_horiz_rounded, color: EsepColors.primary),
+              onTap: () {
+                ref.read(userModeProvider.notifier).state = null;
+                context.go('/mode-select');
+              },
+            ),
+          ),
+          const SizedBox(height: 20),
 
           // ── Данные компании ──────────────────────────────────────────────
           const _SectionHeader(title: 'Моя компания / ИП'),

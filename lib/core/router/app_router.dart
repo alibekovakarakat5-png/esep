@@ -10,47 +10,80 @@ import '../../features/transactions/screens/transactions_screen.dart';
 import '../../features/taxes/screens/taxes_screen.dart';
 import '../../features/clients/screens/clients_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
+import '../../features/accountant/screens/accountant_dashboard_screen.dart';
+import '../../features/accountant/screens/deadline_calendar_screen.dart';
+import '../../features/mode_select/screens/mode_select_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
 import '../providers/auth_provider.dart';
+import '../providers/user_mode_provider.dart';
 
-// Bridge between Riverpod and GoRouter's refreshListenable
-class _AuthListenable extends ChangeNotifier {
-  _AuthListenable(Ref ref) {
+// ── Router Listeneables ───────────────────────────────────────────────────────
+
+class _RouterListenable extends ChangeNotifier {
+  _RouterListenable(Ref ref) {
     ref.listen<AuthState>(authProvider, (_, __) => notifyListeners());
+    ref.listen<UserMode?>(userModeProvider, (_, __) => notifyListeners());
   }
 }
 
-final _authListenableProvider =
-    ChangeNotifierProvider((ref) => _AuthListenable(ref));
+final _routerListenableProvider =
+    ChangeNotifierProvider((ref) => _RouterListenable(ref));
+
+// ── Router ────────────────────────────────────────────────────────────────────
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final listenable = ref.watch(_authListenableProvider);
+  final listenable = ref.watch(_routerListenableProvider);
 
   return GoRouter(
     initialLocation: '/dashboard',
     refreshListenable: listenable,
     redirect: (context, state) {
       final authState = ref.read(authProvider);
-      final goingToAuth = state.matchedLocation == '/auth';
+      final mode      = ref.read(userModeProvider);
+      final location  = state.matchedLocation;
 
       if (authState == AuthState.loading) return null;
 
-      if (authState == AuthState.unauthenticated && !goingToAuth) {
+      // Not logged in → go to auth
+      if (authState == AuthState.unauthenticated && location != '/auth') {
         return '/auth';
       }
-      if (authState == AuthState.authenticated && goingToAuth) {
-        return '/dashboard';
+
+      // Logged in, on auth screen → pick mode or home
+      if (authState == AuthState.authenticated && location == '/auth') {
+        return mode == null
+            ? '/mode-select'
+            : _homeForMode(mode);
       }
+
+      // Logged in, no mode selected → mode selection
+      if (authState == AuthState.authenticated &&
+          mode == null &&
+          location != '/mode-select') {
+        return '/mode-select';
+      }
+
       return null;
     },
     routes: [
+      // ── Auth ─────────────────────────────────────────────────────────────
       GoRoute(
         path: '/auth',
         builder: (_, __) => const AuthScreen(),
       ),
+
+      // ── Mode select (outside of shell = no bottom nav) ───────────────────
+      GoRoute(
+        path: '/mode-select',
+        builder: (_, __) => const ModeSelectScreen(),
+      ),
+
+      // ── Main shell (with bottom nav) ─────────────────────────────────────
       ShellRoute(
         builder: (context, state, child) => MainScaffold(child: child),
         routes: [
+
+          // ─ ИП routes ─────────────────────────────────────────────────────
           GoRoute(
             path: '/dashboard',
             builder: (_, __) => const DashboardScreen(),
@@ -83,8 +116,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/settings',
             builder: (_, __) => const SettingsScreen(),
           ),
+
+          // ─ Бухгалтер routes ───────────────────────────────────────────────
+          GoRoute(
+            path: '/accountant',
+            builder: (_, __) => const AccountantDashboardScreen(),
+            routes: [
+              GoRoute(
+                path: 'calendar',
+                builder: (_, __) => const DeadlineCalendarScreen(),
+              ),
+            ],
+          ),
         ],
       ),
     ],
   );
 });
+
+String _homeForMode(UserMode mode) =>
+    mode == UserMode.accountant ? '/accountant' : '/dashboard';
