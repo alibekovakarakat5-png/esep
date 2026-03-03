@@ -6,12 +6,16 @@ import 'auth_provider.dart';
 
 const _uuid = Uuid();
 
+final invoiceLoadingProvider = StateProvider<bool>((ref) => true);
+
 class InvoiceNotifier extends StateNotifier<List<Invoice>> {
-  InvoiceNotifier() : super([]) {
+  final Ref _ref;
+  InvoiceNotifier(this._ref) : super([]) {
     _load();
   }
 
   Future<void> _load() async {
+    _ref.read(invoiceLoadingProvider.notifier).state = true;
     try {
       final data = await ApiClient.get('/invoices') as List<dynamic>;
       state = data
@@ -20,6 +24,8 @@ class InvoiceNotifier extends StateNotifier<List<Invoice>> {
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } catch (_) {
       state = [];
+    } finally {
+      _ref.read(invoiceLoadingProvider.notifier).state = false;
     }
   }
 
@@ -74,12 +80,9 @@ class InvoiceNotifier extends StateNotifier<List<Invoice>> {
 
 final invoiceProvider =
     StateNotifierProvider<InvoiceNotifier, List<Invoice>>((ref) {
-  // Reload when auth changes
   ref.watch(authProvider);
-  return InvoiceNotifier();
+  return InvoiceNotifier(ref);
 });
-
-// Derived
 
 final unpaidInvoicesProvider = Provider<List<Invoice>>((ref) {
   return ref.watch(invoiceProvider).where((i) =>

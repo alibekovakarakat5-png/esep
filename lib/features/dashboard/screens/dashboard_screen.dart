@@ -29,16 +29,23 @@ class DashboardScreen extends ConsumerWidget {
     final unpaidCount = ref.watch(unpaidInvoicesProvider).length;
     final unpaidTotal = ref.watch(totalUnpaidProvider);
     final nextDeadline = _nextDeadline();
+    final isLoading = ref.watch(transactionLoadingProvider) || ref.watch(invoiceLoadingProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Есеп'),
         actions: [
-          IconButton(
-            icon: const Icon(Iconsax.notification),
-            tooltip: 'Настройки',
-            onPressed: () => context.go('/settings'),
-          ),
+          if (isLoading)
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
+            )
+          else
+            IconButton(
+              icon: const Icon(Iconsax.notification),
+              tooltip: 'Настройки',
+              onPressed: () => context.go('/settings'),
+            ),
           const SizedBox(width: 8),
         ],
       ),

@@ -124,7 +124,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Row(children: [
                       Expanded(flex: 4, child: Text(item.description, style: const TextStyle(fontSize: 13))),
-                      Expanded(flex: 1, child: Text('${item.quantity}', style: const TextStyle(fontSize: 13), textAlign: TextAlign.center)),
+                      Expanded(flex: 1, child: Text(_fmtQty(item.quantity), style: const TextStyle(fontSize: 13), textAlign: TextAlign.center)),
                       Expanded(flex: 2, child: Text('${fmt.format(item.unitPrice)} ₸', style: const TextStyle(fontSize: 13), textAlign: TextAlign.right)),
                       Expanded(flex: 2, child: Text('${fmt.format(item.total)} ₸', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600), textAlign: TextAlign.right)),
                     ]),
@@ -290,3 +290,6 @@ class _PdfPreviewPage extends StatelessWidget {
     ),
   );
 }
+
+String _fmtQty(double q) =>
+    q == q.truncateToDouble() ? q.toInt().toString() : q.toString();

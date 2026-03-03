@@ -6,12 +6,16 @@ import 'auth_provider.dart';
 
 const _uuid = Uuid();
 
+final transactionLoadingProvider = StateProvider<bool>((ref) => true);
+
 class TransactionNotifier extends StateNotifier<List<Transaction>> {
-  TransactionNotifier() : super([]) {
+  final Ref _ref;
+  TransactionNotifier(this._ref) : super([]) {
     _load();
   }
 
   Future<void> _load() async {
+    _ref.read(transactionLoadingProvider.notifier).state = true;
     try {
       final data = await ApiClient.get('/transactions') as List<dynamic>;
       state = data
@@ -20,6 +24,8 @@ class TransactionNotifier extends StateNotifier<List<Transaction>> {
         ..sort((a, b) => b.date.compareTo(a.date));
     } catch (_) {
       state = [];
+    } finally {
+      _ref.read(transactionLoadingProvider.notifier).state = false;
     }
   }
 
@@ -63,9 +69,8 @@ class TransactionNotifier extends StateNotifier<List<Transaction>> {
 
 final transactionProvider =
     StateNotifierProvider<TransactionNotifier, List<Transaction>>((ref) {
-  // Reload when auth changes
   ref.watch(authProvider);
-  return TransactionNotifier();
+  return TransactionNotifier(ref);
 });
 
 // Derived providers
@@ -78,7 +83,6 @@ final expenseTransactionsProvider = Provider<List<Transaction>>((ref) {
   return ref.watch(transactionProvider).where((t) => !t.isIncome).toList();
 });
 
-/// Total income for current half-year
 final halfYearIncomeProvider = Provider<double>((ref) {
   final now = DateTime.now();
   final halfStart = now.month <= 6
@@ -90,7 +94,6 @@ final halfYearIncomeProvider = Provider<double>((ref) {
       .fold(0.0, (sum, t) => sum + t.amount);
 });
 
-/// Total expense for current month
 final monthExpenseProvider = Provider<double>((ref) {
   final now = DateTime.now();
   final monthStart = DateTime(now.year, now.month, 1);
@@ -100,7 +103,6 @@ final monthExpenseProvider = Provider<double>((ref) {
       .fold(0.0, (sum, t) => sum + t.amount);
 });
 
-/// Total income for current month
 final monthIncomeProvider = Provider<double>((ref) {
   final now = DateTime.now();
   final monthStart = DateTime(now.year, now.month, 1);
@@ -110,7 +112,6 @@ final monthIncomeProvider = Provider<double>((ref) {
       .fold(0.0, (sum, t) => sum + t.amount);
 });
 
-/// Monthly income + expense for the last 6 months (oldest → newest)
 final monthlyChartProvider = Provider<List<MonthlyData>>((ref) {
   final txs = ref.watch(transactionProvider);
   final now = DateTime.now();

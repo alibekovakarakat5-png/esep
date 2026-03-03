@@ -268,7 +268,9 @@ class PdfService {
           return [
             '${i + 1}',
             item.description,
-            '${item.quantity}',
+            item.quantity == item.quantity.truncateToDouble()
+                ? item.quantity.toInt().toString()
+                : item.quantity.toString(),
             '${_fmt.format(item.unitPrice)} ₸',
             '${_fmt.format(item.total)} ₸',
           ];
