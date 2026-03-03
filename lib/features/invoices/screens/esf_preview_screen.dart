@@ -68,12 +68,12 @@ class EsfPreviewScreen extends ConsumerWidget {
             ),
 
           // Info row
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Row(children: [
-              const Icon(Iconsax.info_circle, size: 14, color: EsepColors.textSecondary),
-              const SizedBox(width: 6),
-              const Expanded(
+              Icon(Iconsax.info_circle, size: 14, color: EsepColors.textSecondary),
+              SizedBox(width: 6),
+              Expanded(
                 child: Text(
                   'Загрузите XML на портал esf.gov.kz → Импорт ЭСФ',
                   style: TextStyle(fontSize: 12, color: EsepColors.textSecondary),

@@ -4,11 +4,13 @@ import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/models/transaction.dart';
 import '../../../core/providers/transaction_provider.dart';
 
 class AddTransactionScreen extends ConsumerStatefulWidget {
-  const AddTransactionScreen({super.key, required this.isIncome});
+  const AddTransactionScreen({super.key, required this.isIncome, this.existing});
   final bool isIncome;
+  final Transaction? existing;
 
   @override
   ConsumerState<AddTransactionScreen> createState() => _AddTransactionScreenState();
@@ -24,6 +26,22 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   DateTime _date = DateTime.now();
 
   static const _sources = ['kaspi', 'halyk', 'forte', 'наличные', 'перевод', 'карта', 'другое'];
+
+  bool get _isEditing => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final tx = widget.existing;
+    if (tx != null) {
+      _titleCtrl.text = tx.title;
+      _amountCtrl.text = tx.amount.toStringAsFixed(0);
+      _clientCtrl.text = tx.clientName ?? '';
+      _noteCtrl.text = tx.note ?? '';
+      _source = _sources.contains(tx.source) ? tx.source! : 'другое';
+      _date = tx.date;
+    }
+  }
 
   @override
   void dispose() {
@@ -41,11 +59,20 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Новый $label'),
+        title: Text(_isEditing ? 'Редактировать $label' : 'Новый $label'),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        actions: _isEditing
+            ? [
+                IconButton(
+                  icon: const Icon(Iconsax.trash, color: EsepColors.expense),
+                  tooltip: 'Удалить',
+                  onPressed: _confirmDelete,
+                ),
+              ]
+            : null,
       ),
       body: Form(
         key: _formKey,
@@ -158,7 +185,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: color),
               onPressed: _save,
-              child: Text('Сохранить $label'),
+              child: Text(_isEditing ? 'Сохранить изменения' : 'Сохранить $label'),
             ),
           ],
         ),
@@ -169,15 +196,51 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   void _save() {
     if (!_formKey.currentState!.validate()) return;
     final amount = double.parse(_amountCtrl.text.replaceAll(' ', ''));
-    ref.read(transactionProvider.notifier).add(
-          title: _titleCtrl.text.trim(),
-          amount: amount,
-          isIncome: widget.isIncome,
-          date: _date,
-          clientName: _clientCtrl.text.trim().isEmpty ? null : _clientCtrl.text.trim(),
-          source: _source,
-          note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
-        );
+    if (_isEditing) {
+      final updated = Transaction(
+        id: widget.existing!.id,
+        title: _titleCtrl.text.trim(),
+        amount: amount,
+        isIncome: widget.isIncome,
+        date: _date,
+        clientName: _clientCtrl.text.trim().isEmpty ? null : _clientCtrl.text.trim(),
+        source: _source,
+        note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
+        category: widget.existing!.category,
+      );
+      ref.read(transactionProvider.notifier).update(updated);
+    } else {
+      ref.read(transactionProvider.notifier).add(
+            title: _titleCtrl.text.trim(),
+            amount: amount,
+            isIncome: widget.isIncome,
+            date: _date,
+            clientName: _clientCtrl.text.trim().isEmpty ? null : _clientCtrl.text.trim(),
+            source: _source,
+            note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
+          );
+    }
     Navigator.of(context).pop();
+  }
+
+  void _confirmDelete() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Удалить транзакцию?'),
+        content: Text('«${widget.existing!.title}» будет удалена.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
+          TextButton(
+            onPressed: () {
+              ref.read(transactionProvider.notifier).remove(widget.existing!.id);
+              Navigator.pop(ctx);
+              Navigator.of(context).pop();
+            },
+            child: const Text('Удалить', style: TextStyle(color: EsepColors.expense)),
+          ),
+        ],
+      ),
+    );
   }
 }

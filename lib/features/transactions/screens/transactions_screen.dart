@@ -69,8 +69,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
       body: TabBarView(
         controller: _tabs,
         children: [
-          _TxList(items: incomes, isIncome: true, onDelete: _delete),
-          _TxList(items: expenses, isIncome: false, onDelete: _delete),
+          _TxList(items: incomes, isIncome: true, onDelete: _delete, onEdit: _edit),
+          _TxList(items: expenses, isIncome: false, onDelete: _delete, onEdit: _edit),
         ],
       ),
     );
@@ -86,13 +86,20 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
   void _delete(String id) {
     ref.read(transactionProvider.notifier).remove(id);
   }
+
+  void _edit(model.Transaction tx) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => AddTransactionScreen(isIncome: tx.isIncome, existing: tx),
+    ));
+  }
 }
 
 class _TxList extends StatelessWidget {
-  const _TxList({required this.items, required this.isIncome, required this.onDelete});
+  const _TxList({required this.items, required this.isIncome, required this.onDelete, required this.onEdit});
   final List<model.Transaction> items;
   final bool isIncome;
   final void Function(String) onDelete;
+  final void Function(model.Transaction) onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +146,7 @@ class _TxList extends StatelessWidget {
         const SizedBox(height: 16),
         ...items.map((tx) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: _TxTile(tx: tx, isIncome: isIncome, fmt: fmt, onDelete: onDelete),
+              child: _TxTile(tx: tx, isIncome: isIncome, fmt: fmt, onDelete: onDelete, onEdit: onEdit),
             )),
       ],
     );
@@ -147,11 +154,12 @@ class _TxList extends StatelessWidget {
 }
 
 class _TxTile extends StatelessWidget {
-  const _TxTile({required this.tx, required this.isIncome, required this.fmt, required this.onDelete});
+  const _TxTile({required this.tx, required this.isIncome, required this.fmt, required this.onDelete, required this.onEdit});
   final model.Transaction tx;
   final bool isIncome;
   final NumberFormat fmt;
   final void Function(String) onDelete;
+  final void Function(model.Transaction) onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -172,6 +180,7 @@ class _TxTile extends StatelessWidget {
       onDismissed: (_) => onDelete(tx.id),
       child: Card(
         child: ListTile(
+          onTap: () => onEdit(tx),
           leading: Container(
             width: 44, height: 44,
             decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),

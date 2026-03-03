@@ -1,3 +1,4 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,6 +21,7 @@ class DashboardScreen extends ConsumerWidget {
     final monthIncome = ref.watch(monthIncomeProvider);
     final monthExpense = ref.watch(monthExpenseProvider);
     final profit = monthIncome - monthExpense;
+    final monthlyData = ref.watch(monthlyChartProvider);
     final halfYearIncome = ref.watch(halfYearIncomeProvider);
     final regimeLimit = KzTax.simplified910HalfYearLimit;
     final usedPercent = regimeLimit > 0 ? halfYearIncome / regimeLimit : 0.0;
@@ -54,7 +56,12 @@ class DashboardScreen extends ConsumerWidget {
           _MetricCard(label: 'Прибыль', amount: profit, color: profit >= 0 ? EsepColors.primary : EsepColors.expense, icon: Iconsax.wallet_3, large: true),
 
           const SizedBox(height: 24),
-          _SectionHeader(title: 'Лимит упрощёнки (полугодие)'),
+          const _SectionHeader(title: 'Доходы и расходы за 6 месяцев'),
+          const SizedBox(height: 12),
+          _MonthlyChart(data: monthlyData),
+
+          const SizedBox(height: 24),
+          const _SectionHeader(title: 'Лимит упрощёнки (полугодие)'),
           const SizedBox(height: 12),
           Card(
             child: Padding(
@@ -85,7 +92,7 @@ class DashboardScreen extends ConsumerWidget {
 
           // Social payments
           const SizedBox(height: 24),
-          _SectionHeader(title: 'Соцплатежи "за себя"'),
+          const _SectionHeader(title: 'Соцплатежи "за себя"'),
           const SizedBox(height: 12),
           Card(
             child: Padding(
@@ -111,7 +118,7 @@ class DashboardScreen extends ConsumerWidget {
           ),
 
           const SizedBox(height: 24),
-          _SectionHeader(title: 'Ближайшие события'),
+          const _SectionHeader(title: 'Ближайшие события'),
           const SizedBox(height: 12),
           _EventCard(
             icon: Iconsax.calendar_tick,
@@ -140,7 +147,7 @@ class DashboardScreen extends ConsumerWidget {
           ],
 
           const SizedBox(height: 24),
-          _SectionHeader(title: 'Быстрые действия'),
+          const _SectionHeader(title: 'Быстрые действия'),
           const SizedBox(height: 12),
           Row(children: [
             Expanded(child: _QuickAction(icon: Iconsax.receipt_add, label: 'Новый счёт', onTap: () => context.go('/invoices'))),
@@ -291,5 +298,116 @@ class _QuickAction extends StatelessWidget {
             ]),
           ),
         ),
+      );
+}
+
+class _MonthlyChart extends StatelessWidget {
+  const _MonthlyChart({required this.data});
+  final List<MonthlyData> data;
+
+  @override
+  Widget build(BuildContext context) {
+    final maxVal = data.fold(0.0, (m, d) => [m, d.income, d.expense].reduce((a, b) => a > b ? a : b));
+    final fmt = NumberFormat.compact(locale: 'ru_RU');
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 16, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(children: [
+              _Legend(color: EsepColors.income, label: 'Доход'),
+              SizedBox(width: 16),
+              _Legend(color: EsepColors.expense, label: 'Расход'),
+            ]),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 160,
+              child: BarChart(
+                BarChartData(
+                  maxY: maxVal == 0 ? 100 : maxVal * 1.2,
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    getDrawingHorizontalLine: (_) => const FlLine(
+                      color: EsepColors.divider,
+                      strokeWidth: 1,
+                    ),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  titlesData: FlTitlesData(
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 40,
+                        getTitlesWidget: (v, _) => Text(
+                          fmt.format(v),
+                          style: const TextStyle(fontSize: 9, color: EsepColors.textDisabled),
+                        ),
+                      ),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (v, _) {
+                          final i = v.toInt();
+                          if (i < 0 || i >= data.length) return const SizedBox.shrink();
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              data[i].label,
+                              style: const TextStyle(fontSize: 10, color: EsepColors.textSecondary),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  barGroups: List.generate(data.length, (i) {
+                    final d = data[i];
+                    return BarChartGroupData(
+                      x: i,
+                      barRods: [
+                        BarChartRodData(
+                          toY: d.income,
+                          color: EsepColors.income,
+                          width: 8,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        ),
+                        BarChartRodData(
+                          toY: d.expense,
+                          color: EsepColors.expense,
+                          width: 8,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        ),
+                      ],
+                      barsSpace: 3,
+                    );
+                  }),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Legend extends StatelessWidget {
+  const _Legend({required this.color, required this.label});
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(fontSize: 11, color: EsepColors.textSecondary)),
+        ],
       );
 }

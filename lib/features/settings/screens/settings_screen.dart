@@ -144,7 +144,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
 
           // ── Данные компании ──────────────────────────────────────────────
-          _SectionHeader(title: 'Моя компания / ИП'),
+          const _SectionHeader(title: 'Моя компания / ИП'),
           const SizedBox(height: 8),
           Card(
             child: ListTile(
@@ -197,7 +197,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           // ── Уведомления ──────────────────────────────────────────────────
           const SizedBox(height: 20),
-          _SectionHeader(title: 'Уведомления'),
+          const _SectionHeader(title: 'Уведомления'),
           const SizedBox(height: 8),
           Card(
             child: Column(children: [
@@ -246,21 +246,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ]),
           ),
           const SizedBox(height: 8),
-          Card(
+          const Card(
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(12),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Когда приходят напоминания',
+                Text('Когда приходят напоминания',
                     style: TextStyle(fontSize: 12, color: EsepColors.textSecondary,
                         fontWeight: FontWeight.w600)),
-                const SizedBox(height: 10),
+                SizedBox(height: 10),
                 _ReminderScheduleRow(
                   icon: Iconsax.calendar_1,
                   color: EsepColors.warning,
                   title: 'Соцплатежи (ОПВ+СО+ВОСМС)',
                   subtitle: 'За 7 и 3 дня до 25-го числа',
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 _ReminderScheduleRow(
                   icon: Iconsax.document_text,
                   color: EsepColors.info,
@@ -274,7 +274,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // ── Дедлайны ─────────────────────────────────────────────────────
           if (reminders.isNotEmpty) ...[
             const SizedBox(height: 20),
-            _SectionHeader(title: 'Ближайшие дедлайны'),
+            const _SectionHeader(title: 'Ближайшие дедлайны'),
             const SizedBox(height: 8),
             ...reminders.map((r) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -319,14 +319,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           // ── О приложении ──────────────────────────────────────────────────
           const SizedBox(height: 20),
-          _SectionHeader(title: 'О приложении'),
+          const _SectionHeader(title: 'О приложении'),
           const SizedBox(height: 8),
-          Card(
+          const Card(
             child: Column(children: [
               _InfoTile(icon: Iconsax.info_circle, title: 'Версия', value: '1.0.0'),
-              const Divider(height: 1, indent: 56),
+              Divider(height: 1, indent: 56),
               _InfoTile(icon: Iconsax.shield_tick, title: 'Данные', value: 'Хранятся локально'),
-              const Divider(height: 1, indent: 56),
+              Divider(height: 1, indent: 56),
               _InfoTile(icon: Iconsax.flag, title: 'Налоговый кодекс', value: 'РК 2026'),
             ]),
           ),

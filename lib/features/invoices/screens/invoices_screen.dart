@@ -73,11 +73,41 @@ class InvoicesScreen extends ConsumerWidget {
                 const SizedBox(height: 20),
                 ...invoices.map((inv) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: GestureDetector(
-                        onTap: () => context.go('/invoices/${inv.id}'),
-                        child: _InvoiceTile(invoice: inv, fmt: fmt, onStatusChange: (status) {
-                          ref.read(invoiceProvider.notifier).updateStatus(inv.id, status);
-                        }),
+                      child: Dismissible(
+                        key: Key(inv.id),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20),
+                          decoration: BoxDecoration(
+                            color: EsepColors.expense.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Icon(Iconsax.trash, color: EsepColors.expense),
+                        ),
+                        confirmDismiss: (_) async {
+                          return await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Удалить счёт?'),
+                              content: Text('Счёт ${inv.number} для ${inv.clientName} будет удалён.'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Удалить', style: TextStyle(color: EsepColors.expense)),
+                                ),
+                              ],
+                            ),
+                          ) ?? false;
+                        },
+                        onDismissed: (_) => ref.read(invoiceProvider.notifier).remove(inv.id),
+                        child: GestureDetector(
+                          onTap: () => context.go('/invoices/${inv.id}'),
+                          child: _InvoiceTile(invoice: inv, fmt: fmt, onStatusChange: (status) {
+                            ref.read(invoiceProvider.notifier).updateStatus(inv.id, status);
+                          }),
+                        ),
                       ),
                     )),
               ],

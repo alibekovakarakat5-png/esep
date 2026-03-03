@@ -97,3 +97,36 @@ final monthIncomeProvider = Provider<double>((ref) {
       .where((t) => t.isIncome && t.date.isAfter(monthStart))
       .fold(0.0, (sum, t) => sum + t.amount);
 });
+
+/// Monthly income + expense for the last 6 months (oldest → newest)
+final monthlyChartProvider = Provider<List<MonthlyData>>((ref) {
+  final txs = ref.watch(transactionProvider);
+  final now = DateTime.now();
+  return List.generate(6, (i) {
+    final monthOffset = 5 - i;
+    var m = now.month - monthOffset;
+    var y = now.year;
+    while (m <= 0) { m += 12; y--; }
+    final start = DateTime(y, m, 1);
+    final end = DateTime(y, m + 1, 1);
+    double income = 0, expense = 0;
+    for (final t in txs) {
+      if (!t.date.isBefore(start) && t.date.isBefore(end)) {
+        if (t.isIncome) { income += t.amount; } else { expense += t.amount; }
+      }
+    }
+    return MonthlyData(income: income, expense: expense, label: _shortMonth(m));
+  });
+});
+
+class MonthlyData {
+  final double income;
+  final double expense;
+  final String label;
+  const MonthlyData({required this.income, required this.expense, required this.label});
+}
+
+String _shortMonth(int m) {
+  const names = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  return names[(m - 1) % 12];
+}
