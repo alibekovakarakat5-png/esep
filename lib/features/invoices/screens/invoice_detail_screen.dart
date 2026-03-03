@@ -9,6 +9,7 @@ import '../../../core/models/invoice.dart';
 import '../../../core/providers/invoice_provider.dart';
 import '../../../core/services/pdf_service.dart';
 import 'invoices_screen.dart'; // for InvoiceStatusExt
+import 'esf_preview_screen.dart';
 
 class InvoiceDetailScreen extends ConsumerWidget {
   const InvoiceDetailScreen({super.key, required this.invoiceId});
@@ -166,7 +167,17 @@ class InvoiceDetailScreen extends ConsumerWidget {
                 label: const Text('Статус'),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => EsfPreviewScreen(invoice: invoice)),
+                ),
+                icon: const Icon(Iconsax.document_code, size: 18),
+                label: const Text('ЭСФ'),
+              ),
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: () => _previewPdf(context, invoice),

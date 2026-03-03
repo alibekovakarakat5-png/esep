@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax/iconsax.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/notification_service.dart';
+import '../../../core/providers/company_provider.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool get _notificationsEnabled => NotificationService.isEnabled;
   bool get _notificationsSupported => NotificationService.isSupported;
   String get _permission => NotificationService.permissionStatus;
@@ -40,16 +42,161 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _showCompanyEditor() {
+    final company = ref.read(companyProvider);
+    final nameCtrl    = TextEditingController(text: company.name);
+    final iinCtrl     = TextEditingController(text: company.iin);
+    final addrCtrl    = TextEditingController(text: company.address ?? '');
+    final phoneCtrl   = TextEditingController(text: company.phone ?? '');
+    final emailCtrl   = TextEditingController(text: company.email ?? '');
+    final bankCtrl    = TextEditingController(text: company.bankName ?? '');
+    final iikCtrl     = TextEditingController(text: company.iik ?? '');
+    final bikCtrl     = TextEditingController(text: company.bik ?? '');
+    final kbeCtrl     = TextEditingController(text: company.kbe ?? '19');
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(16, 24, 16, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('Данные компании / ИП',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            const Text('Используются в ЭСФ и PDF-счетах',
+                style: TextStyle(fontSize: 12, color: EsepColors.textSecondary)),
+            const SizedBox(height: 20),
+            _field(nameCtrl,  'Название / ФИО ИП *', Iconsax.building),
+            const SizedBox(height: 10),
+            _field(iinCtrl,   'ИИН / БИН *', Iconsax.document,
+                type: TextInputType.number),
+            const SizedBox(height: 10),
+            _field(addrCtrl,  'Адрес', Iconsax.location),
+            const SizedBox(height: 10),
+            _field(phoneCtrl, 'Телефон', Iconsax.call,
+                type: TextInputType.phone),
+            const SizedBox(height: 10),
+            _field(emailCtrl, 'Email', Iconsax.sms,
+                type: TextInputType.emailAddress),
+            const Divider(height: 24),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Банковские реквизиты (для ЭСФ)',
+                  style: TextStyle(fontSize: 12, color: EsepColors.textSecondary,
+                      fontWeight: FontWeight.w600)),
+            ),
+            const SizedBox(height: 10),
+            _field(bankCtrl, 'Банк (напр. Kaspi Bank)', Iconsax.bank),
+            const SizedBox(height: 10),
+            _field(iikCtrl,  'ИИК (IBAN)', Iconsax.card),
+            const SizedBox(height: 10),
+            _field(bikCtrl,  'БИК', Iconsax.code),
+            const SizedBox(height: 10),
+            _field(kbeCtrl,  'КБе (обычно 19 для ИП)', Iconsax.tag,
+                type: TextInputType.number),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () async {
+                await ref.read(companyProvider.notifier).save(
+                  name:     nameCtrl.text.trim(),
+                  iin:      iinCtrl.text.trim(),
+                  address:  addrCtrl.text.trim().isEmpty ? null : addrCtrl.text.trim(),
+                  phone:    phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
+                  email:    emailCtrl.text.trim().isEmpty ? null : emailCtrl.text.trim(),
+                  bankName: bankCtrl.text.trim().isEmpty ? null : bankCtrl.text.trim(),
+                  iik:      iikCtrl.text.trim().isEmpty ? null : iikCtrl.text.trim(),
+                  bik:      bikCtrl.text.trim().isEmpty ? null : bikCtrl.text.trim(),
+                  kbe:      kbeCtrl.text.trim().isEmpty ? null : kbeCtrl.text.trim(),
+                );
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text('Сохранить'),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _field(TextEditingController ctrl, String label, IconData icon,
+      {TextInputType? type}) =>
+      TextField(
+        controller: ctrl,
+        keyboardType: type,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, size: 18),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final reminders = NotificationService.getUpcomingReminders();
+    final company = ref.watch(companyProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Настройки')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Уведомления
+
+          // ── Данные компании ──────────────────────────────────────────────
+          _SectionHeader(title: 'Моя компания / ИП'),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              leading: Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(
+                  color: EsepColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Iconsax.building, color: EsepColors.primary, size: 20),
+              ),
+              title: Text(
+                company.name.isEmpty ? 'Не заполнено' : company.name,
+                style: TextStyle(
+                  fontSize: 14, fontWeight: FontWeight.w500,
+                  color: company.name.isEmpty ? EsepColors.textDisabled : EsepColors.textPrimary,
+                ),
+              ),
+              subtitle: Text(
+                company.iin.isEmpty
+                    ? 'Нажмите чтобы заполнить данные для ЭСФ'
+                    : 'ИИН/БИН: ${company.iin}${company.iik != null ? ' · ИИК: ${company.iik}' : ''}',
+                style: const TextStyle(fontSize: 12, color: EsepColors.textSecondary),
+              ),
+              trailing: const Icon(Icons.chevron_right, color: EsepColors.textSecondary),
+              onTap: _showCompanyEditor,
+            ),
+          ),
+          if (!company.isComplete) ...[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: EsepColors.warning.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(children: [
+                Icon(Iconsax.warning_2, color: EsepColors.warning, size: 14),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Заполните данные компании для генерации ЭСФ',
+                    style: TextStyle(fontSize: 11, color: EsepColors.warning),
+                  ),
+                ),
+              ]),
+            ),
+          ],
+
+          // ── Уведомления ──────────────────────────────────────────────────
+          const SizedBox(height: 20),
           _SectionHeader(title: 'Уведомления'),
           const SizedBox(height: 8),
           Card(
@@ -72,9 +219,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _notificationsSupported
                       ? (_permission == 'denied'
                           ? 'Заблокировано в браузере'
-                          : _notificationsEnabled
-                              ? 'Включены'
-                              : 'Выключены')
+                          : _notificationsEnabled ? 'Включены' : 'Выключены')
                       : 'Не поддерживается в этом браузере',
                   style: const TextStyle(fontSize: 12, color: EsepColors.textSecondary),
                 ),
@@ -100,15 +245,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ]),
           ),
-
-          // Расписание напоминаний
           const SizedBox(height: 8),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 const Text('Когда приходят напоминания',
-                    style: TextStyle(fontSize: 12, color: EsepColors.textSecondary, fontWeight: FontWeight.w600)),
+                    style: TextStyle(fontSize: 12, color: EsepColors.textSecondary,
+                        fontWeight: FontWeight.w600)),
                 const SizedBox(height: 10),
                 _ReminderScheduleRow(
                   icon: Iconsax.calendar_1,
@@ -127,7 +271,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
 
-          // Активные дедлайны
+          // ── Дедлайны ─────────────────────────────────────────────────────
           if (reminders.isNotEmpty) ...[
             const SizedBox(height: 20),
             _SectionHeader(title: 'Ближайшие дедлайны'),
@@ -139,37 +283,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   leading: Container(
                     width: 36, height: 36,
                     decoration: BoxDecoration(
-                      color: (r.daysLeft <= 3 ? EsepColors.expense : EsepColors.warning).withValues(alpha: 0.1),
+                      color: (r.daysLeft <= 3 ? EsepColors.expense : EsepColors.warning)
+                          .withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
-                      r.type == DeadlineType.form910 ? Iconsax.document_text : Iconsax.money_send,
+                      r.type == DeadlineType.form910
+                          ? Iconsax.document_text
+                          : Iconsax.money_send,
                       color: r.daysLeft <= 3 ? EsepColors.expense : EsepColors.warning,
                       size: 18,
                     ),
                   ),
-                  title: Text(r.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                  subtitle: Text(r.body, style: const TextStyle(fontSize: 12, color: EsepColors.textSecondary)),
+                  title: Text(r.title,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                  subtitle: Text(r.body,
+                      style: const TextStyle(fontSize: 12, color: EsepColors.textSecondary)),
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: (r.daysLeft <= 3 ? EsepColors.expense : EsepColors.warning).withValues(alpha: 0.1),
+                      color: (r.daysLeft <= 3 ? EsepColors.expense : EsepColors.warning)
+                          .withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Text(
-                      '${r.daysLeft} дн',
-                      style: TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w700,
-                        color: r.daysLeft <= 3 ? EsepColors.expense : EsepColors.warning,
-                      ),
-                    ),
+                    child: Text('${r.daysLeft} дн',
+                        style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w700,
+                          color: r.daysLeft <= 3 ? EsepColors.expense : EsepColors.warning,
+                        )),
                   ),
                 ),
               ),
             )),
           ],
 
-          // О приложении
+          // ── О приложении ──────────────────────────────────────────────────
           const SizedBox(height: 20),
           _SectionHeader(title: 'О приложении'),
           const SizedBox(height: 8),
@@ -182,7 +330,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _InfoTile(icon: Iconsax.flag, title: 'Налоговый кодекс', value: 'РК 2026'),
             ]),
           ),
-
           const SizedBox(height: 32),
         ],
       ),
@@ -197,16 +344,15 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     title,
-    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: EsepColors.textPrimary),
+    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600,
+        color: EsepColors.textPrimary),
   );
 }
 
 class _ReminderScheduleRow extends StatelessWidget {
   const _ReminderScheduleRow({
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.subtitle,
+    required this.icon, required this.color,
+    required this.title, required this.subtitle,
   });
   final IconData icon;
   final Color color;
@@ -216,7 +362,9 @@ class _ReminderScheduleRow extends StatelessWidget {
   Widget build(BuildContext context) => Row(children: [
     Container(
       width: 28, height: 28,
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+      decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(6)),
       child: Icon(icon, color: color, size: 14),
     ),
     const SizedBox(width: 10),
@@ -237,6 +385,7 @@ class _InfoTile extends StatelessWidget {
     dense: true,
     leading: Icon(icon, size: 18, color: EsepColors.textSecondary),
     title: Text(title, style: const TextStyle(fontSize: 13)),
-    trailing: Text(value, style: const TextStyle(fontSize: 13, color: EsepColors.textSecondary)),
+    trailing: Text(value,
+        style: const TextStyle(fontSize: 13, color: EsepColors.textSecondary)),
   );
 }
