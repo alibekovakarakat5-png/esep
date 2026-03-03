@@ -32,7 +32,11 @@ class DashboardScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Есеп'),
         actions: [
-          IconButton(icon: const Icon(Iconsax.notification), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Iconsax.notification),
+            tooltip: 'Настройки',
+            onPressed: () => context.go('/settings'),
+          ),
           const SizedBox(width: 8),
         ],
       ),

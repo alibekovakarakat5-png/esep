@@ -1,13 +1,15 @@
 {
-    "name": "esep",
-    "short_name": "esep",
-    "start_url": ".",
+    "name": "Есеп — Учёт для ИП",
+    "short_name": "Есеп",
+    "description": "Учёт доходов, расходов и налогов для ИП Казахстана",
+    "start_url": "/",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F8F9FA",
+    "theme_color": "#0099CC",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
+    "categories": ["finance", "business", "productivity"],
+    "lang": "ru",
     "icons": [
         {
             "src": "icons/Icon-192.png",
@@ -30,6 +32,20 @@
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "maskable"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Добавить доход",
+            "short_name": "Доход",
+            "url": "/transactions",
+            "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
+        },
+        {
+            "name": "Счета",
+            "short_name": "Счета",
+            "url": "/invoices",
+            "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
         }
     ]
 }

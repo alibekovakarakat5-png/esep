@@ -4,11 +4,15 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'app.dart';
 import 'core/services/hive_service.dart';
+import 'core/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ru_RU', null);
   await HiveService.init();
+
+  // Проверяем дедлайны и показываем уведомления (если разрешены)
+  NotificationService.checkDeadlines();
 
   runApp(
     const ProviderScope(

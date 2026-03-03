@@ -1,46 +1,75 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Есеп — учёт доходов, расходов и налогов для ИП Казахстана">
+  <meta name="theme-color" content="#0099CC">
 
-  <!-- iOS meta tags & icons -->
+  <!-- iOS PWA -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="esep">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Есеп">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>esep</title>
+  <title>Есеп — Учёт для ИП</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    body { margin: 0; background-color: #F8F9FA; }
+    #splash {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 12px; min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    #splash-icon {
+      width: 72px; height: 72px; background: #0099CC;
+      border-radius: 18px; display: flex; align-items: center;
+      justify-content: center; font-size: 36px;
+    }
+    #splash-title { font-size: 22px; font-weight: 700; color: #1A1D23; }
+    #splash-sub   { font-size: 13px; color: #6B7280; margin-top: -4px; }
+    #splash-ring  {
+      width: 28px; height: 28px; margin-top: 8px;
+      border: 3px solid #E8ECEF; border-top-color: #0099CC;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <div id="splash">
+    <div id="splash-icon">💼</div>
+    <div id="splash-title">Есеп</div>
+    <div id="splash-sub">Учёт для ИП Казахстана</div>
+    <div id="splash-ring"></div>
+  </div>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var s = document.getElementById('splash');
+      if (s) {
+        s.style.transition = 'opacity 0.3s';
+        s.style.opacity = '0';
+        setTimeout(function () { s.remove(); }, 300);
+      }
+    });
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/esep-sw.js', { scope: '/' })
+          .then(function (r) { console.log('[Есеп SW] scope:', r.scope); })
+          .catch(function (e) { console.warn('[Есеп SW] failed:', e); });
+      });
+    }
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
