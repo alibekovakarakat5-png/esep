@@ -42,6 +42,10 @@ dependencies:
   # Web APIs (Notification API)
   web: ^1.1.1
 
+  # Backend API
+  http: ^1.2.0
+  shared_preferences: ^2.3.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

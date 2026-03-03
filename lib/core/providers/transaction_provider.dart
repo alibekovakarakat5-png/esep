@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/transaction.dart';
-import '../services/hive_service.dart';
+import '../services/api_client.dart';
+import 'auth_provider.dart';
 
 const _uuid = Uuid();
 
@@ -10,10 +11,19 @@ class TransactionNotifier extends StateNotifier<List<Transaction>> {
     _load();
   }
 
-  void _load() {
-    state = HiveService.transactions.values.toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
+  Future<void> _load() async {
+    try {
+      final data = await ApiClient.get('/transactions') as List<dynamic>;
+      state = data
+          .map((e) => Transaction.fromJson(e as Map<String, dynamic>))
+          .toList()
+        ..sort((a, b) => b.date.compareTo(a.date));
+    } catch (_) {
+      state = [];
+    }
   }
+
+  Future<void> reload() => _load();
 
   Future<void> add({
     required String title,
@@ -36,23 +46,25 @@ class TransactionNotifier extends StateNotifier<List<Transaction>> {
       note: note,
       category: category,
     );
-    await HiveService.transactions.put(tx.id, tx);
-    _load();
+    await ApiClient.post('/transactions', tx.toJson());
+    await _load();
   }
 
   Future<void> remove(String id) async {
-    await HiveService.transactions.delete(id);
-    _load();
+    await ApiClient.delete('/transactions/$id');
+    await _load();
   }
 
   Future<void> update(Transaction tx) async {
-    await HiveService.transactions.put(tx.id, tx);
-    _load();
+    await ApiClient.put('/transactions/${tx.id}', tx.toJson());
+    await _load();
   }
 }
 
 final transactionProvider =
     StateNotifierProvider<TransactionNotifier, List<Transaction>>((ref) {
+  // Reload when auth changes
+  ref.watch(authProvider);
   return TransactionNotifier();
 });
 

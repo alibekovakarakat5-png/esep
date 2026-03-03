@@ -97,8 +97,6 @@ class InvoiceDetailScreen extends ConsumerWidget {
                   _InfoRow(label: 'Дата создания', value: dateFmt.format(invoice.createdAt)),
                   if (invoice.dueDate != null)
                     _InfoRow(label: 'Оплатить до', value: dateFmt.format(invoice.dueDate!)),
-                  if (invoice.paidAt != null)
-                    _InfoRow(label: 'Оплачен', value: dateFmt.format(invoice.paidAt!)),
                 ],
               ),
             ),
@@ -144,14 +142,14 @@ class InvoiceDetailScreen extends ConsumerWidget {
           const SizedBox(height: 16),
 
           // Note
-          if (invoice.note != null && invoice.note!.isNotEmpty) ...[
+          if (invoice.notes != null && invoice.notes!.isNotEmpty) ...[
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   const Text('Примечание', style: TextStyle(fontSize: 13, color: EsepColors.textSecondary, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
-                  Text(invoice.note!, style: const TextStyle(fontSize: 14)),
+                  Text(invoice.notes!, style: const TextStyle(fontSize: 14)),
                 ]),
               ),
             ),

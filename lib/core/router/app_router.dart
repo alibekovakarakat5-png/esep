@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -10,11 +11,38 @@ import '../../features/taxes/screens/taxes_screen.dart';
 import '../../features/clients/screens/clients_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
+import '../providers/auth_provider.dart';
+
+// Bridge between Riverpod and GoRouter's refreshListenable
+class _AuthListenable extends ChangeNotifier {
+  _AuthListenable(Ref ref) {
+    ref.listen<AuthState>(authProvider, (_, __) => notifyListeners());
+  }
+}
+
+final _authListenableProvider =
+    ChangeNotifierProvider((ref) => _AuthListenable(ref));
 
 final appRouterProvider = Provider<GoRouter>((ref) {
+  final listenable = ref.watch(_authListenableProvider);
+
   return GoRouter(
     initialLocation: '/dashboard',
-    // TODO: redirect to /auth if not logged in
+    refreshListenable: listenable,
+    redirect: (context, state) {
+      final authState = ref.read(authProvider);
+      final goingToAuth = state.matchedLocation == '/auth';
+
+      if (authState == AuthState.loading) return null;
+
+      if (authState == AuthState.unauthenticated && !goingToAuth) {
+        return '/auth';
+      }
+      if (authState == AuthState.authenticated && goingToAuth) {
+        return '/dashboard';
+      }
+      return null;
+    },
     routes: [
       GoRoute(
         path: '/auth',

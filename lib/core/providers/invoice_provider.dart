@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/invoice.dart';
-import '../services/hive_service.dart';
+import '../services/api_client.dart';
+import 'auth_provider.dart';
 
 const _uuid = Uuid();
 
@@ -10,9 +11,16 @@ class InvoiceNotifier extends StateNotifier<List<Invoice>> {
     _load();
   }
 
-  void _load() {
-    state = HiveService.invoices.values.toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  Future<void> _load() async {
+    try {
+      final data = await ApiClient.get('/invoices') as List<dynamic>;
+      state = data
+          .map((e) => Invoice.fromJson(e as Map<String, dynamic>))
+          .toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    } catch (_) {
+      state = [];
+    }
   }
 
   String _nextNumber() {
@@ -22,45 +30,52 @@ class InvoiceNotifier extends StateNotifier<List<Invoice>> {
   }
 
   Future<void> add({
-    required String clientId,
+    String? clientId,
     required String clientName,
     required List<InvoiceItem> items,
     DateTime? dueDate,
-    String? note,
+    String? notes,
   }) async {
+    final id = _uuid.v4();
     final invoice = Invoice(
-      id: _uuid.v4(),
+      id: id,
       number: _nextNumber(),
       clientId: clientId,
       clientName: clientName,
-      items: items,
+      items: items
+          .map((item) => item.id.isEmpty
+              ? InvoiceItem(
+                  id: _uuid.v4(),
+                  description: item.description,
+                  quantity: item.quantity,
+                  unitPrice: item.unitPrice,
+                )
+              : item)
+          .toList(),
       status: InvoiceStatus.draft,
       createdAt: DateTime.now(),
       dueDate: dueDate,
-      note: note,
+      notes: notes,
     );
-    await HiveService.invoices.put(invoice.id, invoice);
-    _load();
+    await ApiClient.post('/invoices', invoice.toJson());
+    await _load();
   }
 
   Future<void> updateStatus(String id, InvoiceStatus status) async {
-    final invoice = HiveService.invoices.get(id);
-    if (invoice != null) {
-      invoice.status = status;
-      if (status == InvoiceStatus.paid) invoice.paidAt = DateTime.now();
-      await invoice.save();
-      _load();
-    }
+    await ApiClient.put('/invoices/$id', {'status': status.name});
+    await _load();
   }
 
   Future<void> remove(String id) async {
-    await HiveService.invoices.delete(id);
-    _load();
+    await ApiClient.delete('/invoices/$id');
+    await _load();
   }
 }
 
 final invoiceProvider =
     StateNotifierProvider<InvoiceNotifier, List<Invoice>>((ref) {
+  // Reload when auth changes
+  ref.watch(authProvider);
   return InvoiceNotifier();
 });
 

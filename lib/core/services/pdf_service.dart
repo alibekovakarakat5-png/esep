@@ -65,14 +65,14 @@ class PdfService {
             pw.SizedBox(height: 24),
 
             // Note
-            if (invoice.note != null && invoice.note!.isNotEmpty) ...[
+            if (invoice.notes != null && invoice.notes!.isNotEmpty) ...[
               pw.Text('Примечание:',
                   style: pw.TextStyle(
                       fontSize: 10,
                       color: _grey,
                       fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 4),
-              pw.Text(invoice.note!,
+              pw.Text(invoice.notes!,
                   style: const pw.TextStyle(fontSize: 10, color: _dark)),
               pw.SizedBox(height: 24),
             ],

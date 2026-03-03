@@ -160,7 +160,7 @@ class InvoicesScreen extends ConsumerWidget {
               ref.read(invoiceProvider.notifier).add(
                     clientId: '',
                     clientName: clientNameCtrl.text.trim(),
-                    items: [InvoiceItem(description: descCtrl.text.trim(), quantity: 1, unitPrice: amount)],
+                    items: [InvoiceItem(id: '', description: descCtrl.text.trim(), quantity: 1, unitPrice: amount)],
                   );
               Navigator.pop(ctx);
             },
