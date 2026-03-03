@@ -4,6 +4,7 @@ import 'package:iconsax/iconsax.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/providers/company_provider.dart';
+import '../../../core/providers/auth_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -325,10 +326,46 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(children: [
               _InfoTile(icon: Iconsax.info_circle, title: 'Версия', value: '1.0.0'),
               Divider(height: 1, indent: 56),
-              _InfoTile(icon: Iconsax.shield_tick, title: 'Данные', value: 'Хранятся локально'),
+              _InfoTile(icon: Iconsax.shield_tick, title: 'Данные', value: 'Хранятся на сервере'),
               Divider(height: 1, indent: 56),
               _InfoTile(icon: Iconsax.flag, title: 'Налоговый кодекс', value: 'РК 2026'),
             ]),
+          ),
+
+          // ── Выход ─────────────────────────────────────────────────────────
+          const SizedBox(height: 20),
+          Card(
+            child: ListTile(
+              leading: Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(
+                  color: EsepColors.expense.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Iconsax.logout, color: EsepColors.expense, size: 18),
+              ),
+              title: const Text('Выйти из аккаунта',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: EsepColors.expense)),
+              onTap: () async {
+                final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Выйти?'),
+                    content: const Text('Вы будете перенаправлены на экран входа.'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Выйти', style: TextStyle(color: EsepColors.expense)),
+                      ),
+                    ],
+                  ),
+                );
+                if (ok == true && mounted) {
+                  await ref.read(authProvider.notifier).logout();
+                }
+              },
+            ),
           ),
           const SizedBox(height: 32),
         ],
