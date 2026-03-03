@@ -46,66 +46,11 @@
 - **Flutter Web** — кроссплатформенный UI (Material 3)
 - **Riverpod** — управление состоянием
 - **GoRouter** — навигация
-- **Hive** — локальное хранилище (offline-first)
 - **fl_chart** — графики и диаграммы
 - **pdf / printing** — генерация PDF-счетов
 - **PostgreSQL 16** — база данных
 - **Nginx** — раздача статики + reverse proxy
 - **Docker Compose** — контейнеризация
-
----
-
-## Быстрый старт
-
-### Требования
-
-- [Flutter SDK](https://docs.flutter.dev/get-started/install) >= 3.3.0
-- [Docker](https://docs.docker.com/get-docker/) (для БД)
-- Chrome (для web-отладки)
-
-### 1. Клонировать репозиторий
-
-```bash
-git clone https://github.com/alibekovakarakat5-png/esep.git
-cd esep
-```
-
-### 2. Установить зависимости
-
-```bash
-flutter pub get
-```
-
-### 3. Поднять PostgreSQL
-
-```bash
-docker compose -f docker-compose.dev.yml up -d
-```
-
-> БД будет доступна на `localhost:5433` (параметры подключения см. в `docker-compose.dev.yml`)
-
-### 4. Запустить приложение
-
-```bash
-flutter run -d chrome
-```
-
-Приложение откроется в браузере.
-
----
-
-## Docker (production)
-
-Полный стек: PostgreSQL + Backend + Flutter Web (Nginx)
-
-```bash
-cp .env.example .env
-# отредактировать .env — задать DB_PASSWORD и JWT_SECRET
-
-docker compose up -d --build
-```
-
-Приложение будет доступно на `http://localhost`.
 
 ---
 
@@ -154,18 +99,6 @@ cp .env.example .env
 ## Скриншоты
 
 > *Скриншоты будут добавлены после финализации дизайна*
-
----
-
-## Roadmap
-
-- [ ] Подключение реального backend (Node.js/Express)
-- [ ] Авторизация с JWT
-- [ ] Импорт выписок Kaspi / Halyk
-- [ ] Генерация PDF-счетов
-- [ ] Уведомления о дедлайнах
-- [ ] Мобильная версия (Android / iOS)
-- [ ] Интеграция с eSalyk Azamat
 
 ---
 
