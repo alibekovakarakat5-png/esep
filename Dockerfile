@@ -6,7 +6,7 @@ COPY pubspec.* ./
 RUN flutter pub get --no-example
 
 COPY . .
-RUN flutter build web --release --dart-define=FLUTTER_WEB_USE_SKIA=true
+RUN flutter build web --release --no-tree-shake-icons
 
 # ── Stage 2: Serve with Nginx ─────────────────────────────────────────────────
 FROM nginx:1.27-alpine AS runner
