@@ -89,6 +89,8 @@ app.use((err, _req, res, _next) => {
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────
-migrate()
-  .then(() => app.listen(PORT, () => console.log(`✅  Есеп API → http://localhost:${PORT}`)))
-  .catch(err => { console.error('Migration failed:', err); process.exit(1); });
+app.listen(PORT, () => {
+  console.log(`✅  Есеп API → http://localhost:${PORT}`);
+  console.log(`DATABASE_URL set: ${!!process.env.DATABASE_URL}`);
+  migrate().catch(err => console.error('Migration failed (non-fatal):', err.message));
+});
