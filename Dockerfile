@@ -6,6 +6,7 @@ COPY pubspec.* ./
 RUN flutter pub get --no-example
 
 COPY . .
+ARG CACHEBUST=1
 RUN flutter build web --release --no-tree-shake-icons
 
 # ── Stage 2: Serve with Nginx ─────────────────────────────────────────────────
