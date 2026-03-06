@@ -6,6 +6,6 @@ String detectApiBase() {
   if (hostname == 'localhost' || hostname == '127.0.0.1') {
     return 'http://localhost:3001/api';
   }
-  // Prod: nginx proxies /api/ to backend on same origin
-  return '${web.window.location.origin}/api';
+  // Prod: Railway backend
+  return 'https://esep-production.up.railway.app/api';
 }
