@@ -180,29 +180,30 @@ EmployeeSocialCalc calcEmployeeSocial(Employee emp) {
   final mrp = KzTax.currentMrp;
   final mzp = KzTax.currentMzp;
 
-  // ОПВ: 10% от зарплаты, max база = 50 МЗП
+  // ОПВ: 10% от зарплаты, max база = 50 МЗП (ст. 25 Закона о пенсионном обеспечении)
   final opvBase = salary.clamp(0, mzp * 50);
-  final opv = opvBase * 0.10;
+  final opv = opvBase * KzTax.employeeOpvRate;
 
-  // ВОСМС (сотрудника): 1% от зарплаты, max база = 10 МЗП
-  final vosmsBase = salary.clamp(0, mzp * 10);
-  final vosmsSelf = vosmsBase * 0.01;
+  // ВОСМС (сотрудника): 2%, max база = 20 МЗП (ст. 28 Закона о ОСМС, ред. 2026)
+  final vosmsSelfBase = salary.clamp(0, KzTax.employeeVosmsMaxBase);
+  final vosmsSelf = vosmsSelfBase * KzTax.employeeVosmsRate;
 
-  // ИПН: 10% от (зарплата - ОПВ - 14МРП стандартный вычет)
+  // ИПН: 10% от (зарплата - ОПВ - 14 МРП стандартный вычет) (ст. 353 НК РК)
   final standardDeduction = mrp * 14;
   final ipnBase = (salary - opv - standardDeduction).clamp(0, double.infinity);
   final ipn = ipnBase * 0.10;
 
-  // ОПВР (работодатель): 1.5% от зарплаты
+  // ОПВР (работодатель): 3.5% (2026), max база = 50 МЗП (ст. 26-1 Закона о пенсионном обеспечении)
   final opvrBase = salary.clamp(0, mzp * 50);
-  final opvr = opvrBase * 0.015;
+  final opvr = opvrBase * KzTax.employerOpvrRate;
 
-  // СО (работодатель): 5% от (зарплата - ОПВ), min база = МЗП, max = 7 МЗП
+  // СО (работодатель): 5% от (зарплата - ОПВ), min МЗП, max 7 МЗП (ст. 15 Закона о СО)
   final soBase = (salary - opv).clamp(mzp, mzp * 7);
-  final so = soBase * 0.05;
+  final so = soBase * KzTax.employerSoRate;
 
-  // ВОСМС (работодатель): 2% от зарплаты, max база = 10 МЗП
-  final vosms = vosmsBase * 0.02;
+  // ООСМС (работодатель): 3%, max база = 40 МЗП (ст. 27 Закона о ОСМС, ред. 2026)
+  final vosmsBase = salary.clamp(0, KzTax.employerVosmsMaxBase);
+  final vosms = vosmsBase * KzTax.employerVosmsRate;
 
   return EmployeeSocialCalc(
     employee: emp,

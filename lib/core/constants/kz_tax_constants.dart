@@ -1,13 +1,16 @@
 /// Константы налогового законодательства Казахстана
-/// Обновлено под Налоговый кодекс 2026 года
+/// Источник: НК РК 2026, Закон о бюджете № 239-VIII от 08.12.2025,
+///           Закон о ОСМС, Закон о пенсионном обеспечении, Закон о СО
+/// Обновлено: март 2026
 library kz_tax_constants;
 
 class KzTax {
   KzTax._();
 
   // ─── МРП (Месячный расчётный показатель) ─────────────────────────────────
+  // Закон РК «О республиканском бюджете на 2026–2028 годы» № 239-VIII от 08.12.2025
   static const double mrp2025 = 3932.0;
-  static const double mrp2026 = 4205.0;
+  static const double mrp2026 = 4325.0; // ↑ с 3 932 в 2025
   static double get currentMrp => mrp2026;
 
   // ─── МЗП (Минимальная заработная плата) ──────────────────────────────────
@@ -16,52 +19,55 @@ class KzTax {
   static double get currentMzp => mzp2026;
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // УПРОЩЁННАЯ ДЕКЛАРАЦИЯ (Форма 910) — с 2026: ставка 4%
+  // УПРОЩЁННАЯ ДЕКЛАРАЦИЯ (Форма 910) — ст. 683 НК РК
+  // Ставка: 3% от дохода (1.5% ИПН + 1.5% СН)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Максимальный доход за полугодие (24 038 МРП)
+  /// Максимальный доход за полугодие: 24 038 МРП (ст. 683 п.2 НК РК)
   static double get simplified910HalfYearLimit => currentMrp * 24038;
 
   /// Максимальный доход за год
   static double get simplified910YearLimit => simplified910HalfYearLimit * 2;
 
-  /// Макс. кол-во сотрудников
+  /// Макс. кол-во сотрудников (ст. 683 п.2 НК РК)
   static const int simplified910MaxEmployees = 30;
 
-  /// ИПН: 2% от дохода (было 1.5%, стало 2% с 2026)
-  static const double ipnRate = 0.02;
+  /// ИПН: 1.5% от дохода (ст. 683 п.1 НК РК)
+  static const double ipnRate = 0.015;
 
-  /// СН: 2% от дохода (было 1.5%, стало 2% с 2026)
-  static const double snRate = 0.02;
+  /// СН: 1.5% от дохода (ст. 683 п.1 НК РК)
+  static const double snRate = 0.015;
 
-  /// Суммарная ставка 910: 4% (было 3%)
+  /// Суммарная ставка 910: 3%
   static const double simplified910TotalRate = ipnRate + snRate;
 
-  /// Региональные корректировки (±50% в зависимости от региона)
-  /// Многие регионы дают скидку 2-3%
+  /// Региональные корректировки (ст. 686 НК РК)
   static const double regionalDiscountMin = 0.0;
   static const double regionalDiscountMax = 0.02;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ЕЖЕМЕСЯЧНЫЕ СОЦПЛАТЕЖИ "ЗА СЕБЯ" (ИП без сотрудников)
+  // База расчёта: 1 МЗП (если иное не оговорено)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// ОПВ: 10% от 1 МЗП — обязательные пенсионные взносы
+  /// ОПВ: 10% от 1 МЗП — ст. 25 Закона о пенсионном обеспечении
   static const double opvRate = 0.10;
   static double get opvMonthly => currentMzp * opvRate;
-  static double get opvMaxBase => currentMzp * 50; // макс. база для сотрудников
+  static double get opvMaxBase => currentMzp * 50;
 
-  /// ОПВР: 3.5% от 1 МЗП — обязательные пенсионные взносы работодателя
+  /// ОПВР: 3.5% от 1 МЗП (2026) — постепенный рост: 1.5% (2024) → 2.5% (2025) → 3.5% (2026) → 5% (2027)
   /// Не применяется для родившихся до 1975 года
+  /// Ст. 26-1 Закона о пенсионном обеспечении
   static const double opvrRate = 0.035;
   static double get opvrMonthly => currentMzp * opvrRate;
 
-  /// СО: 5% от 1 МЗП — социальные отчисления (было 3.5%, стало 5% с 2026)
+  /// СО: 5% от 1 МЗП — ст. 15 Закона о социальном страховании
   static const double soRate = 0.05;
   static double get soMonthly => currentMzp * soRate;
   static double get soMaxBase => currentMzp * 7;
 
-  /// ВОСМС: 5% от 1.4 МЗП — взносы на обязательное медстрахование
+  /// ВОСМС "за себя": 5% от 1.4 МЗП — ст. 28 Закона о ОСМС
+  /// (объединяет долю работника 2% + работодателя 3% = 5% от фиксированной базы 1.4 МЗП)
   static const double vosmsRate = 0.05;
   static const double vosmsBaseMultiplier = 1.4;
   static double get vosmsMonthly => currentMzp * vosmsBaseMultiplier * vosmsRate;
@@ -75,7 +81,29 @@ class KzTax {
       opvMonthly + soMonthly + vosmsMonthly;
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ЕСП (Единый совокупный платёж)
+  // СОЦПЛАТЕЖИ ЗА СОТРУДНИКОВ (работодатель начисляет и удерживает)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// ОПВ (с сотрудника): 10%, база 1–50 МЗП
+  static const double employeeOpvRate = 0.10;
+
+  /// ВОСМС (с сотрудника): 2%, база до 20 МЗП — ст. 28 Закона о ОСМС
+  static const double employeeVosmsRate = 0.02;
+  static double get employeeVosmsMaxBase => currentMzp * 20;
+
+  /// ОПВР (работодатель): 3.5% (2026), база 1–50 МЗП
+  /// Постепенный рост: 1.5%(2024) → 2.5%(2025) → 3.5%(2026) → 5%(2027)
+  static const double employerOpvrRate = 0.035;
+
+  /// СО (работодатель): 5%, база МЗП–7МЗП (от разницы зарплата - ОПВ)
+  static const double employerSoRate = 0.05;
+
+  /// ООСМС (работодатель): 3%, база до 40 МЗП — ст. 27 Закона о ОСМС
+  static const double employerVosmsRate = 0.03;
+  static double get employerVosmsMaxBase => currentMzp * 40;
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ЕСП (Единый совокупный платёж) — ст. 775-779 НК РК
   // ═══════════════════════════════════════════════════════════════════════════
 
   /// Лимит дохода: 1 175 МРП в год
@@ -88,56 +116,56 @@ class KzTax {
   static double get espMonthlyRural => currentMrp * 0.5;
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // САМОЗАНЯТЫЕ (заменил Патент с 2026 года)
+  // РЕЖИМ САМОЗАНЯТЫХ (заменил Патент с 2026) — ст. 774-1 НК РК
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Ставка: 4% от дохода (замена патента 1%)
+  /// Ставка: 4% от дохода
   static const double selfEmployedRate = 0.04;
 
   /// Лимит дохода: 3 528 МРП в год
   static double get selfEmployedYearLimit => currentMrp * 3528;
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // НДС
+  // НДС — ст. 367-368 НК РК
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Порог обязательной регистрации по НДС: 20 000 МРП за 12 мес
+  /// Порог обязательной постановки на учёт по НДС: 20 000 МРП за 12 мес
   static double get vatRegistrationThreshold => currentMrp * 20000;
 
-  /// Стандартная ставка НДС
+  /// Стандартная ставка НДС: 12%
   static const double vatRate = 0.12;
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ОУР (Общеустановленный режим)
+  // ОУР (Общеустановленный режим) — ст. 317 НК РК
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// ИПН для ОУР: 10% от чистого дохода
+  /// ИПН: 10% от чистого дохода
   static const double generalIpnRate = 0.10;
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ДЕДЛАЙНЫ (Форма 910)
+  // ДЕДЛАЙНЫ — НК РК и Закон о социальном страховании
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Сроки подачи и оплаты
-  static const String deadline910H1Submit = '15 августа';
-  static const String deadline910H1Pay = '25 августа';
-  static const String deadline910H2Submit = '15 февраля';
-  static const String deadline910H2Pay = '25 февраля';
+  /// Форма 910 — подача и оплата (ст. 688 НК РК)
+  static const String deadline910H1Submit = '15 августа';    // за 1-е полугодие
+  static const String deadline910H1Pay    = '25 августа';
+  static const String deadline910H2Submit = '15 февраля';    // за 2-е полугодие
+  static const String deadline910H2Pay    = '25 февраля';
 
-  /// Ежемесячные соцплатежи: до 25 числа следующего месяца
+  /// Соцплатежи: до 25 числа следующего месяца
   static const int socialPaymentDeadlineDay = 25;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // РАСЧЁТЫ
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Рассчитать налоги по упрощёнке (910) за полугодие
+  /// Рассчитать налоги по упрощёнке (910) за полугодие (ст. 683 НК РК)
   static TaxCalculation910 calculate910(double income, {double regionalDiscount = 0.0}) {
     final effectiveIpnRate = (ipnRate - regionalDiscount / 2).clamp(0.0, 1.0);
-    final effectiveSnRate = (snRate - regionalDiscount / 2).clamp(0.0, 1.0);
+    final effectiveSnRate  = (snRate  - regionalDiscount / 2).clamp(0.0, 1.0);
 
     final ipn = income * effectiveIpnRate;
-    final sn = income * effectiveSnRate;
+    final sn  = income * effectiveSnRate;
 
     return TaxCalculation910(
       income: income,
@@ -149,16 +177,16 @@ class KzTax {
     );
   }
 
-  /// Рассчитать ежемесячные соцплатежи "за себя"
+  /// Рассчитать ежемесячные соцплатежи ИП "за себя"
   static SocialPayments calculateMonthlySocial({bool bornBefore1975 = false}) {
-    final opv = opvMonthly;
-    final opvr = bornBefore1975 ? 0.0 : opvrMonthly;
-    final so = soMonthly;
+    final opv   = opvMonthly;
+    final opvr  = bornBefore1975 ? 0.0 : opvrMonthly;
+    final so    = soMonthly;
     final vosms = vosmsMonthly;
     return SocialPayments(
-      opv: opv,
-      opvr: opvr,
-      so: so,
+      opv:   opv,
+      opvr:  opvr,
+      so:    so,
       vosms: vosms,
       total: opv + opvr + so + vosms,
     );
@@ -170,18 +198,18 @@ class KzTax {
     double regionalDiscount = 0.0,
     bool bornBefore1975 = false,
   }) {
-    final tax = calculate910(halfYearIncome, regionalDiscount: regionalDiscount);
-    final social = calculateMonthlySocial(bornBefore1975: bornBefore1975);
+    final tax         = calculate910(halfYearIncome, regionalDiscount: regionalDiscount);
+    final social      = calculateMonthlySocial(bornBefore1975: bornBefore1975);
     final socialHalfYear = social.total * 6;
     return FullTaxSummary(
-      tax: tax,
+      tax:           tax,
       monthlySocial: social,
       socialHalfYear: socialHalfYear,
-      grandTotal: tax.totalTax + socialHalfYear,
+      grandTotal:    tax.totalTax + socialHalfYear,
     );
   }
 
-  /// Рассчитать налог для самозанятых (замена патента)
+  /// Рассчитать налог для самозанятых
   static double calculateSelfEmployed(double income) => income * selfEmployedRate;
 }
 
@@ -240,7 +268,7 @@ class FullTaxSummary {
   double get effectiveRate => tax.income > 0 ? grandTotal / tax.income : 0;
 }
 
-/// Налоговые режимы ИП в Казахстане (обновлено 2026)
+/// Налоговые режимы ИП в Казахстане (2026)
 enum TaxRegime {
   esp('ЕСП', 'Единый совокупный платёж'),
   selfEmployed('Самозанятый', 'Режим самозанятых (замена патента)'),
