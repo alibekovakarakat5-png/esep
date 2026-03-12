@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const db     = require('../db');
+const { limitsFor } = require('../tiers');
 
 // GET /api/transactions
 router.get('/', async (req, res) => {
@@ -28,6 +29,27 @@ router.get('/', async (req, res) => {
 // POST /api/transactions  (bulk sync: array or single object)
 router.post('/', async (req, res) => {
   const items = Array.isArray(req.body) ? req.body : [req.body];
+
+  // Check tier limit for free users
+  const { rows: [user] } = await db.query('SELECT tier FROM users WHERE id = $1', [req.userId]);
+  const limits = limitsFor(user?.tier);
+
+  if (isFinite(limits.txPerMonth)) {
+    const now = new Date();
+    const { rows: [{ count }] } = await db.query(
+      `SELECT COUNT(*) FROM transactions
+       WHERE user_id = $1
+         AND date_trunc('month', created_at) = date_trunc('month', NOW())`,
+      [req.userId],
+    );
+    if (parseInt(count) + items.length > limits.txPerMonth) {
+      return res.status(403).json({
+        error: `Лимит тарифа: не более ${limits.txPerMonth} операций в месяц. Перейдите на платный тариф.`,
+        code: 'TIER_LIMIT',
+        limit: limits.txPerMonth,
+      });
+    }
+  }
 
   for (const t of items) {
     await db.query(

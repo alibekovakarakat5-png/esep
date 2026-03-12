@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const db     = require('../db');
+const { limitsFor } = require('../tiers');
 
 // GET /api/invoices
 router.get('/', async (req, res) => {
@@ -45,6 +46,26 @@ router.get('/', async (req, res) => {
 // POST /api/invoices
 router.post('/', async (req, res) => {
   const { id, number, clientName, clientId, status = 'draft', notes, dueDate, items = [] } = req.body;
+
+  // Check tier limit for free users
+  const { rows: [user] } = await db.query('SELECT tier FROM users WHERE id = $1', [req.userId]);
+  const limits = limitsFor(user?.tier);
+
+  if (isFinite(limits.invoicesPerMonth)) {
+    const { rows: [{ count }] } = await db.query(
+      `SELECT COUNT(*) FROM invoices
+       WHERE user_id = $1
+         AND date_trunc('month', created_at) = date_trunc('month', NOW())`,
+      [req.userId],
+    );
+    if (parseInt(count) >= limits.invoicesPerMonth) {
+      return res.status(403).json({
+        error: `Лимит тарифа: не более ${limits.invoicesPerMonth} счетов в месяц. Перейдите на платный тариф.`,
+        code: 'TIER_LIMIT',
+        limit: limits.invoicesPerMonth,
+      });
+    }
+  }
 
   await db.query(
     `INSERT INTO invoices (id, user_id, number, client_name, client_id, status, notes, due_date)

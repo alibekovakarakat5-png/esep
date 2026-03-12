@@ -2,10 +2,11 @@ const express = require('express');
 const cors    = require('cors');
 const db      = require('./db');
 
-const authMiddleware   = require('./middleware/auth');
-const authRoutes       = require('./routes/auth');
-const txRoutes         = require('./routes/transactions');
-const invoiceRoutes    = require('./routes/invoices');
+const authMiddleware          = require('./middleware/auth');
+const authRoutes              = require('./routes/auth');
+const txRoutes                = require('./routes/transactions');
+const invoiceRoutes           = require('./routes/invoices');
+const { router: adminRoutes } = require('./routes/admin');
 
 const app  = express();
 const PORT = process.env.PORT ?? 3001;
@@ -20,8 +21,12 @@ async function migrate() {
       email         TEXT        UNIQUE NOT NULL,
       name          TEXT        NOT NULL DEFAULT '',
       password_hash TEXT        NOT NULL,
+      tier          TEXT        NOT NULL DEFAULT 'free',
       created_at    TIMESTAMPTZ DEFAULT NOW()
     );
+
+    -- Add tier column if upgrading from existing DB
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS tier TEXT NOT NULL DEFAULT 'free';
 
     CREATE TABLE IF NOT EXISTS transactions (
       id          TEXT          PRIMARY KEY,
@@ -77,6 +82,7 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, ts: new Date() }));
 app.use('/api/auth',         authRoutes);
 app.use('/api/transactions', authMiddleware, txRoutes);
 app.use('/api/invoices',     authMiddleware, invoiceRoutes);
+app.use('/api/admin',        adminRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
