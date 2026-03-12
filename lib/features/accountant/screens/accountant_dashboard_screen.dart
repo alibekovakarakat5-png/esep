@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/models/accounting_client.dart';
 import '../../../core/providers/accounting_provider.dart';
-import 'accountant_client_detail_screen.dart';
 import 'add_accounting_client_screen.dart';
 
 // ── Filter enum ───────────────────────────────────────────────────────────────
@@ -140,11 +139,7 @@ class _AccountantDashboardScreenState
                   padding: const EdgeInsets.only(bottom: 10),
                   child: _ClientCard(
                     client: c,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => AccountantClientDetailScreen(clientId: c.id),
-                      ),
-                    ),
+                    onTap: () => context.push('/accountant/client/${c.id}'),
                   ),
                 )),
 

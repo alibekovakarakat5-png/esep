@@ -24,27 +24,42 @@ extension InvoiceStatusExt on InvoiceStatus {
       };
 }
 
-class InvoicesScreen extends ConsumerWidget {
+class InvoicesScreen extends ConsumerStatefulWidget {
   const InvoicesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final invoices = ref.watch(invoiceProvider);
+  ConsumerState<InvoicesScreen> createState() => _InvoicesScreenState();
+}
+
+class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
+  InvoiceStatus? _filter; // null = все
+
+  @override
+  Widget build(BuildContext context) {
+    final allInvoices = ref.watch(invoiceProvider);
     final fmt = NumberFormat('#,##0', 'ru_RU');
 
-    final pending = invoices.where((i) => i.status == InvoiceStatus.sent).fold(0.0, (s, i) => s + i.totalAmount);
-    final overdue = invoices.where((i) => i.status == InvoiceStatus.overdue).fold(0.0, (s, i) => s + i.totalAmount);
-    final paid = invoices.where((i) => i.status == InvoiceStatus.paid).fold(0.0, (s, i) => s + i.totalAmount);
+    final invoices = _filter == null
+        ? allInvoices
+        : allInvoices.where((i) => i.status == _filter).toList();
+
+    final pending = allInvoices.where((i) => i.status == InvoiceStatus.sent).fold(0.0, (s, i) => s + i.totalAmount);
+    final overdue = allInvoices.where((i) => i.status == InvoiceStatus.overdue).fold(0.0, (s, i) => s + i.totalAmount);
+    final paid = allInvoices.where((i) => i.status == InvoiceStatus.paid).fold(0.0, (s, i) => s + i.totalAmount);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Счета'),
         actions: [
-          IconButton(icon: const Icon(Iconsax.filter), onPressed: () {}),
+          IconButton(
+            icon: Icon(Iconsax.filter,
+                color: _filter != null ? EsepColors.primary : null),
+            onPressed: () => _showFilterSheet(context),
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateInvoice(context, ref),
+        onPressed: () => _showCreateInvoice(context),
         backgroundColor: EsepColors.primary,
         icon: const Icon(Iconsax.add, color: Colors.white),
         label: const Text('Новый счёт', style: TextStyle(color: Colors.white)),
@@ -115,7 +130,39 @@ class InvoicesScreen extends ConsumerWidget {
     );
   }
 
-  void _showCreateInvoice(BuildContext context, WidgetRef ref) {
+  void _showFilterSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('Фильтр по статусу',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+          ),
+          ListTile(
+            leading: Icon(Icons.circle,
+                color: _filter == null ? EsepColors.primary : EsepColors.textSecondary,
+                size: 12),
+            title: const Text('Все счета'),
+            trailing: _filter == null ? const Icon(Icons.check, color: EsepColors.primary) : null,
+            onTap: () { setState(() => _filter = null); Navigator.pop(ctx); },
+          ),
+          ...InvoiceStatus.values.map((s) => ListTile(
+            leading: Icon(Icons.circle, color: s.color, size: 12),
+            title: Text(s.label),
+            trailing: _filter == s ? const Icon(Icons.check, color: EsepColors.primary) : null,
+            onTap: () { setState(() => _filter = s); Navigator.pop(ctx); },
+          )),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+  }
+
+  void _showCreateInvoice(BuildContext context) {
     final clients = ref.read(clientProvider);
     final clientNameCtrl = TextEditingController();
     final descCtrl = TextEditingController();

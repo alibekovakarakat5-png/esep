@@ -11,6 +11,7 @@ import '../../features/taxes/screens/taxes_screen.dart';
 import '../../features/clients/screens/clients_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
 import '../../features/accountant/screens/accountant_dashboard_screen.dart';
+import '../../features/accountant/screens/accountant_client_detail_screen.dart';
 import '../../features/accountant/screens/deadline_calendar_screen.dart';
 import '../../features/mode_select/screens/mode_select_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
@@ -125,6 +126,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'calendar',
                 builder: (_, __) => const DeadlineCalendarScreen(),
+              ),
+              GoRoute(
+                path: 'client/:id',
+                builder: (_, state) => AccountantClientDetailScreen(
+                  clientId: state.pathParameters['id']!,
+                ),
               ),
             ],
           ),
