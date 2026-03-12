@@ -2,11 +2,15 @@ const express = require('express');
 const cors    = require('cors');
 const db      = require('./db');
 
-const authMiddleware          = require('./middleware/auth');
-const authRoutes              = require('./routes/auth');
-const txRoutes                = require('./routes/transactions');
-const invoiceRoutes           = require('./routes/invoices');
-const { router: adminRoutes } = require('./routes/admin');
+const authMiddleware                      = require('./middleware/auth');
+const authRoutes                          = require('./routes/auth');
+const txRoutes                            = require('./routes/transactions');
+const invoiceRoutes                       = require('./routes/invoices');
+const { router: adminRoutes }             = require('./routes/admin');
+const { router: taxConfigRoutes,
+        seedTaxConfig }                   = require('./routes/tax-config');
+const articleRoutes                       = require('./routes/articles');
+const { startMonitor }                    = require('./jobs/taxMonitor');
 
 const app  = express();
 const PORT = process.env.PORT ?? 3001;
@@ -65,7 +69,41 @@ async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_tx_user   ON transactions(user_id);
     CREATE INDEX IF NOT EXISTS idx_inv_user  ON invoices(user_id);
     CREATE INDEX IF NOT EXISTS idx_items_inv ON invoice_items(invoice_id);
+
+    CREATE TABLE IF NOT EXISTS tax_config (
+      id         SERIAL      PRIMARY KEY,
+      key        TEXT        UNIQUE NOT NULL,
+      value      TEXT        NOT NULL,
+      label      TEXT        NOT NULL DEFAULT '',
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS articles (
+      id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+      slug         TEXT        UNIQUE NOT NULL,
+      title        TEXT        NOT NULL,
+      summary      TEXT,
+      body         TEXT,
+      audience     TEXT        NOT NULL DEFAULT 'ip',  -- 'ip' | 'accountant' | 'all'
+      tags         JSONB       DEFAULT '[]',
+      status       TEXT        NOT NULL DEFAULT 'draft', -- 'draft' | 'published'
+      published_at TIMESTAMPTZ,
+      created_at   TIMESTAMPTZ DEFAULT NOW(),
+      updated_at   TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_articles_slug   ON articles(slug);
+    CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(status);
+
+    CREATE TABLE IF NOT EXISTS bot_users (
+      chat_id         TEXT        PRIMARY KEY,
+      linked_user_id  UUID        REFERENCES users(id) ON DELETE SET NULL,
+      queries_today   INT         NOT NULL DEFAULT 0,
+      last_query_date TEXT,
+      created_at      TIMESTAMPTZ DEFAULT NOW()
+    );
   `);
+  await seedTaxConfig();
   console.log('✅  DB migrated');
 }
 
@@ -83,6 +121,15 @@ app.use('/api/auth',         authRoutes);
 app.use('/api/transactions', authMiddleware, txRoutes);
 app.use('/api/invoices',     authMiddleware, invoiceRoutes);
 app.use('/api/admin',        adminRoutes);
+app.use('/api/config/tax',   taxConfigRoutes);
+app.use('/api/articles',     articleRoutes);
+
+// ── Telegram bot webhook ──────────────────────────────────────────────────────
+const tg = require('./bot/telegram');
+app.post('/api/bot/webhook', (req, res) => {
+  tg.handleUpdate(req.body);
+  res.json({ ok: true });
+});
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
@@ -99,4 +146,9 @@ app.listen(PORT, () => {
   console.log(`✅  Есеп API → http://localhost:${PORT}`);
   console.log(`DATABASE_URL set: ${!!process.env.DATABASE_URL}`);
   migrate().catch(err => console.error('Migration failed (non-fatal):', err.message));
+  startMonitor();
+
+  // Auto-register Telegram webhook
+  const baseUrl = process.env.ADMIN_URL ?? `https://esep-production.up.railway.app`;
+  tg.setupWebhook(baseUrl).catch(e => console.error('[bot] webhook setup error:', e.message));
 });

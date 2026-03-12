@@ -3,6 +3,7 @@ const bcrypt  = require('bcryptjs');
 const jwt     = require('jsonwebtoken');
 const db      = require('../db');
 const authMiddleware = require('../middleware/auth');
+const tg      = require('../bot/telegram');
 
 const sign = (userId) =>
   jwt.sign({ sub: userId }, process.env.JWT_SECRET, { expiresIn: '30d' });
@@ -25,6 +26,7 @@ router.post('/register', async (req, res) => {
     [email.toLowerCase().trim(), name.trim(), hash],
   );
 
+  tg.notifyNewUser({ email, name });
   res.status(201).json({ token: sign(rows[0].id), userId: rows[0].id, tier: rows[0].tier });
 });
 
