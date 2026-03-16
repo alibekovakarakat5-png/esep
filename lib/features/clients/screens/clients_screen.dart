@@ -191,6 +191,21 @@ class _ClientTile extends StatelessWidget {
           ),
           child: const Icon(Iconsax.trash, color: EsepColors.expense),
         ),
+        confirmDismiss: (_) async {
+          return await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Удалить?'),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Удалить', style: TextStyle(color: EsepColors.expense)),
+                ),
+              ],
+            ),
+          ) ?? false;
+        },
         onDismissed: (_) => onDelete(),
         child: Card(
           child: ListTile(

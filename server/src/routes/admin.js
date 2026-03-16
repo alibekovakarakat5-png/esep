@@ -3,6 +3,17 @@ const db     = require('../db');
 
 const TIERS = ['free', 'ip', 'accountant', 'corporate'];
 
+// BUG 7: XSS prevention helper
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ── Simple password middleware ────────────────────────────────────────────────
 function adminAuth(req, res, next) {
   const pass = process.env.ADMIN_PASSWORD;
@@ -20,83 +31,111 @@ function adminAuth(req, res, next) {
 
 // ── GET /api/admin/users ──────────────────────────────────────────────────────
 router.get('/users', adminAuth, async (req, res) => {
-  const { rows } = await db.query(
-    `SELECT id, email, name, tier, created_at,
-            (SELECT COUNT(*) FROM transactions WHERE user_id = users.id) AS tx_total,
-            (SELECT COUNT(*) FROM invoices   WHERE user_id = users.id) AS inv_total
-     FROM users
-     ORDER BY created_at DESC`,
-  );
-  res.json(rows);
+  try {
+    const { rows } = await db.query(
+      `SELECT id, email, name, tier, created_at,
+              (SELECT COUNT(*) FROM transactions WHERE user_id = users.id) AS tx_total,
+              (SELECT COUNT(*) FROM invoices   WHERE user_id = users.id) AS inv_total
+       FROM users
+       ORDER BY created_at DESC`,
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /admin/users error:', err);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
 });
 
 // ── PATCH /api/admin/users/:id/tier ──────────────────────────────────────────
 router.patch('/users/:id/tier', adminAuth, async (req, res) => {
-  const { tier } = req.body ?? {};
-  if (!TIERS.includes(tier)) {
-    return res.status(400).json({ error: `tier must be one of: ${TIERS.join(', ')}` });
+  try {
+    const { tier } = req.body ?? {};
+    if (!TIERS.includes(tier)) {
+      return res.status(400).json({ error: `tier must be one of: ${TIERS.join(', ')}` });
+    }
+    await db.query('UPDATE users SET tier = $1 WHERE id = $2', [tier, req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('PATCH /admin/users/:id/tier error:', err);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
-  await db.query('UPDATE users SET tier = $1 WHERE id = $2', [tier, req.params.id]);
-  res.json({ ok: true });
 });
 
 // ── GET /api/admin — HTML dashboard ──────────────────────────────────────────
 router.get('/', adminAuth, async (_req, res) => {
-  const [{ rows: users }, { rows: taxRows }, { rows: arts }] = await Promise.all([
-    db.query(
-      `SELECT id, email, name, tier, created_at,
-              (SELECT COUNT(*) FROM transactions WHERE user_id = users.id) AS tx_total,
-              (SELECT COUNT(*) FROM invoices   WHERE user_id = users.id) AS inv_total
-       FROM users ORDER BY created_at DESC`,
-    ),
-    db.query('SELECT key, value, label, updated_at FROM tax_config ORDER BY id'),
-    db.query(
-      `SELECT id, slug, title, audience, status, tags, published_at, created_at
-       FROM articles ORDER BY created_at DESC LIMIT 50`,
-    ),
-  ]);
+  try {
+    const [{ rows: users }, { rows: taxRows }, { rows: arts }] = await Promise.all([
+      db.query(
+        `SELECT id, email, name, tier, created_at,
+                (SELECT COUNT(*) FROM transactions WHERE user_id = users.id) AS tx_total,
+                (SELECT COUNT(*) FROM invoices   WHERE user_id = users.id) AS inv_total
+         FROM users ORDER BY created_at DESC`,
+      ),
+      db.query('SELECT key, value, label, updated_at FROM tax_config ORDER BY id'),
+      db.query(
+        `SELECT id, slug, title, audience, status, tags, published_at, created_at
+         FROM articles ORDER BY created_at DESC LIMIT 50`,
+      ),
+    ]);
 
-  const tierColor = { free: '#6b7280', ip: '#2563eb', accountant: '#7c3aed', corporate: '#d97706' };
-  const userRows = users.map((u) => `
-    <tr>
-      <td>${u.email}</td>
-      <td>${u.name || '—'}</td>
-      <td><span class="badge" style="background:${tierColor[u.tier] ?? '#6b7280'}20;color:${tierColor[u.tier] ?? '#6b7280'}">${u.tier}</span></td>
-      <td>${u.tx_total}</td><td>${u.inv_total}</td>
-      <td>${new Date(u.created_at).toLocaleDateString('ru-RU')}</td>
-      <td>
-        <select onchange="changeTier('${u.id}', this.value)">
-          ${['free','ip','accountant','corporate'].map((t) =>
-            `<option value="${t}"${t === u.tier ? ' selected' : ''}>${t}</option>`
-          ).join('')}
-        </select>
-      </td>
-    </tr>`).join('');
+    const tierColor = { free: '#6b7280', ip: '#2563eb', accountant: '#7c3aed', corporate: '#d97706' };
+    const userRows = users.map((u) => {
+      const safeEmail = escapeHtml(u.email);
+      const safeName = escapeHtml(u.name);
+      const safeTier = escapeHtml(u.tier);
+      return `
+      <tr>
+        <td>${safeEmail}</td>
+        <td>${safeName || '—'}</td>
+        <td><span class="badge" style="background:${tierColor[u.tier] ?? '#6b7280'}20;color:${tierColor[u.tier] ?? '#6b7280'}">${safeTier}</span></td>
+        <td>${u.tx_total}</td><td>${u.inv_total}</td>
+        <td>${new Date(u.created_at).toLocaleDateString('ru-RU')}</td>
+        <td>
+          <select onchange="changeTier('${escapeHtml(u.id)}', this.value)">
+            ${['free','ip','accountant','corporate'].map((t) =>
+              `<option value="${t}"${t === u.tier ? ' selected' : ''}>${t}</option>`
+            ).join('')}
+          </select>
+        </td>
+      </tr>`;
+    }).join('');
 
-  const taxInputs = taxRows.map((r) => `
-    <tr>
-      <td style="font-size:12px;color:#6b7280;font-family:monospace">${r.key}</td>
-      <td>${r.label}</td>
-      <td><input class="tax-input" data-key="${r.key}" value="${r.value}" style="width:100px;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"></td>
-      <td style="font-size:11px;color:#9ca3af">${r.updated_at ? new Date(r.updated_at).toLocaleDateString('ru-RU') : '—'}</td>
-      <td><button onclick="saveTaxKey('${r.key}')" style="padding:4px 10px;border:none;background:#2563eb;color:#fff;border-radius:6px;cursor:pointer;font-size:12px">Сохранить</button></td>
-    </tr>`).join('');
+    const taxInputs = taxRows.map((r) => {
+      const safeKey = escapeHtml(r.key);
+      const safeLabel = escapeHtml(r.label);
+      const safeValue = escapeHtml(r.value);
+      return `
+      <tr>
+        <td style="font-size:12px;color:#6b7280;font-family:monospace">${safeKey}</td>
+        <td>${safeLabel}</td>
+        <td><input class="tax-input" data-key="${safeKey}" value="${safeValue}" style="width:100px;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"></td>
+        <td style="font-size:11px;color:#9ca3af">${r.updated_at ? new Date(r.updated_at).toLocaleDateString('ru-RU') : '—'}</td>
+        <td><button onclick="saveTaxKey('${safeKey}')" style="padding:4px 10px;border:none;background:#2563eb;color:#fff;border-radius:6px;cursor:pointer;font-size:12px">Сохранить</button></td>
+      </tr>`;
+    }).join('');
 
-  const artRows = arts.map((a) => `
-    <tr>
-      <td><a href="/api/articles/${a.slug}" target="_blank" style="color:#2563eb;text-decoration:none">${a.title}</a></td>
-      <td><span class="badge" style="background:#e0f2fe;color:#0369a1">${a.audience}</span></td>
-      <td><span class="badge" style="background:${a.status==='published'?'#dcfce7':'#fef3c7'};color:${a.status==='published'?'#16a34a':'#b45309'}">${a.status}</span></td>
-      <td style="font-size:11px;color:#6b7280">${a.published_at ? new Date(a.published_at).toLocaleDateString('ru-RU') : '—'}</td>
-      <td>
-        <button onclick="publishArt('${a.id}','${a.status}')" style="padding:3px 8px;border:none;background:${a.status==='published'?'#fee2e2':'#dcfce7'};color:${a.status==='published'?'#dc2626':'#16a34a'};border-radius:5px;cursor:pointer;font-size:12px">
-          ${a.status==='published' ? 'Снять' : 'Опубликовать'}
-        </button>
-        <button onclick="deleteArt('${a.id}')" style="padding:3px 8px;border:none;background:#fee2e2;color:#dc2626;border-radius:5px;cursor:pointer;font-size:12px;margin-left:4px">Удалить</button>
-      </td>
-    </tr>`).join('');
+    const artRows = arts.map((a) => {
+      const safeTitle = escapeHtml(a.title);
+      const safeSlug = escapeHtml(a.slug);
+      const safeAudience = escapeHtml(a.audience);
+      const safeStatus = escapeHtml(a.status);
+      const safeId = escapeHtml(a.id);
+      return `
+      <tr>
+        <td><a href="/api/articles/${safeSlug}" target="_blank" style="color:#2563eb;text-decoration:none">${safeTitle}</a></td>
+        <td><span class="badge" style="background:#e0f2fe;color:#0369a1">${safeAudience}</span></td>
+        <td><span class="badge" style="background:${a.status==='published'?'#dcfce7':'#fef3c7'};color:${a.status==='published'?'#16a34a':'#b45309'}">${safeStatus}</span></td>
+        <td style="font-size:11px;color:#6b7280">${a.published_at ? new Date(a.published_at).toLocaleDateString('ru-RU') : '—'}</td>
+        <td>
+          <button onclick="publishArt('${safeId}','${safeStatus}')" style="padding:3px 8px;border:none;background:${a.status==='published'?'#fee2e2':'#dcfce7'};color:${a.status==='published'?'#dc2626':'#16a34a'};border-radius:5px;cursor:pointer;font-size:12px">
+            ${a.status==='published' ? 'Снять' : 'Опубликовать'}
+          </button>
+          <button onclick="deleteArt('${safeId}')" style="padding:3px 8px;border:none;background:#fee2e2;color:#dc2626;border-radius:5px;cursor:pointer;font-size:12px;margin-left:4px">Удалить</button>
+        </td>
+      </tr>`;
+    }).join('');
 
-  res.send(`<!DOCTYPE html>
+    res.send(`<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
@@ -232,7 +271,7 @@ router.get('/', adminAuth, async (_req, res) => {
       const r = await api('/api/admin/users/'+userId+'/tier', {
         method:'PATCH', body:JSON.stringify({tier})
       });
-      toast(r.ok ? 'Тариф обновлён ✓' : 'Ошибка', r.ok);
+      toast(r.ok ? 'Тариф обновлён' : 'Ошибка', r.ok);
     }
 
     async function saveTaxKey(key) {
@@ -240,7 +279,7 @@ router.get('/', adminAuth, async (_req, res) => {
       const r = await api('/api/config/tax/'+key, {
         method:'PUT', body:JSON.stringify({value:val})
       });
-      toast(r.ok ? key+' сохранён ✓' : 'Ошибка', r.ok);
+      toast(r.ok ? key+' сохранён' : 'Ошибка', r.ok);
     }
 
     async function createArticle() {
@@ -258,7 +297,7 @@ router.get('/', adminAuth, async (_req, res) => {
           tags,
         }),
       });
-      if (r.ok) { toast('Статья создана ✓'); setTimeout(()=>location.reload(),1000); }
+      if (r.ok) { toast('Статья создана'); setTimeout(()=>location.reload(),1000); }
       else toast('Ошибка при создании', false);
     }
 
@@ -267,19 +306,23 @@ router.get('/', adminAuth, async (_req, res) => {
       const r = await api('/api/articles/'+id, {
         method:'PUT', body:JSON.stringify({status:newStatus})
       });
-      if (r.ok) { toast('Статус обновлён ✓'); setTimeout(()=>location.reload(),800); }
+      if (r.ok) { toast('Статус обновлён'); setTimeout(()=>location.reload(),800); }
       else toast('Ошибка', false);
     }
 
     async function deleteArt(id) {
       if (!confirm('Удалить статью?')) return;
       const r = await api('/api/articles/'+id, {method:'DELETE'});
-      if (r.ok) { toast('Удалено ✓'); setTimeout(()=>location.reload(),800); }
+      if (r.ok) { toast('Удалено'); setTimeout(()=>location.reload(),800); }
       else toast('Ошибка', false);
     }
   </script>
 </body>
 </html>`);
+  } catch (err) {
+    console.error('GET /admin dashboard error:', err);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
 });
 
 module.exports = { router, adminAuth };

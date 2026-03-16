@@ -34,40 +34,55 @@ const SEED = [
 
 // ── GET /api/config/tax — public ──────────────────────────────────────────────
 router.get('/', async (_req, res) => {
-  const { rows } = await db.query(
-    'SELECT key, value, label, updated_at FROM tax_config ORDER BY id',
-  );
-  // Return as key→value map for easy consumption
-  const config = {};
-  for (const r of rows) config[r.key] = { value: r.value, label: r.label, updatedAt: r.updated_at };
-  res.json(config);
+  try {
+    const { rows } = await db.query(
+      'SELECT key, value, label, updated_at FROM tax_config ORDER BY id',
+    );
+    // Return as key→value map for easy consumption
+    const config = {};
+    for (const r of rows) config[r.key] = { value: r.value, label: r.label, updatedAt: r.updated_at };
+    res.json(config);
+  } catch (err) {
+    console.error('GET /config/tax error:', err);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
 });
 
 // ── PUT /api/config/tax/:key — admin only ─────────────────────────────────────
 router.put('/:key', adminAuth, async (req, res) => {
-  const { value } = req.body ?? {};
-  if (value === undefined) return res.status(400).json({ error: 'value required' });
+  try {
+    const { value } = req.body ?? {};
+    if (value === undefined) return res.status(400).json({ error: 'value required' });
 
-  const { rowCount } = await db.query(
-    `UPDATE tax_config SET value = $1, updated_at = NOW() WHERE key = $2`,
-    [String(value), req.params.key],
-  );
-  if (rowCount === 0) return res.status(404).json({ error: 'Unknown key' });
-  res.json({ ok: true });
+    const { rowCount } = await db.query(
+      `UPDATE tax_config SET value = $1, updated_at = NOW() WHERE key = $2`,
+      [String(value), req.params.key],
+    );
+    if (rowCount === 0) return res.status(404).json({ error: 'Unknown key' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('PUT /config/tax/:key error:', err);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
 });
 
 // ── PUT /api/config/tax — bulk update (admin) ─────────────────────────────────
 router.put('/', adminAuth, async (req, res) => {
-  const updates = req.body; // { key: value, ... }
-  if (!updates || typeof updates !== 'object') return res.status(400).json({ error: 'object required' });
+  try {
+    const updates = req.body; // { key: value, ... }
+    if (!updates || typeof updates !== 'object') return res.status(400).json({ error: 'object required' });
 
-  for (const [key, value] of Object.entries(updates)) {
-    await db.query(
-      `UPDATE tax_config SET value = $1, updated_at = NOW() WHERE key = $2`,
-      [String(value), key],
-    );
+    for (const [key, value] of Object.entries(updates)) {
+      await db.query(
+        `UPDATE tax_config SET value = $1, updated_at = NOW() WHERE key = $2`,
+        [String(value), key],
+      );
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('PUT /config/tax (bulk) error:', err);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
-  res.json({ ok: true });
 });
 
 // ── Seed helper — called from migrate() ──────────────────────────────────────

@@ -90,7 +90,7 @@ final halfYearIncomeProvider = Provider<double>((ref) {
       : DateTime(now.year, 7, 1);
   return ref
       .watch(transactionProvider)
-      .where((t) => t.isIncome && t.date.isAfter(halfStart))
+      .where((t) => t.isIncome && !t.date.isBefore(halfStart))
       .fold(0.0, (sum, t) => sum + t.amount);
 });
 
@@ -99,7 +99,7 @@ final monthExpenseProvider = Provider<double>((ref) {
   final monthStart = DateTime(now.year, now.month, 1);
   return ref
       .watch(transactionProvider)
-      .where((t) => !t.isIncome && t.date.isAfter(monthStart))
+      .where((t) => !t.isIncome && !t.date.isBefore(monthStart))
       .fold(0.0, (sum, t) => sum + t.amount);
 });
 
@@ -108,7 +108,7 @@ final monthIncomeProvider = Provider<double>((ref) {
   final monthStart = DateTime(now.year, now.month, 1);
   return ref
       .watch(transactionProvider)
-      .where((t) => t.isIncome && t.date.isAfter(monthStart))
+      .where((t) => t.isIncome && !t.date.isBefore(monthStart))
       .fold(0.0, (sum, t) => sum + t.amount);
 });
 

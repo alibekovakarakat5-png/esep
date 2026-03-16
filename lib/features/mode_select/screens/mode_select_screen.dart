@@ -101,7 +101,7 @@ class ModeSelectScreen extends ConsumerWidget {
   }
 
   void _select(BuildContext context, WidgetRef ref, UserMode mode) {
-    ref.read(userModeProvider.notifier).state = mode;
+    ref.read(userModeProvider.notifier).set(mode);
     context.go(mode == UserMode.ip ? '/dashboard' : '/accountant');
   }
 }

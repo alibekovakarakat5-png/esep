@@ -174,7 +174,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   style: TextStyle(fontSize: 12, color: EsepColors.textSecondary)),
               trailing: const Icon(Icons.swap_horiz_rounded, color: EsepColors.primary),
               onTap: () {
-                ref.read(userModeProvider.notifier).state = null;
+                ref.read(userModeProvider.notifier).clear();
                 context.go('/mode-select');
               },
             ),

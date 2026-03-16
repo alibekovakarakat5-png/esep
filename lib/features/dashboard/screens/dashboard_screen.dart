@@ -83,7 +83,9 @@ class DashboardScreen extends ConsumerWidget {
           if (socialDays <= 7) ...[
             const SizedBox(height: 12),
             _DeadlineBanner(
-              message: 'Соцплатежи через $socialDays ${_daysWord(socialDays)} — ${fmt.format(social.total)} ₸ до 25-го',
+              message: socialDays == 0
+                  ? 'Соцплатежи сегодня! — ${fmt.format(social.total)} ₸'
+                  : 'Соцплатежи через $socialDays ${_daysWord(socialDays)} — ${fmt.format(social.total)} ₸ до 25-го',
               urgent: socialDays <= 3,
             ),
           ] else if (deadlineInfo.daysLeft <= 30) ...[

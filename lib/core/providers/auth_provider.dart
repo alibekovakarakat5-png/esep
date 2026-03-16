@@ -1,11 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/auth_service.dart';
+import 'user_mode_provider.dart';
+import 'transaction_provider.dart';
+import 'invoice_provider.dart';
 
 enum AuthState { loading, authenticated, unauthenticated }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(AuthState.loading) {
+  final Ref _ref;
+  AuthNotifier(this._ref) : super(AuthState.loading) {
     _check();
   }
 
@@ -26,9 +30,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     await AuthService.logout();
+    _ref.read(userModeProvider.notifier).clear();
+    _ref.invalidate(transactionProvider);
+    _ref.invalidate(invoiceProvider);
     state = AuthState.unauthenticated;
   }
 }
 
 final authProvider =
-    StateNotifierProvider<AuthNotifier, AuthState>((ref) => AuthNotifier());
+    StateNotifierProvider<AuthNotifier, AuthState>((ref) => AuthNotifier(ref));
