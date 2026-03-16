@@ -3,6 +3,8 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
 
 import '../models/invoice.dart';
+import '../models/transaction.dart';
+import '../constants/kz_tax_constants.dart';
 
 class PdfService {
   PdfService._();
@@ -342,6 +344,286 @@ class PdfService {
         ]),
       ),
     );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ФИНАНСОВЫЙ ОТЧЁТ ДЛЯ БУХГАЛТЕРА
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static Future<pw.Document> generateReport({
+    required List<Transaction> transactions,
+    required String period,
+    String? companyName,
+    String? companyBin,
+  }) async {
+    final pdf = pw.Document(
+      title: 'Финансовый отчёт — $period',
+      author: companyName ?? 'Есеп',
+    );
+
+    final company = companyName ?? 'ИП';
+    final bin = companyBin ?? '';
+
+    final incomes = transactions.where((t) => t.isIncome).toList();
+    final expenses = transactions.where((t) => !t.isIncome).toList();
+    final totalIncome = incomes.fold(0.0, (s, t) => s + t.amount);
+    final totalExpense = expenses.fold(0.0, (s, t) => s + t.amount);
+    final profit = totalIncome - totalExpense;
+
+    // Tax calculation
+    final tax910 = KzTax.calculate910(totalIncome);
+    final social = KzTax.calculateMonthlySocial();
+    // Determine months count from transactions
+    final months = _uniqueMonths(transactions);
+    final socialTotal = social.total * months;
+
+    pdf.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.all(40),
+      header: (ctx) => _reportHeader(company, bin, period, ctx),
+      footer: (ctx) => _reportFooter(ctx),
+      build: (ctx) => [
+        // Summary cards
+        pw.SizedBox(height: 16),
+        _reportSummaryRow(totalIncome, totalExpense, profit),
+        pw.SizedBox(height: 20),
+
+        // Tax summary
+        _reportTaxSection(tax910, social, socialTotal, months),
+        pw.SizedBox(height: 20),
+
+        // Income table
+        if (incomes.isNotEmpty) ...[
+          _reportSectionTitle('Доходы', totalIncome),
+          pw.SizedBox(height: 8),
+          _reportTransactionTable(incomes),
+          pw.SizedBox(height: 20),
+        ],
+
+        // Expense table
+        if (expenses.isNotEmpty) ...[
+          _reportSectionTitle('Расходы', totalExpense),
+          pw.SizedBox(height: 8),
+          _reportTransactionTable(expenses),
+          pw.SizedBox(height: 20),
+        ],
+
+        // Category breakdown
+        _reportCategoryBreakdown(transactions),
+      ],
+    ));
+
+    return pdf;
+  }
+
+  static int _uniqueMonths(List<Transaction> txs) {
+    if (txs.isEmpty) return 1;
+    final months = <String>{};
+    for (final t in txs) {
+      months.add('${t.date.year}-${t.date.month}');
+    }
+    return months.length.clamp(1, 12);
+  }
+
+  static pw.Widget _reportHeader(String company, String bin, String period, pw.Context ctx) {
+    return pw.Column(children: [
+      pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+            pw.Text(company, style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: _blue)),
+            if (bin.isNotEmpty)
+              pw.Text('БИН/ИИН: $bin', style: const pw.TextStyle(fontSize: 9, color: _grey)),
+          ]),
+          pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
+            pw.Container(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: pw.BoxDecoration(color: _blue, borderRadius: pw.BorderRadius.circular(6)),
+              child: pw.Text('ФИНАНСОВЫЙ ОТЧЁТ',
+                  style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+            ),
+            pw.SizedBox(height: 4),
+            pw.Text(period, style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: _dark)),
+          ]),
+        ],
+      ),
+      pw.Divider(color: _divider, height: 16),
+    ]);
+  }
+
+  static pw.Widget _reportFooter(pw.Context ctx) {
+    return pw.Column(children: [
+      pw.Divider(color: _divider),
+      pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
+        pw.Text('Сформировано в Есеп · ${_dateFmt.format(DateTime.now())}',
+            style: const pw.TextStyle(fontSize: 8, color: _grey)),
+        pw.Text('Стр. ${ctx.pageNumber} из ${ctx.pagesCount}',
+            style: const pw.TextStyle(fontSize: 8, color: _grey)),
+      ]),
+    ]);
+  }
+
+  static pw.Widget _reportSummaryRow(double income, double expense, double profit) {
+    return pw.Row(children: [
+      _reportMetricBox('Доход', income, const PdfColor.fromInt(0xFF27AE60)),
+      pw.SizedBox(width: 12),
+      _reportMetricBox('Расход', expense, const PdfColor.fromInt(0xFFE74C3C)),
+      pw.SizedBox(width: 12),
+      _reportMetricBox('Прибыль', profit, profit >= 0 ? _blue : const PdfColor.fromInt(0xFFE74C3C)),
+    ]);
+  }
+
+  static pw.Widget _reportMetricBox(String label, double amount, PdfColor color) {
+    return pw.Expanded(
+      child: pw.Container(
+        padding: const pw.EdgeInsets.all(12),
+        decoration: pw.BoxDecoration(
+          borderRadius: pw.BorderRadius.circular(8),
+          border: pw.Border.all(color: _divider),
+          color: _lightBg,
+        ),
+        child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+          pw.Text(label, style: const pw.TextStyle(fontSize: 9, color: _grey)),
+          pw.SizedBox(height: 4),
+          pw.Text('${_fmt.format(amount)} ₸',
+              style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: color)),
+        ]),
+      ),
+    );
+  }
+
+  static pw.Widget _reportTaxSection(TaxCalculation910 tax, SocialPayments social, double socialTotal, int months) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(14),
+      decoration: pw.BoxDecoration(
+        borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(color: _divider),
+        color: _lightBg,
+      ),
+      child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+        pw.Text('Налоги и соцплатежи (910 упрощёнка)',
+            style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: _dark)),
+        pw.SizedBox(height: 8),
+        _taxRow('ИПН (1.5%)', tax.ipn),
+        _taxRow('СН (1.5%)', tax.sn),
+        _taxRow('Итого налог (3%)', tax.totalTax, bold: true),
+        pw.Divider(color: _divider, height: 12),
+        _taxRow('ОПВ (10% от МЗП × $months мес)', social.opv * months),
+        _taxRow('ОПВР (3.5% от МЗП × $months мес)', social.opvr * months),
+        _taxRow('СО (5% от МЗП × $months мес)', social.so * months),
+        _taxRow('ВОСМС (5% от 1.4 МЗП × $months мес)', social.vosms * months),
+        _taxRow('Итого соцплатежи', socialTotal, bold: true),
+        pw.Divider(color: _divider, height: 12),
+        _taxRow('ВСЕГО К УПЛАТЕ', tax.totalTax + socialTotal, bold: true, color: _blue),
+      ]),
+    );
+  }
+
+  static pw.Widget _taxRow(String label, double amount, {bool bold = false, PdfColor? color}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 3),
+      child: pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
+        pw.Text(label, style: pw.TextStyle(
+          fontSize: 9,
+          color: color ?? (bold ? _dark : _grey),
+          fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+        )),
+        pw.Text('${_fmt.format(amount)} ₸', style: pw.TextStyle(
+          fontSize: 9,
+          color: color ?? (bold ? _dark : _grey),
+          fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+        )),
+      ]),
+    );
+  }
+
+  static pw.Widget _reportSectionTitle(String title, double total) {
+    return pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
+      pw.Text(title, style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: _dark)),
+      pw.Text('${_fmt.format(total)} ₸', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: _dark)),
+    ]);
+  }
+
+  static pw.Widget _reportTransactionTable(List<Transaction> txs) {
+    return pw.TableHelper.fromTextArray(
+      border: pw.TableBorder.all(color: _divider),
+      headerStyle: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+      headerDecoration: const pw.BoxDecoration(color: _blue),
+      cellStyle: const pw.TextStyle(fontSize: 9, color: _dark),
+      cellPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      headerPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      columnWidths: {
+        0: const pw.FixedColumnWidth(25),
+        1: const pw.FixedColumnWidth(65),
+        2: const pw.FlexColumnWidth(3),
+        3: const pw.FlexColumnWidth(2),
+        4: const pw.FlexColumnWidth(1.5),
+      },
+      headers: ['#', 'Дата', 'Описание', 'Контрагент', 'Сумма'],
+      data: List.generate(txs.length, (i) {
+        final t = txs[i];
+        return [
+          '${i + 1}',
+          _dateFmt.format(t.date),
+          t.title,
+          t.clientName ?? '',
+          '${_fmt.format(t.amount)} ₸',
+        ];
+      }),
+      cellAlignments: {0: pw.Alignment.center, 4: pw.Alignment.centerRight},
+      headerAlignments: {0: pw.Alignment.center, 4: pw.Alignment.centerRight},
+      oddRowDecoration: const pw.BoxDecoration(color: _lightBg),
+    );
+  }
+
+  static pw.Widget _reportCategoryBreakdown(List<Transaction> txs) {
+    final expenses = txs.where((t) => !t.isIncome).toList();
+    if (expenses.isEmpty) return pw.SizedBox();
+
+    // Group by category
+    final byCategory = <String, double>{};
+    for (final t in expenses) {
+      final cat = t.category ?? 'Прочее';
+      byCategory[cat] = (byCategory[cat] ?? 0) + t.amount;
+    }
+    final sorted = byCategory.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final total = sorted.fold(0.0, (s, e) => s + e.value);
+
+    return pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+      pw.Text('Расходы по категориям', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: _dark)),
+      pw.SizedBox(height: 8),
+      ...sorted.map((e) {
+        final pct = total > 0 ? (e.value / total * 100).toStringAsFixed(1) : '0';
+        return pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 4),
+          child: pw.Row(children: [
+            pw.SizedBox(width: 120, child: pw.Text(e.key, style: const pw.TextStyle(fontSize: 9, color: _dark))),
+            pw.Expanded(child: pw.ClipRRect(
+              horizontalRadius: 3,
+              verticalRadius: 3,
+              child: pw.Container(
+                height: 10,
+                decoration: pw.BoxDecoration(color: _lightBg, borderRadius: pw.BorderRadius.circular(3)),
+                child: pw.Align(
+                  alignment: pw.Alignment.centerLeft,
+                  child: pw.Container(
+                    width: 200 * (total > 0 ? e.value / total : 0),
+                    height: 10,
+                    decoration: pw.BoxDecoration(color: _blue, borderRadius: pw.BorderRadius.circular(3)),
+                  ),
+                ),
+              ),
+            )),
+            pw.SizedBox(width: 8),
+            pw.SizedBox(width: 80, child: pw.Text(
+              '${_fmt.format(e.value)} ₸ ($pct%)',
+              style: const pw.TextStyle(fontSize: 8, color: _grey),
+              textAlign: pw.TextAlign.right,
+            )),
+          ]),
+        );
+      }),
+    ]);
   }
 
   static pw.Widget _buildSignature(String company) {

@@ -13,6 +13,7 @@ class KaspiRow {
   final double? balance;
   bool isIncome;          // можно менять вручную в UI
   bool selected;          // выбрана для импорта
+  String? category;       // категория (авто или ручная)
 
   KaspiRow({
     required this.date,
@@ -22,6 +23,7 @@ class KaspiRow {
     this.balance,
     required this.isIncome,
     this.selected = true,
+    this.category,
   });
 }
 

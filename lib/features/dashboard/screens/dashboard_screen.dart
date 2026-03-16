@@ -5,10 +5,13 @@ import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
+import 'package:printing/printing.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/kz_tax_constants.dart';
 import '../../../core/providers/transaction_provider.dart';
 import '../../../core/providers/invoice_provider.dart';
+import '../../../core/services/pdf_service.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -76,6 +79,13 @@ class DashboardScreen extends ConsumerWidget {
               label: 'Счёт',
               color: EsepColors.primary,
               onTap: () => context.go('/invoices'),
+            )),
+            const SizedBox(width: 10),
+            Expanded(child: _ActionButton(
+              icon: Iconsax.document_download,
+              label: 'Отчёт',
+              color: EsepColors.info,
+              onTap: () => _exportReport(context, ref),
             )),
           ]),
 
@@ -222,10 +232,33 @@ class DashboardScreen extends ConsumerWidget {
             color: socialDays <= 7 ? EsepColors.expense : EsepColors.warning,
           ),
 
+          // 9. Оптимизатор налогового режима
+          if (halfYearIncome > 0) ...[
+            const SizedBox(height: 16),
+            _RegimeOptimizerCard(halfYearIncome: halfYearIncome, monthExpense: monthExpense),
+          ],
+
           const SizedBox(height: 32),
         ],
       ),
     );
+  }
+
+  static Future<void> _exportReport(BuildContext context, WidgetRef ref) async {
+    final txs = ref.read(transactionProvider);
+    if (txs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Нет транзакций для отчёта')),
+      );
+      return;
+    }
+    final now = DateTime.now();
+    final period = '${DateFormat('LLLL yyyy', 'ru_RU').format(now)}';
+    final doc = await PdfService.generateReport(
+      transactions: txs,
+      period: period[0].toUpperCase() + period.substring(1),
+    );
+    await Printing.layoutPdf(onLayout: (_) => doc.save());
   }
 
   static void _showQuickAdd(BuildContext context, WidgetRef ref, {required bool isIncome}) {
@@ -733,6 +766,161 @@ class _ForecastRow extends StatelessWidget {
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
     ]);
   }
+}
+
+// ── Tax Regime Optimizer ──────────────────────────────────────────────────────
+class _RegimeOptimizerCard extends StatelessWidget {
+  const _RegimeOptimizerCard({required this.halfYearIncome, required this.monthExpense});
+  final double halfYearIncome;
+  final double monthExpense;
+
+  @override
+  Widget build(BuildContext context) {
+    final fmt = NumberFormat('#,##0', 'ru_RU');
+    final yearIncome = halfYearIncome * 2; // прогноз на год
+    final social6 = KzTax.calculateMonthlySocial().total * 6;
+
+    // Расчёт по каждому режиму
+    final regimes = <_RegimeOption>[];
+
+    // 910 упрощёнка
+    final tax910 = halfYearIncome * KzTax.simplified910TotalRate;
+    final total910 = tax910 + social6;
+    if (halfYearIncome <= KzTax.simplified910HalfYearLimit) {
+      regimes.add(_RegimeOption('Упрощёнка (910)', total910, '3% от дохода', true));
+    }
+
+    // ЕСП
+    if (yearIncome <= KzTax.espYearLimit) {
+      final espTotal = KzTax.espMonthlyCity * 6;
+      regimes.add(_RegimeOption('ЕСП', espTotal, '1 МРП/мес (${fmt.format(KzTax.currentMrp)} ₸)', false));
+    }
+
+    // Самозанятый
+    if (yearIncome <= KzTax.selfEmployedYearLimit) {
+      final selfTotal = halfYearIncome * KzTax.selfEmployedRate + social6;
+      regimes.add(_RegimeOption('Самозанятый', selfTotal, '4% + соцплатежи', false));
+    }
+
+    // ОУР
+    final netIncome = halfYearIncome - (monthExpense * 6);
+    final ourTax = (netIncome > 0 ? netIncome : 0) * KzTax.generalIpnRate + social6;
+    regimes.add(_RegimeOption('ОУР', ourTax, '10% от чистого дохода', false));
+
+    // Сортируем по стоимости
+    regimes.sort((a, b) => a.total.compareTo(b.total));
+    final best = regimes.first;
+    final current = regimes.firstWhere((r) => r.isCurrent, orElse: () => regimes.first);
+
+    // Если текущий режим не самый выгодный
+    final saving = current.total - best.total;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Row(children: [
+            Icon(Iconsax.chart, color: EsepColors.primary, size: 18),
+            SizedBox(width: 8),
+            Text('Оптимизация режима',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: EsepColors.textPrimary)),
+          ]),
+          const SizedBox(height: 12),
+          // Список режимов
+          ...regimes.asMap().entries.map((e) {
+            final i = e.key;
+            final r = e.value;
+            final isBest = i == 0;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(children: [
+                Container(
+                  width: 20, height: 20,
+                  decoration: BoxDecoration(
+                    color: isBest ? EsepColors.income.withValues(alpha: 0.15) :
+                           r.isCurrent ? EsepColors.primary.withValues(alpha: 0.15) :
+                           EsepColors.surface,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isBest ? EsepColors.income : r.isCurrent ? EsepColors.primary : EsepColors.divider,
+                    ),
+                  ),
+                  child: isBest
+                      ? const Icon(Icons.check, size: 12, color: EsepColors.income)
+                      : r.isCurrent
+                          ? const Icon(Icons.circle, size: 6, color: EsepColors.primary)
+                          : null,
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Text(r.name,
+                          style: TextStyle(fontSize: 13, fontWeight: isBest || r.isCurrent ? FontWeight.w600 : FontWeight.w400)),
+                      if (isBest) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: EsepColors.income.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text('Выгоднее', style: TextStyle(fontSize: 9, color: EsepColors.income, fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                      if (r.isCurrent && !isBest) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: EsepColors.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text('Текущий', style: TextStyle(fontSize: 9, color: EsepColors.primary, fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ]),
+                    Text(r.subtitle, style: const TextStyle(fontSize: 11, color: EsepColors.textSecondary)),
+                  ],
+                )),
+                Text('${fmt.format(r.total)} ₸',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
+                        color: isBest ? EsepColors.income : EsepColors.textPrimary)),
+              ]),
+            );
+          }),
+          // Экономия
+          if (saving > 1000 && !best.isCurrent) ...[
+            const Divider(height: 16),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: EsepColors.income.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(children: [
+                const Icon(Iconsax.money_recive, color: EsepColors.income, size: 16),
+                const SizedBox(width: 8),
+                Expanded(child: Text(
+                  'Переход на ${best.name} сэкономит ${fmt.format(saving)} ₸ за полугодие',
+                  style: const TextStyle(fontSize: 12, color: EsepColors.income, fontWeight: FontWeight.w500),
+                )),
+              ]),
+            ),
+          ],
+        ]),
+      ),
+    );
+  }
+}
+
+class _RegimeOption {
+  final String name;
+  final double total;
+  final String subtitle;
+  final bool isCurrent;
+  _RegimeOption(this.name, this.total, this.subtitle, this.isCurrent);
 }
 
 class _Legend extends StatelessWidget {
