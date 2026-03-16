@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:csv/csv.dart';
+import 'package:excel/excel.dart' as xl;
 import 'package:intl/intl.dart';
 
 /// Результат парсинга одной строки выписки Kaspi
@@ -50,7 +52,83 @@ class KaspiParseResult {
 class KaspiParser {
   KaspiParser._();
 
-  static KaspiParseResult parse(List<int> bytes) {
+  /// Точка входа: определяет формат файла по расширению
+  static KaspiParseResult parseFile(List<int> bytes, String fileName) {
+    final ext = fileName.toLowerCase().split('.').last;
+    if (ext == 'xlsx' || ext == 'xls') {
+      return parseExcel(Uint8List.fromList(bytes));
+    }
+    return parseCsv(bytes);
+  }
+
+  /// Парсинг Excel (.xlsx) — основной формат Kaspi Business
+  static KaspiParseResult parseExcel(Uint8List bytes) {
+    final excel = xl.Excel.decodeBytes(bytes);
+    final warnings = <String>[];
+
+    // Берём первый лист
+    if (excel.tables.isEmpty) {
+      return const KaspiParseResult(rows: [], format: 'unknown', warnings: ['Файл не содержит листов']);
+    }
+    final sheet = excel.tables[excel.tables.keys.first]!;
+    final allRows = sheet.rows;
+    if (allRows.isEmpty) {
+      return const KaspiParseResult(rows: [], format: 'unknown', warnings: ['Лист пустой']);
+    }
+
+    // Ищем заголовки в первых 10 строках
+    int headerIndex = -1;
+    Map<String, int> colMap = {};
+    String format = 'generic';
+
+    for (int i = 0; i < allRows.length && i < 10; i++) {
+      final row = allRows[i].map((c) => (c?.value?.toString() ?? '').trim().toLowerCase()).toList();
+      final detected = _detectFormat(row);
+      if (detected != null) {
+        headerIndex = i;
+        colMap = detected['cols'] as Map<String, int>;
+        format = detected['format'] as String;
+        break;
+      }
+    }
+
+    if (headerIndex == -1) {
+      return const KaspiParseResult(rows: [], format: 'unknown', warnings: ['Не удалось найти заголовки']);
+    }
+
+    final rows = <KaspiRow>[];
+    for (int i = headerIndex + 1; i < allRows.length; i++) {
+      final rawRow = allRows[i];
+      final row = rawRow.map((c) {
+        final val = c?.value;
+        // Excel может хранить дату как DateCellValue
+        if (val is xl.DateCellValue) {
+          return '${val.day.toString().padLeft(2, '0')}.${val.month.toString().padLeft(2, '0')}.${val.year}';
+        }
+        if (val is xl.DateTimeCellValue) {
+          return '${val.day.toString().padLeft(2, '0')}.${val.month.toString().padLeft(2, '0')}.${val.year}';
+        }
+        return (val?.toString() ?? '').trim();
+      }).toList();
+
+      if (row.every((e) => e.isEmpty)) continue;
+
+      try {
+        final parsed = _parseRow(row, colMap, format);
+        if (parsed != null) rows.add(parsed);
+      } catch (e) {
+        warnings.add('Строка ${i + 1} пропущена: $e');
+      }
+    }
+
+    return KaspiParseResult(rows: rows, format: format, warnings: warnings);
+  }
+
+  /// Обратная совместимость
+  static KaspiParseResult parse(List<int> bytes) => parseCsv(bytes);
+
+  /// Парсинг CSV/TXT
+  static KaspiParseResult parseCsv(List<int> bytes) {
     // Попытка декодировать как UTF-8, затем как Windows-1251
     String content;
     try {
@@ -140,19 +218,21 @@ class KaspiParser {
   }
 
   static Map<String, dynamic>? _detectFormat(List<String> headerRow) {
-    // Приводим к нижнему регистру для сравнения
     bool has(String s) => headerRow.any((h) => h.contains(s));
     int idx(String s) => headerRow.indexWhere((h) => h.contains(s));
 
-    // Kaspi Business
+    // Kaspi Business — с отдельными колонками Дебет/Кредит
     if (has('дата операции') || has('назначение платежа')) {
+      final hasDebitCredit = has('дебет') && has('кредит');
       return {
         'format': 'kaspi_business',
         'cols': {
           'date': idx('дата операции') >= 0 ? idx('дата операции') : idx('дата'),
-          'amount': idx('сумма'),
+          'amount': hasDebitCredit ? -1 : idx('сумма'),
+          'debit': idx('дебет'),     // расход
+          'credit': idx('кредит'),   // приход
           'description': idx('назначение') >= 0 ? idx('назначение') : idx('описание'),
-          'counterparty': idx('контрагент'),
+          'counterparty': idx('контрагент') >= 0 ? idx('контрагент') : idx('получатель'),
           'balance': idx('остаток') >= 0 ? idx('остаток') : idx('баланс'),
         },
       };
@@ -166,22 +246,34 @@ class KaspiParser {
           'date': idx('дата'),
           'description': idx('описание'),
           'amount': idx('сумма'),
+          'debit': -1,
+          'credit': -1,
           'counterparty': -1,
           'balance': idx('остаток') >= 0 ? idx('остаток') : idx('баланс'),
         },
       };
     }
 
-    // Generic — дата + сумма присутствуют
-    if (has('дата') && has('сумма')) {
-      final descIdx = idx('описание') >= 0 ? idx('описание') : idx('назначение');
+    // Halyk / Forte / Generic — дебет+кредит или сумма
+    if (has('дата')) {
+      final hasDebitCredit = has('дебет') && has('кредит');
+      final hasAmount = has('сумма');
+      if (!hasDebitCredit && !hasAmount) return null;
+
+      final descIdx = idx('описание') >= 0
+          ? idx('описание')
+          : idx('назначение') >= 0
+              ? idx('назначение')
+              : idx('детали');
       return {
         'format': 'generic',
         'cols': {
           'date': idx('дата'),
-          'amount': idx('сумма'),
+          'amount': hasDebitCredit ? -1 : idx('сумма'),
+          'debit': idx('дебет'),
+          'credit': idx('кредит'),
           'description': descIdx,
-          'counterparty': idx('контрагент'),
+          'counterparty': idx('контрагент') >= 0 ? idx('контрагент') : idx('получатель'),
           'balance': idx('остаток') >= 0 ? idx('остаток') : idx('баланс'),
         },
       };
@@ -193,23 +285,47 @@ class KaspiParser {
   static KaspiRow? _parseRow(
       List<String> row, Map<String, int> cols, String format) {
     final dateIdx = cols['date'] ?? 0;
-    final amountIdx = cols['amount'] ?? 2;
+    final amountIdx = cols['amount'] ?? -1;
+    final debitIdx = cols['debit'] ?? -1;
+    final creditIdx = cols['credit'] ?? -1;
     final descIdx = cols['description'] ?? 1;
     final cpIdx = cols['counterparty'] ?? -1;
     final balIdx = cols['balance'] ?? -1;
 
-    if (dateIdx >= row.length || amountIdx >= row.length) return null;
+    if (dateIdx >= row.length) return null;
 
     final dateStr = row[dateIdx];
-    final amountStr = row[amountIdx];
-
-    if (dateStr.isEmpty || amountStr.isEmpty) return null;
+    if (dateStr.isEmpty) return null;
 
     final date = _parseDate(dateStr);
     if (date == null) return null;
 
-    final amount = _parseAmount(amountStr);
-    if (amount == null) return null;
+    // Определяем сумму и направление
+    double? amount;
+    bool isIncome = false;
+
+    if (debitIdx >= 0 && creditIdx >= 0 && debitIdx < row.length && creditIdx < row.length) {
+      // Отдельные колонки Дебет (расход) и Кредит (приход)
+      final debit = _parseAmount(row[debitIdx]);
+      final credit = _parseAmount(row[creditIdx]);
+      if (credit != null && credit > 0) {
+        amount = credit;
+        isIncome = true;
+      } else if (debit != null && debit > 0) {
+        amount = debit;
+        isIncome = false;
+      } else {
+        return null; // обе колонки пустые
+      }
+    } else if (amountIdx >= 0 && amountIdx < row.length) {
+      // Одна колонка Сумма (положительная = доход, отрицательная = расход)
+      final parsed = _parseAmount(row[amountIdx]);
+      if (parsed == null) return null;
+      amount = parsed.abs();
+      isIncome = parsed > 0;
+    } else {
+      return null;
+    }
 
     final description = descIdx >= 0 && descIdx < row.length
         ? row[descIdx].isEmpty ? 'Без описания' : row[descIdx]
@@ -225,11 +341,11 @@ class KaspiParser {
 
     return KaspiRow(
       date: date,
-      amount: amount.abs(),
+      amount: amount,
       description: description,
       counterparty: counterparty,
       balance: balance,
-      isIncome: amount > 0,
+      isIncome: isIncome,
     );
   }
 

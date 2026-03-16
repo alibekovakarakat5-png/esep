@@ -105,7 +105,17 @@ class DashboardScreen extends ConsumerWidget {
             profit: profit,
           ),
 
-          // 4. Последние операции
+          // 4. Налоговый прогноз — сколько отложить
+          if (halfYearIncome > 0) ...[
+            const SizedBox(height: 12),
+            _TaxForecastCard(
+              halfYearIncome: halfYearIncome,
+              monthIncome: monthIncome,
+              socialMonthly: social.total,
+            ),
+          ],
+
+          // Последние операции
           if (recentTxs.isNotEmpty) ...[
             const SizedBox(height: 20),
             Row(children: [
@@ -614,6 +624,114 @@ class _MonthlyChart extends StatelessWidget {
         ]),
       ),
     );
+  }
+}
+
+// ── Tax Forecast Card ─────────────────────────────────────────────────────────
+class _TaxForecastCard extends StatelessWidget {
+  const _TaxForecastCard({
+    required this.halfYearIncome,
+    required this.monthIncome,
+    required this.socialMonthly,
+  });
+  final double halfYearIncome;
+  final double monthIncome;
+  final double socialMonthly;
+
+  @override
+  Widget build(BuildContext context) {
+    final fmt = NumberFormat('#,##0', 'ru_RU');
+    final taxRate = KzTax.simplified910TotalRate; // 3%
+    final halfYearTax = halfYearIncome * taxRate;
+    final monthTax = monthIncome * taxRate;
+    final monthTotal = monthTax + socialMonthly;
+
+    // Умная подсказка
+    String? tip;
+    if (halfYearIncome > KzTax.simplified910HalfYearLimit * 0.8) {
+      tip = 'Доход приближается к лимиту упрощёнки. Рассмотрите переход на ОУР.';
+    } else if (monthIncome > 2000000) {
+      tip = 'При доходе > 2М ₸/мес может быть выгоднее другой режим.';
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Row(children: [
+            Icon(Iconsax.calculator, color: EsepColors.primary, size: 18),
+            SizedBox(width: 8),
+            Text('Налоговый прогноз',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: EsepColors.textPrimary)),
+          ]),
+          const SizedBox(height: 12),
+          // Полугодовой налог
+          _ForecastRow(
+            label: 'Налог 910 за полугодие (3%)',
+            amount: halfYearTax,
+            color: EsepColors.expense,
+          ),
+          const SizedBox(height: 6),
+          // Ежемесячно отложить
+          _ForecastRow(
+            label: 'Налог за этот месяц',
+            amount: monthTax,
+            color: EsepColors.warning,
+          ),
+          const SizedBox(height: 6),
+          _ForecastRow(
+            label: 'Соцплатежи (ОПВ+ОПВР+СО+ВОСМС)',
+            amount: socialMonthly,
+            color: EsepColors.warning,
+          ),
+          const Divider(height: 20),
+          Row(children: [
+            const Icon(Iconsax.wallet_money, color: EsepColors.primary, size: 16),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text('Отложить в этом месяце',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            ),
+            Text('${fmt.format(monthTotal)} ₸',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: EsepColors.primary)),
+          ]),
+          if (tip != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: EsepColors.info.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Icon(Iconsax.lamp_charge, color: EsepColors.info, size: 16),
+                const SizedBox(width: 8),
+                Expanded(child: Text(tip,
+                    style: const TextStyle(fontSize: 12, color: EsepColors.info))),
+              ]),
+            ),
+          ],
+        ]),
+      ),
+    );
+  }
+}
+
+class _ForecastRow extends StatelessWidget {
+  const _ForecastRow({required this.label, required this.amount, required this.color});
+  final String label;
+  final double amount;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final fmt = NumberFormat('#,##0', 'ru_RU');
+    return Row(children: [
+      Expanded(child: Text(label,
+          style: const TextStyle(fontSize: 12, color: EsepColors.textSecondary))),
+      Text('${fmt.format(amount)} ₸',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
+    ]);
   }
 }
 

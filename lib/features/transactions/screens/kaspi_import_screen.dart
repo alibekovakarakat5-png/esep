@@ -29,7 +29,7 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
     try {
       final picked = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['csv', 'txt'],
+        allowedExtensions: ['csv', 'txt', 'xlsx', 'xls'],
         withData: true,
       );
 
@@ -48,7 +48,7 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
         return;
       }
 
-      final result = KaspiParser.parse(bytes);
+      final result = KaspiParser.parseFile(bytes, file.name);
       setState(() {
         _result = result;
         _fileName = file.name;
@@ -85,7 +85,7 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
         date: row.date,
         clientName: row.counterparty,
         source: 'kaspi',
-        note: null,
+        category: KaspiParser.autoCategory(row.description, row.isIncome),
       );
     }
 
@@ -175,8 +175,9 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             const Text(
-              'Поддерживаются выписки Kaspi Gold и Kaspi Business в формате CSV. '
-              'Скачайте выписку в приложении или личном кабинете.',
+              'Поддерживаются выписки Kaspi Gold, Kaspi Business, Halyk и Forte '
+              'в форматах Excel (.xlsx) и CSV. '
+              'Скачайте выписку в личном кабинете банка.',
               style: TextStyle(fontSize: 13, color: EsepColors.textSecondary),
               textAlign: TextAlign.center,
             ),
@@ -188,10 +189,10 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
               icon: _loading
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Icon(Iconsax.folder_open),
-              label: Text(_loading ? 'Загрузка...' : 'Выбрать файл CSV'),
+              label: Text(_loading ? 'Загрузка...' : 'Выбрать файл'),
             ),
             const SizedBox(height: 12),
-            const Text('Поддерживаются файлы .csv',
+            const Text('Поддерживаются .xlsx, .csv, .txt',
                 style: TextStyle(fontSize: 12, color: EsepColors.textDisabled)),
           ],
         ),
@@ -215,8 +216,9 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: EsepColors.info)),
         ]),
         const SizedBox(height: 8),
-        _hintLine('Kaspi Gold', 'Профиль → Выписка → Экспорт CSV'),
-        _hintLine('Kaspi Business', 'Личный кабинет → Счета → Выписка → CSV'),
+        _hintLine('Kaspi Business', 'Личный кабинет → Счета → Выписка → Excel'),
+        _hintLine('Kaspi Gold', 'Приложение → Мой банк → Выписка → Экспорт'),
+        _hintLine('Halyk / Forte', 'Онлайн-банк → Счета → Выписка → XLS'),
       ]),
     );
   }
@@ -352,6 +354,7 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
     return switch (fmt) {
       'kaspi_gold' => 'Kaspi Gold',
       'kaspi_business' => 'Kaspi Business',
+      'generic' => 'Банковская выписка',
       _ => 'Авто',
     };
   }
