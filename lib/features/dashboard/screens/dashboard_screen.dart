@@ -5,10 +5,15 @@ import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
+import 'dart:io';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/kz_tax_constants.dart';
+import '../../../core/models/transaction.dart' as model;
 import '../../../core/providers/transaction_provider.dart';
 import '../../../core/providers/invoice_provider.dart';
 import '../../../core/services/pdf_service.dart';
@@ -244,7 +249,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  static Future<void> _exportReport(BuildContext context, WidgetRef ref) async {
+  static void _exportReport(BuildContext context, WidgetRef ref) {
     final txs = ref.read(transactionProvider);
     if (txs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -252,13 +257,87 @@ class DashboardScreen extends ConsumerWidget {
       );
       return;
     }
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 36, height: 4,
+                decoration: BoxDecoration(color: EsepColors.divider, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            const Text('Финансовый отчёт',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            const Text('Выберите действие',
+                style: TextStyle(fontSize: 13, color: EsepColors.textSecondary)),
+            const SizedBox(height: 20),
+            Row(children: [
+              Expanded(child: _ReportAction(
+                icon: Iconsax.printer,
+                label: 'Печать / PDF',
+                color: EsepColors.primary,
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final doc = await _buildReport(txs);
+                  await Printing.layoutPdf(onLayout: (_) => doc.save());
+                },
+              )),
+              const SizedBox(width: 12),
+              Expanded(child: _ReportAction(
+                icon: Iconsax.share,
+                label: 'Поделиться',
+                color: EsepColors.info,
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await _shareReport(context, txs);
+                },
+              )),
+            ]),
+            const SizedBox(height: 8),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  static Future<pw.Document> _buildReport(List<model.Transaction> txs) async {
     final now = DateTime.now();
-    final period = '${DateFormat('LLLL yyyy', 'ru_RU').format(now)}';
-    final doc = await PdfService.generateReport(
+    final period = DateFormat('LLLL yyyy', 'ru_RU').format(now);
+    return PdfService.generateReport(
       transactions: txs,
       period: period[0].toUpperCase() + period.substring(1),
     );
-    await Printing.layoutPdf(onLayout: (_) => doc.save());
+  }
+
+  static Future<void> _shareReport(BuildContext context, List<model.Transaction> txs) async {
+    try {
+      final doc = await _buildReport(txs);
+      final bytes = await doc.save();
+      final dir = await getTemporaryDirectory();
+      final now = DateTime.now();
+      final fileName = 'esep_report_${DateFormat('yyyy_MM').format(now)}.pdf';
+      final file = File('${dir.path}/$fileName');
+      await file.writeAsBytes(bytes);
+
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path, mimeType: 'application/pdf')],
+          subject: 'Финансовый отчёт — Есеп',
+          text: 'Финансовый отчёт ИП за ${DateFormat('LLLL yyyy', 'ru_RU').format(now)}. Сформировано в Есеп.',
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e'), backgroundColor: EsepColors.expense),
+        );
+      }
+    }
   }
 
   static void _showQuickAdd(BuildContext context, WidgetRef ref, {required bool isIncome}) {
@@ -558,6 +637,33 @@ class _ActionButton extends StatelessWidget {
         Icon(icon, color: color, size: 22),
         const SizedBox(height: 5),
         Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+      ]),
+    ),
+  );
+}
+
+// ── Report Action Button ─────────────────────────────────────────────────────
+class _ReportAction extends StatelessWidget {
+  const _ReportAction({required this.icon, required this.label, required this.color, required this.onTap});
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, color: color, size: 28),
+        const SizedBox(height: 8),
+        Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
       ]),
     ),
   );
