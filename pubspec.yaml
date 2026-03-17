@@ -53,6 +53,17 @@ dev_dependencies:
   flutter_lints: ^4.0.0
   build_runner: ^2.4.9
   hive_generator: ^2.0.1
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/esep_icon.png"
+  adaptive_icon_background: "#1464C8"
+  adaptive_icon_foreground: "assets/icon/esep_icon_adaptive.png"
+  web:
+    generate: true
+    image_path: "assets/icon/esep_icon.png"
 
 flutter:
   uses-material-design: true
