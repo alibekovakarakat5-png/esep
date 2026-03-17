@@ -9,6 +9,7 @@ on:
       - 'android/**'
       - 'ios/**'
       - 'web/**'
+      - '.github/workflows/**'
   workflow_dispatch:  # manual trigger
 
 permissions:
@@ -38,6 +39,11 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+
+      - name: Generate local.properties
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
 
       - name: Get dependencies
         run: flutter pub get
