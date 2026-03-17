@@ -2,21 +2,24 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:iconsax/iconsax.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/providers/subscription_provider.dart';
 
-class BinLookupScreen extends StatefulWidget {
+class BinLookupScreen extends ConsumerStatefulWidget {
   const BinLookupScreen({super.key});
 
   @override
-  State<BinLookupScreen> createState() => _BinLookupScreenState();
+  ConsumerState<BinLookupScreen> createState() => _BinLookupScreenState();
 }
 
 enum _ScreenState { initial, loading, success, error }
 
-class _BinLookupScreenState extends State<BinLookupScreen> {
+class _BinLookupScreenState extends ConsumerState<BinLookupScreen> {
   final _binController = TextEditingController();
   _ScreenState _state = _ScreenState.initial;
   Map<String, dynamic>? _result;
@@ -28,7 +31,34 @@ class _BinLookupScreenState extends State<BinLookupScreen> {
     super.dispose();
   }
 
+  int _todayBinLookups() {
+    final box = Hive.box('settings');
+    final dateKey = DateTime.now().toIso8601String().substring(0, 10);
+    final savedDate = box.get('bin_lookup_date', defaultValue: '') as String;
+    if (savedDate != dateKey) return 0;
+    return box.get('bin_lookup_count', defaultValue: 0) as int;
+  }
+
+  void _incrementBinLookup() {
+    final box = Hive.box('settings');
+    final dateKey = DateTime.now().toIso8601String().substring(0, 10);
+    final savedDate = box.get('bin_lookup_date', defaultValue: '') as String;
+    if (savedDate != dateKey) {
+      box.put('bin_lookup_date', dateKey);
+      box.put('bin_lookup_count', 1);
+    } else {
+      final count = box.get('bin_lookup_count', defaultValue: 0) as int;
+      box.put('bin_lookup_count', count + 1);
+    }
+  }
+
   Future<void> _search() async {
+    final sub = ref.read(subscriptionProvider);
+    if (!canUseBinLookup(sub, _todayBinLookups())) {
+      showPaywall(context, feature: 'Поиск по БИН');
+      return;
+    }
+
     final bin = _binController.text.trim();
     if (bin.length != 12) {
       setState(() {
@@ -48,6 +78,7 @@ class _BinLookupScreenState extends State<BinLookupScreen> {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200 || response.statusCode == 502) {
         // 502 = stat.gov.kz unavailable, but we still get BIN-derived info
+        _incrementBinLookup();
         setState(() {
           _result = data;
           _state = _ScreenState.success;

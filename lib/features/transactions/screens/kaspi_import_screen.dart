@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/services/kaspi_parser.dart';
 import '../../../core/services/category_memory.dart';
 import '../../../core/providers/transaction_provider.dart';
+import 'bank_connect_screen.dart';
 
 class KaspiImportScreen extends ConsumerStatefulWidget {
   const KaspiImportScreen({super.key});
@@ -117,6 +118,11 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
     }
 
     setState(() => _importing = false);
+
+    // Save sync info for bank connect screen
+    final format = _result?.format ?? 'generic';
+    final bankKey = format.startsWith('kaspi') ? format : 'generic';
+    saveSyncInfo(bankKey, selected.length);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

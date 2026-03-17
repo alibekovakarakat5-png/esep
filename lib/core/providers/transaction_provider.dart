@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../models/transaction.dart';
 import '../services/api_client.dart';
 import 'auth_provider.dart';
+import 'demo_provider.dart';
 
 const _uuid = Uuid();
 
@@ -15,6 +16,12 @@ class TransactionNotifier extends StateNotifier<List<Transaction>> {
   }
 
   Future<void> _load() async {
+    // Demo mode — return fake data instantly
+    if (_ref.read(isDemoProvider)) {
+      state = demoTransactions;
+      _ref.read(transactionLoadingProvider.notifier).state = false;
+      return;
+    }
     _ref.read(transactionLoadingProvider.notifier).state = true;
     try {
       final data = await ApiClient.get('/transactions') as List<dynamic>;
@@ -138,6 +145,15 @@ class MonthlyData {
   final String label;
   const MonthlyData({required this.income, required this.expense, required this.label});
 }
+
+final monthTransactionCountProvider = Provider<int>((ref) {
+  final now = DateTime.now();
+  final monthStart = DateTime(now.year, now.month, 1);
+  return ref
+      .watch(transactionProvider)
+      .where((t) => !t.date.isBefore(monthStart))
+      .length;
+});
 
 String _shortMonth(int m) {
   const names = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/screens/auth_screen.dart';
+import '../../features/onboarding/screens/onboarding_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/invoices/screens/invoices_screen.dart';
 import '../../features/invoices/screens/invoice_detail_screen.dart';
@@ -18,6 +19,7 @@ import '../../features/mode_select/screens/mode_select_screen.dart';
 import '../../features/taxes/screens/salary_calculator_screen.dart';
 import '../../features/taxes/screens/too_calculator_screen.dart';
 import '../../features/tools/screens/bin_lookup_screen.dart';
+import '../../features/transactions/screens/bank_connect_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
 import '../providers/auth_provider.dart';
 import '../providers/user_mode_provider.dart';
@@ -28,6 +30,7 @@ class _RouterListenable extends ChangeNotifier {
   _RouterListenable(Ref ref) {
     ref.listen<AuthState>(authProvider, (_, __) => notifyListeners());
     ref.listen<UserMode?>(userModeProvider, (_, __) => notifyListeners());
+    ref.listen<bool>(hasSeenOnboardingProvider, (_, __) => notifyListeners());
   }
 }
 
@@ -43,19 +46,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/dashboard',
     refreshListenable: listenable,
     redirect: (context, state) {
-      final authState = ref.read(authProvider);
-      final mode      = ref.read(userModeProvider);
-      final location  = state.matchedLocation;
+      final authState     = ref.read(authProvider);
+      final mode          = ref.read(userModeProvider);
+      final seenOnboarding = ref.read(hasSeenOnboardingProvider);
+      final location      = state.matchedLocation;
 
       if (authState == AuthState.loading) return null;
 
+      // First launch → onboarding
+      if (!seenOnboarding && location != '/onboarding') {
+        return '/onboarding';
+      }
+
       // Not logged in → go to auth
-      if (authState == AuthState.unauthenticated && location != '/auth') {
+      if (seenOnboarding &&
+          authState == AuthState.unauthenticated &&
+          location != '/auth' &&
+          location != '/onboarding') {
         return '/auth';
       }
 
-      // Logged in, on auth screen → pick mode or home
-      if (authState == AuthState.authenticated && location == '/auth') {
+      // Logged in, on auth or onboarding → pick mode or home
+      if (authState == AuthState.authenticated &&
+          (location == '/auth' || location == '/onboarding')) {
         return mode == null
             ? '/mode-select'
             : _homeForMode(mode);
@@ -71,6 +84,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      // ── Onboarding ──────────────────────────────────────────────────────
+      GoRoute(
+        path: '/onboarding',
+        builder: (_, __) => const OnboardingScreen(),
+      ),
+
       // ── Auth ─────────────────────────────────────────────────────────────
       GoRoute(
         path: '/auth',
@@ -124,6 +143,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/bin-lookup',
             builder: (_, __) => const BinLookupScreen(),
+          ),
+          GoRoute(
+            path: '/bank-connect',
+            builder: (_, __) => const BankConnectScreen(),
           ),
           GoRoute(
             path: '/clients',

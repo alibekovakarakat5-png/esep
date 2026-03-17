@@ -16,6 +16,8 @@ import '../../../core/constants/kz_tax_constants.dart';
 import '../../../core/models/transaction.dart' as model;
 import '../../../core/providers/transaction_provider.dart';
 import '../../../core/providers/invoice_provider.dart';
+import '../../../core/providers/demo_provider.dart';
+import '../../../core/providers/auth_provider.dart';
 import '../../../core/services/pdf_service.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -63,6 +65,43 @@ class DashboardScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
 
+          // ── Demo banner ────────────────────────────────────────────
+          if (ref.watch(isDemoProvider)) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: EsepColors.warning.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: EsepColors.warning.withValues(alpha: 0.3)),
+              ),
+              child: Row(children: [
+                const Icon(Iconsax.info_circle, color: EsepColors.warning, size: 20),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'Демо-режим — данные не сохраняются',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: EsepColors.warning),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    ref.read(authProvider.notifier).logout();
+                    context.go('/auth');
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: EsepColors.primary,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text('Войти', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ]),
+            ),
+            const SizedBox(height: 12),
+          ],
+
           // 1. Быстрые действия — первое что видит пользователь
           Row(children: [
             Expanded(child: _ActionButton(
@@ -93,6 +132,44 @@ class DashboardScreen extends ConsumerWidget {
               onTap: () => _exportReport(context, ref),
             )),
           ]),
+          const SizedBox(height: 10),
+
+          // ── Bank connect CTA ───────────────────────────────────────
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => context.go('/bank-connect'),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFFF14635).withValues(alpha: 0.08),
+                      EsepColors.primary.withValues(alpha: 0.05),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFF14635).withValues(alpha: 0.2)),
+                ),
+                child: const Row(children: [
+                  Icon(Iconsax.link_21, color: Color(0xFFF14635), size: 20),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Подключить Kaspi / банк', style: TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFFF14635),
+                      )),
+                      Text('Загрузите выписку — узнайте налог за 10 сек', style: TextStyle(
+                        fontSize: 12, color: EsepColors.textSecondary,
+                      )),
+                    ]),
+                  ),
+                  Icon(Iconsax.arrow_right_3, color: EsepColors.textDisabled, size: 18),
+                ]),
+              ),
+            ),
+          ),
 
           // 2. Дедлайн-баннер (если скоро платёж)
           if (socialDays <= 7) ...[

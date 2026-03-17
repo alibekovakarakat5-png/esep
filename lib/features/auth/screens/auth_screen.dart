@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:iconsax/iconsax.dart';
 
 import '../../../core/services/api_client.dart';
 import '../../../core/providers/auth_provider.dart';
@@ -137,6 +138,32 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                   ],
                 ),
               ),
+
+              // ── Demo mode button ──────────────────────────────────────
+              const Divider(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Iconsax.eye, size: 18),
+                  label: const Text('Посмотреть без входа'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(color: EsepColors.primary.withValues(alpha: 0.3)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    ref.read(authProvider.notifier).enterDemo();
+                  },
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Center(
+                child: Text(
+                  'Демо-данные — без регистрации',
+                  style: TextStyle(fontSize: 12, color: EsepColors.textDisabled),
+                ),
+              ),
+              const SizedBox(height: 16),
             ],
           ),
         ),

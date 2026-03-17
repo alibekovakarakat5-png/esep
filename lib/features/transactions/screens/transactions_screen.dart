@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/models/transaction.dart' as model;
 import '../../../core/providers/transaction_provider.dart';
+import '../../../core/providers/subscription_provider.dart';
 import 'add_transaction_screen.dart';
 import 'kaspi_import_screen.dart';
 
@@ -77,6 +78,12 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
   }
 
   void _addTransaction(BuildContext context) {
+    final sub = ref.read(subscriptionProvider);
+    final monthCount = ref.read(monthTransactionCountProvider);
+    if (!canAddTransaction(sub, monthCount)) {
+      showPaywall(context, feature: 'Добавление операций');
+      return;
+    }
     final isIncome = _tabs.index == 0;
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => AddTransactionScreen(isIncome: isIncome),

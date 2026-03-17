@@ -3,10 +3,47 @@ import 'package:uuid/uuid.dart';
 import '../models/invoice.dart';
 import '../services/api_client.dart';
 import 'auth_provider.dart';
+import 'demo_provider.dart';
 
 const _uuid = Uuid();
 
 final invoiceLoadingProvider = StateProvider<bool>((ref) => true);
+
+// Demo invoices
+final _now = DateTime.now();
+final _demoInvoices = [
+  Invoice(
+    id: 'demo-inv-1',
+    number: 'СЧ-2026-001',
+    clientName: 'ТОО АстанаТрейд',
+    items: [
+      const InvoiceItem(id: 'di-1', description: 'Консультация', quantity: 1, unitPrice: 540000),
+    ],
+    status: InvoiceStatus.paid,
+    createdAt: _now.subtract(const Duration(days: 5)),
+  ),
+  Invoice(
+    id: 'demo-inv-2',
+    number: 'СЧ-2026-002',
+    clientName: 'ИП Ахметова К.',
+    items: [
+      const InvoiceItem(id: 'di-2', description: 'Разработка сайта', quantity: 1, unitPrice: 285000),
+    ],
+    status: InvoiceStatus.sent,
+    createdAt: _now.subtract(const Duration(days: 2)),
+    dueDate: _now.add(const Duration(days: 5)),
+  ),
+  Invoice(
+    id: 'demo-inv-3',
+    number: 'СЧ-2026-003',
+    clientName: 'ТОО Стройком',
+    items: [
+      const InvoiceItem(id: 'di-3', description: 'Поставка материалов', quantity: 10, unitPrice: 32000),
+    ],
+    status: InvoiceStatus.draft,
+    createdAt: _now,
+  ),
+];
 
 class InvoiceNotifier extends StateNotifier<List<Invoice>> {
   final Ref _ref;
@@ -15,6 +52,11 @@ class InvoiceNotifier extends StateNotifier<List<Invoice>> {
   }
 
   Future<void> _load() async {
+    if (_ref.read(isDemoProvider)) {
+      state = _demoInvoices;
+      _ref.read(invoiceLoadingProvider.notifier).state = false;
+      return;
+    }
     _ref.read(invoiceLoadingProvider.notifier).state = true;
     try {
       final data = await ApiClient.get('/invoices') as List<dynamic>;

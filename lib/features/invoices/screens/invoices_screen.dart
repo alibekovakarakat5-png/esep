@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/models/invoice.dart';
 import '../../../core/providers/invoice_provider.dart';
 import '../../../core/providers/client_provider.dart';
+import '../../../core/providers/subscription_provider.dart';
 
 extension InvoiceStatusExt on InvoiceStatus {
   String get label => switch (this) {
@@ -163,6 +164,12 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
   }
 
   void _showCreateInvoice(BuildContext context) {
+    final sub = ref.read(subscriptionProvider);
+    final allInvoices = ref.read(invoiceProvider);
+    if (!canAddInvoice(sub, allInvoices.length)) {
+      showPaywall(context, feature: 'Создание счетов');
+      return;
+    }
     final clients = ref.read(clientProvider);
     final clientNameCtrl = TextEditingController();
     final descCtrl = TextEditingController();
