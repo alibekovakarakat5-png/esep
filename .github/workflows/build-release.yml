@@ -1,4 +1,4 @@
-name: Build & Release APK + IPA
+name: Build & Release APK + IPA + Web
 
 on:
   push:
@@ -8,10 +8,13 @@ on:
       - 'pubspec.yaml'
       - 'android/**'
       - 'ios/**'
+      - 'web/**'
   workflow_dispatch:  # manual trigger
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 env:
   FLUTTER_VERSION: '3.27.4'
@@ -83,6 +86,57 @@ jobs:
           name: esep-ipa
           path: esep-unsigned.ipa
 
+  # ── Web (Flutter Web → GitHub Pages) ────────────────────────────────────────
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build Web
+        run: flutter build web --release --base-href "/esep/"
+
+      - name: Upload web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: esep-web
+          path: build/web
+
+  # ── Deploy Web to GitHub Pages ──────────────────────────────────────────────
+  deploy-web:
+    needs: [build-web]
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download web build
+        uses: actions/download-artifact@v4
+        with:
+          name: esep-web
+          path: ./web-build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload to Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./web-build
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
   # ── Create GitHub Release ────────────────────────────────────────────────────
   release:
     needs: [build-android, build-ios]
@@ -117,9 +171,11 @@ jobs:
           body: |
             ## Esep ${{ steps.version.outputs.version }}
 
+            **Web:** https://alibekovakarakat5-png.github.io/esep/
+
             **Android:** скачайте `esep.apk` и установите (разрешите "Неизвестные источники")
 
-            **iOS:** `esep-unsigned.ipa` — не подписан, для установки нужен Apple Developer аккаунт или AltStore
+            **iOS:** пока используйте веб-версию, или установите .ipa через AltStore
 
             ### Что нового
             - Монетизация: 4 тарифа (Бесплатный, Solo, Бухгалтер, Бухгалтер Про)
@@ -127,6 +183,7 @@ jobs:
             - Онбординг (3 экрана)
             - Подключение банков (Kaspi, Halyk, Forte)
             - Ежедневный мониторинг лидов
+            - Веб-версия для iPhone
           files: |
             ./release/esep.apk
             ./release/esep-unsigned.ipa
@@ -135,7 +192,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Also update "latest" release for stable download link
       - name: Update latest release
         uses: softprops/action-gh-release@v2
         with:
@@ -144,8 +200,9 @@ jobs:
           body: |
             Последняя версия Esep. Обновляется автоматически при каждом пуше.
 
+            **Web:** https://alibekovakarakat5-png.github.io/esep/
             **Android:** скачайте `esep.apk`
-            **iOS:** `esep-unsigned.ipa` (нужен AltStore или Apple Developer аккаунт)
+            **iOS:** используйте веб-версию или установите .ipa через AltStore
           files: |
             ./release/esep.apk
             ./release/esep-unsigned.ipa
