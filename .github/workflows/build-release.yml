@@ -1,0 +1,156 @@
+name: Build & Release APK + IPA
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'lib/**'
+      - 'pubspec.yaml'
+      - 'android/**'
+      - 'ios/**'
+  workflow_dispatch:  # manual trigger
+
+permissions:
+  contents: write
+
+env:
+  FLUTTER_VERSION: '3.27.4'
+
+jobs:
+  # ── Android APK ──────────────────────────────────────────────────────────────
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Rename APK
+        run: mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/esep.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: esep-apk
+          path: build/app/outputs/flutter-apk/esep.apk
+
+  # ── iOS IPA (unsigned — for TestFlight/AdHoc later) ──────────────────────────
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build iOS (no codesign)
+        run: flutter build ios --release --no-codesign
+
+      - name: Create IPA from .app
+        run: |
+          mkdir -p Payload
+          cp -r build/ios/iphoneos/Runner.app Payload/
+          zip -r esep-unsigned.ipa Payload
+          rm -rf Payload
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: esep-ipa
+          path: esep-unsigned.ipa
+
+  # ── Create GitHub Release ────────────────────────────────────────────────────
+  release:
+    needs: [build-android, build-ios]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from pubspec
+        id: version
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION-$(date +%Y%m%d%H%M)" >> $GITHUB_OUTPUT
+
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: esep-apk
+          path: ./release
+
+      - name: Download IPA
+        uses: actions/download-artifact@v4
+        with:
+          name: esep-ipa
+          path: ./release
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "Esep ${{ steps.version.outputs.version }}"
+          body: |
+            ## Esep ${{ steps.version.outputs.version }}
+
+            **Android:** скачайте `esep.apk` и установите (разрешите "Неизвестные источники")
+
+            **iOS:** `esep-unsigned.ipa` — не подписан, для установки нужен Apple Developer аккаунт или AltStore
+
+            ### Что нового
+            - Монетизация: 4 тарифа (Бесплатный, Solo, Бухгалтер, Бухгалтер Про)
+            - Демо-режим без регистрации
+            - Онбординг (3 экрана)
+            - Подключение банков (Kaspi, Halyk, Forte)
+            - Ежедневный мониторинг лидов
+          files: |
+            ./release/esep.apk
+            ./release/esep-unsigned.ipa
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Also update "latest" release for stable download link
+      - name: Update latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Esep - Latest"
+          body: |
+            Последняя версия Esep. Обновляется автоматически при каждом пуше.
+
+            **Android:** скачайте `esep.apk`
+            **iOS:** `esep-unsigned.ipa` (нужен AltStore или Apple Developer аккаунт)
+          files: |
+            ./release/esep.apk
+            ./release/esep-unsigned.ipa
+          draft: false
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
