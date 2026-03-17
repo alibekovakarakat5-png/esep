@@ -9,12 +9,14 @@
  *   TELEGRAM_ADMIN_CHAT_ID  — chat_id разработчика
  */
 
-const https = require('https');
-const db    = require('../db');
+const https     = require('https');
+const db        = require('../db');
+const marketing = require('./marketing');
 
 const TOKEN      = process.env.TELEGRAM_BOT_TOKEN;
 const ADMIN_ID   = process.env.TELEGRAM_ADMIN_CHAT_ID;
 const CHANNEL_ID = process.env.TELEGRAM_CHANNEL_ID || '@esepfinancialsupport';
+const PRIVATE_CHANNEL_ID = process.env.TELEGRAM_PRIVATE_CHANNEL_ID || null;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CORE — Bot API
@@ -471,12 +473,60 @@ async function handleUpdate(update) {
 }
 
 // ── Callback queries ────────────────────────────────────────────────────────
-function handleCallbackQuery(cb) {
-  if (cb.data === 'tax_ok') {
-    botRequest('answerCallbackQuery', {
+async function handleCallbackQuery(cb) {
+  const data = cb.data || '';
+
+  if (data === 'tax_ok') {
+    return botRequest('answerCallbackQuery', {
       callback_query_id: cb.id,
       text: '✅ Отмечено — ставки актуальны',
     });
+  }
+
+  // Publish post from private channel → public channel
+  if (data.startsWith('pub_channel_')) {
+    const postId = parseInt(data.replace('pub_channel_', ''));
+    try {
+      const { rows } = await db.query('SELECT * FROM marketing_posts WHERE id = $1', [postId]);
+      if (!rows.length) {
+        return botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: 'Пост не найден' });
+      }
+      const post = rows[0];
+      await postToChannel(`<b>${post.title}</b>\n\n${post.body}`, CHANNEL_CTA_KEYBOARD);
+      await marketing.markPosted(postId);
+      botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: '✅ Опубликовано в канал!' });
+      // Update the message in private channel
+      if (cb.message) {
+        botRequest('editMessageReplyMarkup', {
+          chat_id: cb.message.chat.id,
+          message_id: cb.message.message_id,
+          reply_markup: { inline_keyboard: [[{ text: '✅ Опубликовано', callback_data: 'noop' }]] },
+        });
+      }
+    } catch (err) {
+      console.error('[bot] pub_channel error:', err.message);
+      botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: 'Ошибка публикации' });
+    }
+    return;
+  }
+
+  // Skip post
+  if (data.startsWith('skip_post_')) {
+    const postId = parseInt(data.replace('skip_post_', ''));
+    await marketing.markPosted(postId);
+    botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: '⏭ Пропущено' });
+    if (cb.message) {
+      botRequest('editMessageReplyMarkup', {
+        chat_id: cb.message.chat.id,
+        message_id: cb.message.message_id,
+        reply_markup: { inline_keyboard: [[{ text: '⏭ Пропущено', callback_data: 'noop' }]] },
+      });
+    }
+    return;
+  }
+
+  if (data === 'noop') {
+    return botRequest('answerCallbackQuery', { callback_query_id: cb.id });
   }
 }
 
@@ -727,6 +777,11 @@ function startChannelScheduler() {
       if (almatyHour === 14 && day === 1) {
         await postLatestArticle();
       }
+
+      // 08:00 every day — send daily marketing post to private channel
+      if (almatyHour === 8) {
+        await postDailyContent();
+      }
     } catch (err) {
       console.error('[bot] scheduler error:', err.message);
     }
@@ -735,11 +790,64 @@ function startChannelScheduler() {
   console.log('[bot] Channel scheduler started');
 }
 
+// — Send to private channel (drafts for admin) —
+async function sendToPrivate(text, extra = {}) {
+  if (!PRIVATE_CHANNEL_ID) {
+    // Fallback: send to admin DM
+    return sendAdmin(text, extra);
+  }
+  console.log(`[bot] sendToPrivate → ${PRIVATE_CHANNEL_ID}`);
+  const result = await send(PRIVATE_CHANNEL_ID, text, extra);
+  if (result && !result.ok) {
+    console.error('[bot] sendToPrivate FAILED:', result.description);
+    // Fallback to admin DM
+    return sendAdmin(text, extra);
+  }
+  return result;
+}
+
+// — Post today's marketing content to private channel —
+async function postDailyContent() {
+  const post = await marketing.getTodayPost();
+  if (!post) {
+    console.log('[bot] No marketing post for today');
+    return null;
+  }
+
+  const typeEmoji = {
+    pain: '🔴 БОЛЬ', education: '📚 ОБУЧЕНИЕ', case: '📋 КЕЙС',
+    selling: '💰 ПРОДАЖА', engagement: '💬 ВОВЛЕЧЕНИЕ',
+  };
+  const typeLabel = typeEmoji[post.type] || post.type;
+
+  // Send to private channel as draft
+  await sendToPrivate(
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `${typeLabel} | ${post.scheduled}\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `<b>${post.title}</b>\n\n` +
+    `${post.body}`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: '✅ Опубликовать в канал', callback_data: `pub_channel_${post.id}` },
+            { text: '✏️ Пропустить', callback_data: `skip_post_${post.id}` },
+          ],
+        ],
+      },
+    },
+  );
+
+  return post;
+}
+
 // — Admin commands for channel (in private chat with admin) —
 async function handleAdminChannelCommand(chatId, cmd, args) {
   if (String(chatId) !== String(ADMIN_ID)) return false;
 
   switch (cmd) {
+    // ── Публичный канал ──
     case '/post_tip':
       await postTaxTip();
       send(chatId, 'Совет опубликован в канал.');
@@ -777,6 +885,57 @@ async function handleAdminChannelCommand(chatId, cmd, args) {
       } catch {
         send(chatId, 'Не удалось получить статистику.');
       }
+      return true;
+
+    // ── Маркетинг-контент ──
+    case '/draft':
+    case '/today': {
+      const post = await postDailyContent();
+      if (!post) send(chatId, 'На сегодня постов нет. Все опубликованы.');
+      return true;
+    }
+
+    case '/week': {
+      const schedule = await marketing.getWeekSchedule();
+      if (!schedule.length) {
+        send(chatId, 'Расписание пусто. Контент закончился.');
+        return true;
+      }
+      const lines = schedule.map(p => {
+        const status = p.posted ? '✅' : '⏳';
+        const typeShort = { pain: 'Боль', education: 'Обуч', case: 'Кейс', selling: 'Прод', engagement: 'Вовл' };
+        return `${status} ${p.scheduled} [${typeShort[p.type] || p.type}] ${p.title}`;
+      });
+      send(chatId, `📅 <b>Расписание на неделю:</b>\n\n${lines.join('\n')}`);
+      return true;
+    }
+
+    case '/mstats': {
+      const stats = await marketing.getStats();
+      send(chatId,
+        `📊 <b>Маркетинг-статистика</b>\n\n` +
+        `Всего постов: ${stats.total}\n` +
+        `Опубликовано: ${stats.posted}\n` +
+        `В очереди: ${stats.queued}`,
+      );
+      return true;
+    }
+
+    case '/admin_help':
+      send(chatId,
+        `🔧 <b>Админ-команды</b>\n\n` +
+        `<b>Контент:</b>\n` +
+        `/today — получить пост дня (в приватный канал)\n` +
+        `/week — расписание на неделю\n` +
+        `/mstats — статистика контента\n\n` +
+        `<b>Публичный канал:</b>\n` +
+        `/post_tip — налоговый совет\n` +
+        `/post_lead — лид-магнит\n` +
+        `/post_deadline — дедлайн\n` +
+        `/post_article — статья из БД\n` +
+        `/post_custom текст — свой пост\n` +
+        `/channel_stats — подписчики\n`,
+      );
       return true;
 
     default:

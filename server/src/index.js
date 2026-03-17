@@ -11,6 +11,7 @@ const { router: taxConfigRoutes,
         seedTaxConfig }                   = require('./routes/tax-config');
 const articleRoutes                       = require('./routes/articles');
 const { startMonitor }                    = require('./jobs/taxMonitor');
+const { seedMarketingContent }            = require('./bot/marketing');
 
 const app  = express();
 const PORT = process.env.PORT ?? 3001;
@@ -106,8 +107,32 @@ async function migrate() {
       last_query_date TEXT,
       created_at      TIMESTAMPTZ DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS marketing_posts (
+      id          SERIAL      PRIMARY KEY,
+      type        TEXT        NOT NULL DEFAULT 'tip',
+      title       TEXT        NOT NULL,
+      body        TEXT        NOT NULL,
+      platform    TEXT        NOT NULL DEFAULT 'telegram',
+      scheduled   DATE,
+      posted      BOOLEAN     DEFAULT FALSE,
+      posted_at   TIMESTAMPTZ,
+      created_at  TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS lead_keywords (
+      id      SERIAL PRIMARY KEY,
+      keyword TEXT   NOT NULL UNIQUE
+    );
+
+    INSERT INTO lead_keywords (keyword) VALUES
+      ('налог'), ('910 форма'), ('ИП Казахстан'), ('бухгалтер'), ('упрощёнка'),
+      ('упрощенка'), ('МРП'), ('соцплатеж'), ('ОПВ'), ('ВОСМС'),
+      ('патент'), ('ЕСП'), ('самозанят'), ('декларация'), ('налоговая')
+    ON CONFLICT DO NOTHING;
   `);
   await seedTaxConfig();
+  await seedMarketingContent();
   console.log('✅  DB migrated');
 }
 
