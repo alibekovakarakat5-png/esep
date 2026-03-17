@@ -22,7 +22,7 @@ class ModeSelectScreen extends ConsumerWidget {
 
               // ── Header ───────────────────────────────────────────────────
               const Text(
-                'Есеп',
+                'Esep',
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.w800,
@@ -67,6 +67,23 @@ class ModeSelectScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 14),
 
+              // ── ТОО card ───────────────────────────────────────────────
+              _ModeCard(
+                mode: UserMode.too,
+                icon: Iconsax.building,
+                title: 'ТОО',
+                subtitle: 'Учёт компании',
+                color: const Color(0xFF0D9488),
+                features: const [
+                  (Iconsax.wallet_2,    'Доходы и расходы'),
+                  (Iconsax.calculator,  'КПН 20% и НДС 12%'),
+                  (Iconsax.receipt_2,   'Счета и акты'),
+                  (Iconsax.money_send,  'Зарплата и соцплатежи'),
+                ],
+                onTap: () => _select(context, ref, UserMode.too),
+              ),
+              const SizedBox(height: 14),
+
               // ── Бухгалтер card ───────────────────────────────────────────
               _ModeCard(
                 mode: UserMode.accountant,
@@ -102,7 +119,7 @@ class ModeSelectScreen extends ConsumerWidget {
 
   void _select(BuildContext context, WidgetRef ref, UserMode mode) {
     ref.read(userModeProvider.notifier).set(mode);
-    context.go(mode == UserMode.ip ? '/dashboard' : '/accountant');
+    context.go(mode == UserMode.accountant ? '/accountant' : '/dashboard');
   }
 }
 

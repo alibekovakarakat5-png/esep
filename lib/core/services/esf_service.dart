@@ -38,7 +38,7 @@ class EsfService {
 
     return '''<?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ЭСФ сгенерирован приложением Есеп (esep.kz)
+  ЭСФ сгенерирован приложением Esep (esep.kz)
   Для загрузки перейдите: https://esf.gov.kz
   Дата генерации: $today
 -->

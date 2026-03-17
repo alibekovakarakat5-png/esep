@@ -93,11 +93,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Center(
-                    child: Text('Е', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700)),
+                    child: Text('E', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700)),
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Text('Есеп', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700)),
+                const Text('Esep', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700)),
               ]),
               const SizedBox(height: 8),
               const Text(

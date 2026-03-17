@@ -16,6 +16,22 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  static Color _modeColor(UserMode mode) {
+    switch (mode) {
+      case UserMode.ip: return EsepColors.primary;
+      case UserMode.too: return const Color(0xFF0D9488);
+      case UserMode.accountant: return const Color(0xFF7B2FBE);
+    }
+  }
+
+  static IconData _modeIcon(UserMode mode) {
+    switch (mode) {
+      case UserMode.ip: return Icons.person_rounded;
+      case UserMode.too: return Icons.business_rounded;
+      case UserMode.accountant: return Icons.work_rounded;
+    }
+  }
+
   bool get _notificationsEnabled => NotificationService.isEnabled;
   bool get _notificationsSupported => NotificationService.isSupported;
   String get _permission => NotificationService.permissionStatus;
@@ -40,7 +56,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _testNotification() async {
     NotificationService.show(
       title: '✅ Уведомления работают!',
-      body: 'Есеп будет напоминать о соцплатежах и 910 форме.',
+      body: 'Esep будет напоминать о соцплатежах и 910 форме.',
       tag: 'test',
     );
   }
@@ -156,18 +172,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               leading: Container(
                 width: 40, height: 40,
                 decoration: BoxDecoration(
-                  color: (mode == UserMode.ip ? EsepColors.primary : const Color(0xFF7B2FBE))
-                      .withValues(alpha: 0.1),
+                  color: _modeColor(mode).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
-                  mode == UserMode.ip ? Icons.person_rounded : Icons.work_rounded,
-                  color: mode == UserMode.ip ? EsepColors.primary : const Color(0xFF7B2FBE),
+                  _modeIcon(mode),
+                  color: _modeColor(mode),
                   size: 20,
                 ),
               ),
               title: Text(
-                mode == UserMode.ip ? 'ИП — Учёт своего бизнеса' : 'Бухгалтер — Несколько клиентов',
+                '${mode.label} — ${mode.description}',
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
               ),
               subtitle: const Text('Нажмите чтобы сменить режим',

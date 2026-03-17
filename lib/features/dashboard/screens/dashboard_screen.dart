@@ -45,7 +45,7 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Есеп'),
+        title: const Text('Esep'),
         actions: [
           if (isLoading)
             const Padding(
@@ -309,7 +309,7 @@ class DashboardScreen extends ConsumerWidget {
           _EventCard(
             icon: Iconsax.money_send,
             title: '${fmt.format(social.total)} ₸ — соцплатежи',
-            subtitle: 'ОПВ + ОПВР + СО + ВОСМС · до 25 числа',
+            subtitle: 'Обязательный минимум ИП · ОПВ + ОПВР + СО + ВОСМС · до 25-го',
             daysLeft: socialDays,
             color: socialDays <= 7 ? EsepColors.expense : EsepColors.warning,
           ),
@@ -404,8 +404,8 @@ class DashboardScreen extends ConsumerWidget {
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path, mimeType: 'application/pdf')],
-          subject: 'Финансовый отчёт — Есеп',
-          text: 'Финансовый отчёт ИП за ${DateFormat('LLLL yyyy', 'ru_RU').format(now)}. Сформировано в Есеп.',
+          subject: 'Финансовый отчёт — Esep',
+          text: 'Финансовый отчёт ИП за ${DateFormat('LLLL yyyy', 'ru_RU').format(now)}. Сформировано в Esep.',
         ),
       );
     } catch (e) {

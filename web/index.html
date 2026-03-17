@@ -6,20 +6,20 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Есеп — учёт доходов, расходов и налогов для ИП Казахстана">
+  <meta name="description" content="Esep — учёт доходов, расходов и налогов для ИП Казахстана">
   <meta name="theme-color" content="#0099CC">
 
   <!-- iOS PWA -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Есеп">
+  <meta name="apple-mobile-web-app-title" content="Esep">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>Есеп — Учёт для ИП</title>
+  <title>Esep — Учёт для ИП</title>
   <link rel="manifest" href="manifest.json">
 
   <style>
@@ -47,7 +47,7 @@
 <body>
   <div id="splash">
     <div id="splash-icon">💼</div>
-    <div id="splash-title">Есеп</div>
+    <div id="splash-title">Esep</div>
     <div id="splash-sub">Учёт для ИП Казахстана</div>
     <div id="splash-ring"></div>
   </div>
@@ -64,8 +64,8 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
         navigator.serviceWorker.register('/esep-sw.js', { scope: '/' })
-          .then(function (r) { console.log('[Есеп SW] scope:', r.scope); })
-          .catch(function (e) { console.warn('[Есеп SW] failed:', e); });
+          .then(function (r) { console.log('[Esep SW] scope:', r.scope); })
+          .catch(function (e) { console.warn('[Esep SW] failed:', e); });
       });
     }
   </script>

@@ -29,7 +29,7 @@ class PdfService {
   }) async {
     final pdf = pw.Document(
       title: 'Счёт ${invoice.number}',
-      author: companyName ?? 'Есеп',
+      author: companyName ?? 'Esep',
     );
 
     final company = companyName ?? 'ИП «Моя компания»';
@@ -358,7 +358,7 @@ class PdfService {
   }) async {
     final pdf = pw.Document(
       title: 'Финансовый отчёт — $period',
-      author: companyName ?? 'Есеп',
+      author: companyName ?? 'Esep',
     );
 
     final company = companyName ?? 'ИП';
@@ -455,7 +455,7 @@ class PdfService {
     return pw.Column(children: [
       pw.Divider(color: _divider),
       pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-        pw.Text('Сформировано в Есеп · ${_dateFmt.format(DateTime.now())}',
+        pw.Text('Сформировано в Esep · ${_dateFmt.format(DateTime.now())}',
             style: const pw.TextStyle(fontSize: 8, color: _grey)),
         pw.Text('Стр. ${ctx.pageNumber} из ${ctx.pagesCount}',
             style: const pw.TextStyle(fontSize: 8, color: _grey)),

@@ -1,14 +1,25 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-/// Режим работы: ИП (учёт своего бизнеса) или Бухгалтер (ведение нескольких клиентов)
-enum UserMode { ip, accountant }
+/// Режим работы: ИП, ТОО или Бухгалтер
+enum UserMode { ip, too, accountant }
 
 extension UserModeExt on UserMode {
-  String get label => this == UserMode.ip ? 'ИП' : 'Бухгалтер';
-  String get description => this == UserMode.ip
-      ? 'Учёт своего бизнеса'
-      : 'Веду нескольких клиентов';
+  String get label {
+    switch (this) {
+      case UserMode.ip: return 'ИП';
+      case UserMode.too: return 'ТОО';
+      case UserMode.accountant: return 'Бухгалтер';
+    }
+  }
+
+  String get description {
+    switch (this) {
+      case UserMode.ip: return 'Учёт своего бизнеса';
+      case UserMode.too: return 'Учёт компании';
+      case UserMode.accountant: return 'Веду нескольких клиентов';
+    }
+  }
 }
 
 class UserModeNotifier extends StateNotifier<UserMode?> {
@@ -23,13 +34,17 @@ class UserModeNotifier extends StateNotifier<UserMode?> {
     final box = Hive.box(_boxName);
     final saved = box.get(_key);
     if (saved != null) {
-      state = saved == 'ip' ? UserMode.ip : UserMode.accountant;
+      switch (saved) {
+        case 'ip': state = UserMode.ip;
+        case 'too': state = UserMode.too;
+        case 'accountant': state = UserMode.accountant;
+      }
     }
   }
 
   void set(UserMode mode) {
     state = mode;
-    Hive.box(_boxName).put(_key, mode == UserMode.ip ? 'ip' : 'accountant');
+    Hive.box(_boxName).put(_key, mode.name);
   }
 
   void clear() {
