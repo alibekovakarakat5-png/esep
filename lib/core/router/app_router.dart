@@ -14,6 +14,8 @@ import '../../features/accountant/screens/accountant_dashboard_screen.dart';
 import '../../features/accountant/screens/accountant_client_detail_screen.dart';
 import '../../features/accountant/screens/deadline_calendar_screen.dart';
 import '../../features/mode_select/screens/mode_select_screen.dart';
+import '../../features/taxes/screens/salary_calculator_screen.dart';
+import '../../features/tools/screens/bin_lookup_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
 import '../providers/auth_provider.dart';
 import '../providers/user_mode_provider.dart';
@@ -108,6 +110,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/taxes',
             builder: (_, __) => const TaxesScreen(),
+          ),
+          GoRoute(
+            path: '/salary-calculator',
+            builder: (_, __) => const SalaryCalculatorScreen(),
+          ),
+          GoRoute(
+            path: '/bin-lookup',
+            builder: (_, __) => const BinLookupScreen(),
           ),
           GoRoute(
             path: '/clients',

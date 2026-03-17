@@ -10,6 +10,7 @@ const { router: adminRoutes }             = require('./routes/admin');
 const { router: taxConfigRoutes,
         seedTaxConfig }                   = require('./routes/tax-config');
 const articleRoutes                       = require('./routes/articles');
+const binLookupRoutes                    = require('./routes/bin-lookup');
 const { startMonitor }                    = require('./jobs/taxMonitor');
 const { seedMarketingContent }            = require('./bot/marketing');
 
@@ -152,6 +153,7 @@ app.use('/api/invoices',     authMiddleware, invoiceRoutes);
 app.use('/api/admin',        adminRoutes);
 app.use('/api/config/tax',   taxConfigRoutes);
 app.use('/api/articles',     articleRoutes);
+app.use('/api/bin',          binLookupRoutes);
 
 // ── Telegram bot webhook ──────────────────────────────────────────────────────
 const tg = require('./bot/telegram');

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
@@ -26,6 +27,28 @@ class _TaxesScreenState extends State<TaxesScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Быстрые инструменты
+          Row(
+            children: [
+              Expanded(
+                child: _ToolButton(
+                  icon: Iconsax.people,
+                  label: 'Зарплатный\nкалькулятор',
+                  onTap: () => context.push('/salary-calculator'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _ToolButton(
+                  icon: Iconsax.search_normal_1,
+                  label: 'Поиск\nпо БИН',
+                  onTap: () => context.push('/bin-lookup'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
           // Баннер о реформе 2026
           _ReformBanner(),
           const SizedBox(height: 16),
@@ -380,4 +403,35 @@ class _GeneralCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ToolButton extends StatelessWidget {
+  const _ToolButton({required this.icon, required this.label, required this.onTap});
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: EsepColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+            child: Column(
+              children: [
+                Icon(icon, color: EsepColors.primary, size: 28),
+                const SizedBox(height: 8),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: EsepColors.primary),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
 }
