@@ -18,7 +18,7 @@ permissions:
   id-token: write
 
 env:
-  FLUTTER_VERSION: '3.27.4'
+  FLUTTER_VERSION: '3.42.0'
 
 jobs:
   # ── Android APK ──────────────────────────────────────────────────────────────
@@ -37,7 +37,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
+          channel: beta
           cache: true
 
       - name: Generate local.properties
@@ -70,7 +70,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
+          channel: beta
           cache: true
 
       - name: Get dependencies
@@ -102,7 +102,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
+          channel: beta
           cache: true
 
       - name: Get dependencies
