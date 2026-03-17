@@ -11,6 +11,7 @@ const { router: taxConfigRoutes,
         seedTaxConfig }                   = require('./routes/tax-config');
 const articleRoutes                       = require('./routes/articles');
 const binLookupRoutes                    = require('./routes/bin-lookup');
+const lprRoutes                          = require('./routes/lpr-search');
 const { startMonitor }                    = require('./jobs/taxMonitor');
 const { seedMarketingContent }            = require('./bot/marketing');
 
@@ -126,6 +127,24 @@ async function migrate() {
       keyword TEXT   NOT NULL UNIQUE
     );
 
+    CREATE TABLE IF NOT EXISTS lpr_contacts (
+      id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id      UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      bin          TEXT,
+      company_name TEXT        NOT NULL,
+      director_name TEXT,
+      phone        TEXT,
+      email        TEXT,
+      source       TEXT        DEFAULT 'manual',
+      city         TEXT,
+      activity     TEXT,
+      notes        TEXT,
+      created_at   TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_lpr_user ON lpr_contacts(user_id);
+    CREATE INDEX IF NOT EXISTS idx_lpr_company ON lpr_contacts(company_name);
+
     INSERT INTO lead_keywords (keyword) VALUES
       ('налог'), ('910 форма'), ('ИП Казахстан'), ('бухгалтер'), ('упрощёнка'),
       ('упрощенка'), ('МРП'), ('соцплатеж'), ('ОПВ'), ('ВОСМС'),
@@ -154,6 +173,7 @@ app.use('/api/admin',        adminRoutes);
 app.use('/api/config/tax',   taxConfigRoutes);
 app.use('/api/articles',     articleRoutes);
 app.use('/api/bin',          binLookupRoutes);
+app.use('/api/lpr',          authMiddleware, lprRoutes);
 
 // ── Telegram bot webhook ──────────────────────────────────────────────────────
 const tg = require('./bot/telegram');

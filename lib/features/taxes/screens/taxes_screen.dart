@@ -40,6 +40,14 @@ class _TaxesScreenState extends State<TaxesScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: _ToolButton(
+                  icon: Iconsax.building_4,
+                  label: 'Калькулятор\nТОО',
+                  onTap: () => context.push('/too-calculator'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _ToolButton(
                   icon: Iconsax.search_normal_1,
                   label: 'Поиск\nпо БИН',
                   onTap: () => context.push('/bin-lookup'),

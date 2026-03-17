@@ -4,6 +4,8 @@
 /// Обновлено: март 2026
 library kz_tax_constants;
 
+import 'dart:math';
+
 class KzTax {
   KzTax._();
 
@@ -211,6 +213,61 @@ class KzTax {
 
   /// Рассчитать налог для самозанятых
   static double calculateSelfEmployed(double income) => income * selfEmployedRate;
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ТОО (Товарищество с ограниченной ответственностью)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// КПН: 20% от налогооблагаемого дохода (ст. 313 НК РК)
+  static const double kpnRate = 0.20;
+
+  /// КПН для малого бизнеса на упрощёнке: 0% (ст. 697 НК РК, до 2028)
+  static const double kpnSmallBusinessRate = 0.0;
+
+  /// ИПН у источника (дивиденды): 5% (ст. 320 НК РК)
+  static const double dividendTaxRate = 0.05;
+
+  /// Социальный налог ТОО: 9.5% от (ФОТ - ОПВ работников) (ст. 485 НК РК)
+  static const double socialTaxTooRate = 0.095;
+
+  /// Расчёт КПН
+  static TooTaxCalculation calculateToo({
+    required double income,
+    required double expenses,
+    bool isVatPayer = false,
+    int employeeCount = 0,
+    double monthlyPayroll = 0,
+  }) {
+    final taxableIncome = max(0.0, income - expenses);
+    final kpn = taxableIncome * kpnRate;
+
+    // НДС
+    final vatReceived = isVatPayer ? income * vatRate : 0.0;
+    final vatPaid = isVatPayer ? expenses * vatRate : 0.0;
+    final vatPayable = max(0.0, vatReceived - vatPaid);
+
+    // Социальный налог за сотрудников (9.5% от ФОТ - ОПВ)
+    final opvEmployees = monthlyPayroll * employeeOpvRate;
+    final socialTax = max(0.0, (monthlyPayroll - opvEmployees) * socialTaxTooRate) * employeeCount;
+
+    // Dividend tax on remaining profit
+    final netProfit = taxableIncome - kpn;
+    final dividendTax = netProfit * dividendTaxRate;
+
+    return TooTaxCalculation(
+      income: income,
+      expenses: expenses,
+      taxableIncome: taxableIncome,
+      kpn: kpn,
+      vatReceived: vatReceived,
+      vatPaid: vatPaid,
+      vatPayable: vatPayable,
+      socialTax: socialTax,
+      netProfit: netProfit,
+      dividendTax: dividendTax,
+      totalTax: kpn + vatPayable + dividendTax,
+    );
+  }
 }
 
 /// Результат расчёта налогов по 910 форме
@@ -266,6 +323,37 @@ class FullTaxSummary {
   });
 
   double get effectiveRate => tax.income > 0 ? grandTotal / tax.income : 0;
+}
+
+/// Результат расчёта налогов ТОО
+class TooTaxCalculation {
+  final double income;
+  final double expenses;
+  final double taxableIncome;
+  final double kpn;
+  final double vatReceived;
+  final double vatPaid;
+  final double vatPayable;
+  final double socialTax;
+  final double netProfit;
+  final double dividendTax;
+  final double totalTax;
+
+  const TooTaxCalculation({
+    required this.income,
+    required this.expenses,
+    required this.taxableIncome,
+    required this.kpn,
+    required this.vatReceived,
+    required this.vatPaid,
+    required this.vatPayable,
+    required this.socialTax,
+    required this.netProfit,
+    required this.dividendTax,
+    required this.totalTax,
+  });
+
+  double get effectiveRate => income > 0 ? totalTax / income : 0;
 }
 
 /// Налоговые режимы ИП в Казахстане (2026)

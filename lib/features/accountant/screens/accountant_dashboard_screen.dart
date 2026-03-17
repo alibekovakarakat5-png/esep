@@ -51,6 +51,11 @@ class _AccountantDashboardScreenState
         title: const Text('Бухгалтерия'),
         actions: [
           IconButton(
+            icon: const Icon(Iconsax.search_normal_1),
+            tooltip: 'Поиск клиентов (ЛПР)',
+            onPressed: () => context.push('/accountant/lpr'),
+          ),
+          IconButton(
             icon: const Icon(Iconsax.calendar_1),
             tooltip: 'Дедлайны',
             onPressed: () => context.go('/accountant/calendar'),

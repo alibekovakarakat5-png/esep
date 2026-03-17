@@ -13,8 +13,10 @@ import '../../features/settings/screens/settings_screen.dart';
 import '../../features/accountant/screens/accountant_dashboard_screen.dart';
 import '../../features/accountant/screens/accountant_client_detail_screen.dart';
 import '../../features/accountant/screens/deadline_calendar_screen.dart';
+import '../../features/accountant/screens/lpr_finder_screen.dart';
 import '../../features/mode_select/screens/mode_select_screen.dart';
 import '../../features/taxes/screens/salary_calculator_screen.dart';
+import '../../features/taxes/screens/too_calculator_screen.dart';
 import '../../features/tools/screens/bin_lookup_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
 import '../providers/auth_provider.dart';
@@ -116,6 +118,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const SalaryCalculatorScreen(),
           ),
           GoRoute(
+            path: '/too-calculator',
+            builder: (_, __) => const TooCalculatorScreen(),
+          ),
+          GoRoute(
             path: '/bin-lookup',
             builder: (_, __) => const BinLookupScreen(),
           ),
@@ -142,6 +148,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 builder: (_, state) => AccountantClientDetailScreen(
                   clientId: state.pathParameters['id']!,
                 ),
+              ),
+              GoRoute(
+                path: 'lpr',
+                builder: (_, __) => const LprFinderScreen(),
               ),
             ],
           ),
