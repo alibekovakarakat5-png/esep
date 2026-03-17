@@ -416,6 +416,21 @@ async function handleUpdate(update) {
       return handleCallbackQuery(update.callback_query);
     }
 
+    // Channel posts — capture chat_id and notify admin
+    if (update.channel_post) {
+      const cp = update.channel_post;
+      const channelId = cp.chat.id;
+      const channelTitle = cp.chat.title || '';
+      console.log(`[bot] Channel post from: ${channelId} (${channelTitle})`);
+      sendAdmin(
+        `📢 <b>Канал обнаружен</b>\n\n` +
+        `Название: ${channelTitle}\n` +
+        `Chat ID: <code>${channelId}</code>\n\n` +
+        `Добавь в Railway:\n<code>TELEGRAM_PRIVATE_CHANNEL_ID=${channelId}</code>`,
+      );
+      return;
+    }
+
     const msg = update.message;
     if (!msg || !msg.text) return;
 
@@ -950,7 +965,7 @@ async function handleAdminChannelCommand(chatId, cmd, args) {
 async function setupWebhook(baseUrl) {
   if (!TOKEN) return;
   const url = `${baseUrl}/api/bot/webhook`;
-  const r = await botRequest('setWebhook', { url, allowed_updates: ['message', 'callback_query'] });
+  const r = await botRequest('setWebhook', { url, allowed_updates: ['message', 'callback_query', 'channel_post'] });
   console.log('[bot] setWebhook:', r?.ok ? 'OK' : r?.description);
 
   // Start channel auto-posting scheduler
