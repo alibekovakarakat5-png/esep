@@ -4,7 +4,8 @@ import 'package:http/http.dart' as http;
 
 import 'auth_service.dart';
 import 'base_url_stub.dart'
-    if (dart.library.html) 'base_url_web.dart';
+    if (dart.library.html) 'base_url_web.dart'
+    if (dart.library.js_interop) 'base_url_web.dart';
 
 class ApiClient {
   static String get _base => detectApiBase();
