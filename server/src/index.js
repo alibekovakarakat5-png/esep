@@ -89,11 +89,15 @@ async function migrate() {
       status       TEXT        NOT NULL DEFAULT 'draft', -- 'draft' | 'published'
       published_at TIMESTAMPTZ,
       created_at   TIMESTAMPTZ DEFAULT NOW(),
-      updated_at   TIMESTAMPTZ DEFAULT NOW()
+      updated_at      TIMESTAMPTZ DEFAULT NOW(),
+      channel_posted  BOOLEAN     DEFAULT FALSE
     );
 
     CREATE INDEX IF NOT EXISTS idx_articles_slug   ON articles(slug);
     CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(status);
+
+    -- Add column if table already exists without it
+    ALTER TABLE articles ADD COLUMN IF NOT EXISTS channel_posted BOOLEAN DEFAULT FALSE;
 
     CREATE TABLE IF NOT EXISTS bot_users (
       chat_id         TEXT        PRIMARY KEY,
@@ -129,6 +133,26 @@ const tg = require('./bot/telegram');
 app.post('/api/bot/webhook', (req, res) => {
   tg.handleUpdate(req.body);
   res.json({ ok: true });
+});
+
+// Test channel posting (admin only, one-time check)
+app.get('/api/bot/channel-test', async (req, res) => {
+  try {
+    const result = await tg.postToChannel(
+      '✅ <b>Esep подключен к каналу!</b>\n\n' +
+      'Здесь будут налоговые советы, дедлайны и полезные материалы для ИП Казахстана.',
+      {
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '🧮 Калькулятор', url: 'https://t.me/esep_bot' },
+          ]],
+        },
+      },
+    );
+    res.json({ ok: true, telegram_response: result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 // ── 404 ───────────────────────────────────────────────────────────────────────

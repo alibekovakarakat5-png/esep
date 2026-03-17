@@ -12,8 +12,9 @@
 const https = require('https');
 const db    = require('../db');
 
-const TOKEN    = process.env.TELEGRAM_BOT_TOKEN;
-const ADMIN_ID = process.env.TELEGRAM_ADMIN_CHAT_ID;
+const TOKEN      = process.env.TELEGRAM_BOT_TOKEN;
+const ADMIN_ID   = process.env.TELEGRAM_ADMIN_CHAT_ID;
+const CHANNEL_ID = process.env.TELEGRAM_CHANNEL_ID || '@esepfinancialsupport';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CORE — Bot API
@@ -49,6 +50,17 @@ function send(chatId, text, extra = {}) {
 function sendAdmin(text, extra = {}) {
   if (!ADMIN_ID) return;
   return send(ADMIN_ID, text, extra);
+}
+
+async function postToChannel(text, extra = {}) {
+  console.log(`[bot] postToChannel → ${CHANNEL_ID}`);
+  const result = await send(CHANNEL_ID, text, extra);
+  if (result && !result.ok) {
+    console.error('[bot] postToChannel FAILED:', result.description);
+  } else {
+    console.log('[bot] postToChannel OK');
+  }
+  return result;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -414,6 +426,11 @@ async function handleUpdate(update) {
       return handleStart(chatId, from);
     }
 
+    // Admin channel commands (no rate limit)
+    const adminCmd = text.split(/\s+/)[0].toLowerCase();
+    const adminArgs = text.slice(adminCmd.length).trim();
+    if (await handleAdminChannelCommand(chatId, adminCmd, adminArgs)) return;
+
     // Rate limit check for everything else
     const { ok, remaining } = await checkAndBump(chatId);
     if (!ok) {
@@ -518,6 +535,256 @@ function notifyArticleDraft({ title, id, adminUrl }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CHANNEL — автопостинг в @esepfinancialsupport
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const CHANNEL_CTA_KEYBOARD = {
+  reply_markup: {
+    inline_keyboard: [
+      [
+        { text: '🧮 Калькулятор налогов', url: 'https://t.me/esep_bot' },
+        { text: '📲 Скачать Esep', url: 'https://github.com/alibekovakarakat5-png/esep/releases/latest/download/esep.apk' },
+      ],
+    ],
+  },
+};
+
+// — Tax tips pool —
+const TAX_TIPS = [
+  {
+    title: 'Знаете ли вы?',
+    body: 'МРП в 2026 году вырос до 4 325 тенге (с 3 932 в 2025). Это влияет на лимиты по 910 форме, штрафы и госпошлины.',
+  },
+  {
+    title: 'Соцплатежи "за себя"',
+    body: 'Каждый ИП на упрощёнке обязан платить ОПВ, ОПВР, СО и ВОСМС ежемесячно — даже если дохода нет. Итого ~21 525 тенге/мес в 2026.',
+  },
+  {
+    title: 'Лимит по упрощёнке (910)',
+    body: 'Максимальный доход — 24 038 МРП за полугодие (около 103.9 млн тенге). Превышение = переход на другой режим.',
+  },
+  {
+    title: 'ОПВР — новый взнос',
+    body: 'С 2024 ИП обязаны платить ОПВР (обязательные пенсионные взносы работодателя) за себя: 3.5% от МЗП = 2 975 тенге/мес.',
+  },
+  {
+    title: 'Сравнение режимов',
+    body: 'Упрощёнка (910): 3% от дохода + соцплатежи.\nЕСП: фиксированная сумма (1 МРП/мес), но лимит дохода ~5 млн/год.\nСамозанятый: 4%, но нет найма сотрудников.\n\nВыбирайте режим под свой масштаб!',
+  },
+  {
+    title: 'Срок подачи 910.00',
+    body: '1-е полугодие (янв—июн): подача до 15 августа, оплата до 25 августа.\n2-е полугодие (июл—дек): подача до 15 февраля, оплата до 25 февраля.\n\nНе пропустите!',
+  },
+  {
+    title: 'Что входит в ЕСП?',
+    body: 'Единый совокупный платёж (ЕСП) = ИПН + СО + ВОСМС + ОПВ в одном платеже.\nГород: 4 325 тенге/мес | Село: 2 163 тенге/мес.\nИдеально для мелкой торговли и услуг.',
+  },
+  {
+    title: 'ВОСМС в 2026',
+    body: 'Работник: 2% от ЗП (база до 20 МЗП = 1 700 000 тенге).\nРаботодатель: 3% (база до 40 МЗП).\nИП за себя: 5% от 1.4 МЗП = 5 950 тенге/мес.',
+  },
+  {
+    title: 'Штрафы за просрочку',
+    body: 'Несвоевременная подача 910.00: от 15 до 30 МРП (64 875 — 129 750 тенге).\nНеуплата налога: пеня 1.25× ставка рефинансирования за каждый день.\n\nВедите учёт вовремя!',
+  },
+  {
+    title: 'НДС — когда встаёте на учёт?',
+    body: 'Порог: оборот свыше 20 000 МРП за 12 мес = 86 500 000 тенге.\nПосле регистрации: +12% к цене, но можно зачитывать входящий НДС.',
+  },
+];
+
+// — Deadline reminders (month → array of reminders) —
+const DEADLINE_REMINDERS = {
+  1: ['До 25 января — соцплатежи за декабрь.'],
+  2: [
+    'До 15 февраля — подача 910.00 за 2-е полугодие.',
+    'До 25 февраля — оплата налога по 910.00 за 2-е полугодие.',
+    'До 25 февраля — соцплатежи за январь.',
+  ],
+  3: ['До 25 марта — соцплатежи за февраль.'],
+  4: ['До 25 апреля — соцплатежи за март.'],
+  5: ['До 25 мая — соцплатежи за апрель.'],
+  6: ['До 25 июня — соцплатежи за май.'],
+  7: ['До 25 июля — соцплатежи за июнь.'],
+  8: [
+    'До 15 августа — подача 910.00 за 1-е полугодие.',
+    'До 25 августа — оплата налога по 910.00 за 1-е полугодие.',
+    'До 25 августа — соцплатежи за июль.',
+  ],
+  9: ['До 25 сентября — соцплатежи за август.'],
+  10: ['До 25 октября — соцплатежи за сентябрь.'],
+  11: ['До 25 ноября — соцплатежи за октябрь.'],
+  12: ['До 25 декабря — соцплатежи за ноябрь.'],
+};
+
+/**
+ * Post a random tax tip to the channel
+ */
+async function postTaxTip() {
+  const tip = TAX_TIPS[Math.floor(Math.random() * TAX_TIPS.length)];
+  await postToChannel(
+    `💡 <b>${tip.title}</b>\n\n${tip.body}\n\n` +
+    `Считайте налоги точно — в боте @esep_bot или в приложении Esep.`,
+    CHANNEL_CTA_KEYBOARD,
+  );
+}
+
+/**
+ * Post deadline reminders for the current month
+ */
+async function postDeadlineReminder() {
+  const month = new Date().getMonth() + 1;
+  const reminders = DEADLINE_REMINDERS[month];
+  if (!reminders || !reminders.length) return;
+
+  const list = reminders.map(r => `  • ${r}`).join('\n');
+  await postToChannel(
+    `⏰ <b>Налоговый дедлайн</b>\n\n${list}\n\n` +
+    `Не забудьте оплатить вовремя!`,
+    CHANNEL_CTA_KEYBOARD,
+  );
+}
+
+/**
+ * Post a published article from the DB to the channel
+ */
+async function postLatestArticle() {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, title, summary FROM articles
+       WHERE status = 'published' AND channel_posted IS NOT TRUE
+       ORDER BY published_at DESC LIMIT 1`,
+    );
+    if (!rows.length) return;
+
+    const art = rows[0];
+    await postToChannel(
+      `📰 <b>${art.title}</b>\n\n${art.summary || ''}\n\n` +
+      `Читайте полностью в приложении Esep.`,
+      CHANNEL_CTA_KEYBOARD,
+    );
+
+    await db.query('UPDATE articles SET channel_posted = TRUE WHERE id = $1', [art.id]);
+  } catch (err) {
+    console.error('[bot] postLatestArticle error:', err.message);
+  }
+}
+
+/**
+ * Post a lead magnet — free calculator promo
+ */
+async function postLeadMagnet() {
+  const messages = [
+    '🧮 <b>Бесплатный калькулятор налогов ИП</b>\n\n' +
+    'Не знаете сколько платить по упрощёнке? Напишите сумму дохода боту — мгновенный расчёт!\n\n' +
+    'ИПН + СН + все соцплатежи = точная сумма.',
+
+    '📊 <b>Какой режим выгоднее?</b>\n\n' +
+    'Упрощёнка, ЕСП или самозанятый? Зависит от дохода.\n' +
+    'Бот @esep_bot сравнит все режимы за секунду.\n\n' +
+    'Просто напишите: "сколько налогов с 3 млн?"',
+
+    '💰 <b>Сколько реально платит ИП?</b>\n\n' +
+    'Налог 3% — это не всё. Есть ОПВ, ОПВР, СО, ВОСМС — ещё ~21 500 тенге/мес.\n' +
+    'Хотите точную сумму? Спросите бота @esep_bot.',
+  ];
+
+  const msg = messages[Math.floor(Math.random() * messages.length)];
+  await postToChannel(msg, CHANNEL_CTA_KEYBOARD);
+}
+
+// — Scheduling engine (runs inside setInterval in production) —
+let _schedulerStarted = false;
+
+function startChannelScheduler() {
+  if (_schedulerStarted) return;
+  _schedulerStarted = true;
+
+  // Post a tax tip every day at ~10:00 AM Almaty (UTC+5)
+  // Check every hour, post when conditions match
+  setInterval(async () => {
+    try {
+      const now = new Date();
+      const almatyHour = (now.getUTCHours() + 5) % 24;
+      const day = now.getDay(); // 0=Sun
+
+      // 10:00 — daily tax tip (Mon-Fri)
+      if (almatyHour === 10 && day >= 1 && day <= 5) {
+        await postTaxTip();
+      }
+
+      // 09:00 on 1st and 15th of month — deadline reminder
+      if (almatyHour === 9 && (now.getUTCDate() === 1 || now.getUTCDate() === 15)) {
+        await postDeadlineReminder();
+      }
+
+      // 12:00 on Wednesday — lead magnet
+      if (almatyHour === 12 && day === 3) {
+        await postLeadMagnet();
+      }
+
+      // 14:00 on Monday — article (if any unpublished)
+      if (almatyHour === 14 && day === 1) {
+        await postLatestArticle();
+      }
+    } catch (err) {
+      console.error('[bot] scheduler error:', err.message);
+    }
+  }, 60 * 60 * 1000); // check every hour
+
+  console.log('[bot] Channel scheduler started');
+}
+
+// — Admin commands for channel (in private chat with admin) —
+async function handleAdminChannelCommand(chatId, cmd, args) {
+  if (String(chatId) !== String(ADMIN_ID)) return false;
+
+  switch (cmd) {
+    case '/post_tip':
+      await postTaxTip();
+      send(chatId, 'Совет опубликован в канал.');
+      return true;
+
+    case '/post_deadline':
+      await postDeadlineReminder();
+      send(chatId, 'Напоминание о дедлайнах опубликовано.');
+      return true;
+
+    case '/post_article':
+      await postLatestArticle();
+      send(chatId, 'Статья опубликована в канал (если есть неопубликованные).');
+      return true;
+
+    case '/post_lead':
+      await postLeadMagnet();
+      send(chatId, 'Лид-магнит опубликован.');
+      return true;
+
+    case '/post_custom':
+      if (!args) {
+        send(chatId, 'Использование: <code>/post_custom Текст поста</code>');
+        return true;
+      }
+      await postToChannel(args, CHANNEL_CTA_KEYBOARD);
+      send(chatId, 'Опубликовано в канал.');
+      return true;
+
+    case '/channel_stats':
+      try {
+        const r = await botRequest('getChatMemberCount', { chat_id: CHANNEL_ID });
+        const count = r?.result || '?';
+        send(chatId, `📊 Подписчиков в канале: <b>${count}</b>`);
+      } catch {
+        send(chatId, 'Не удалось получить статистику.');
+      }
+      return true;
+
+    default:
+      return false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // SETUP — зарегистрировать webhook + команды
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -526,6 +793,9 @@ async function setupWebhook(baseUrl) {
   const url = `${baseUrl}/api/bot/webhook`;
   const r = await botRequest('setWebhook', { url, allowed_updates: ['message', 'callback_query'] });
   console.log('[bot] setWebhook:', r?.ok ? 'OK' : r?.description);
+
+  // Start channel auto-posting scheduler
+  startChannelScheduler();
 
   // Register command hints
   await botRequest('setMyCommands', {
@@ -550,6 +820,13 @@ module.exports = {
   notifyArticleDraft,
   sendAdmin,
   setupWebhook,
+  // Channel
+  postToChannel,
+  postTaxTip,
+  postDeadlineReminder,
+  postLatestArticle,
+  postLeadMagnet,
+  startChannelScheduler,
   // Legacy compat
   handleCallback: (update) => handleUpdate(update),
   sendMessage: sendAdmin,
