@@ -1001,6 +1001,8 @@ module.exports = {
   postLatestArticle,
   postLeadMagnet,
   startChannelScheduler,
+  // Private channel
+  sendToPrivate,
   // Legacy compat
   handleCallback: (update) => handleUpdate(update),
   sendMessage: sendAdmin,

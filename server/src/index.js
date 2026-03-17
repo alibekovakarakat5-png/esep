@@ -13,6 +13,7 @@ const articleRoutes                       = require('./routes/articles');
 const binLookupRoutes                    = require('./routes/bin-lookup');
 const lprRoutes                          = require('./routes/lpr-search');
 const { startMonitor }                    = require('./jobs/taxMonitor');
+const { startLeadMonitor }                = require('./jobs/leadMonitor');
 const { seedMarketingContent }            = require('./bot/marketing');
 
 const app  = express();
@@ -202,6 +203,17 @@ app.get('/api/bot/channel-test', async (req, res) => {
   }
 });
 
+// ── Manual lead scan trigger (admin) ──────────────────────────────────────────
+const { runLeadScan } = require('./jobs/leadMonitor');
+app.get('/api/admin/lead-scan', async (req, res) => {
+  try {
+    await runLeadScan();
+    res.json({ ok: true, message: 'Lead scan complete, digest sent to private channel' });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 
@@ -218,6 +230,7 @@ app.listen(PORT, () => {
   console.log(`DATABASE_URL set: ${!!process.env.DATABASE_URL}`);
   migrate().catch(err => console.error('Migration failed (non-fatal):', err.message));
   startMonitor();
+  startLeadMonitor();
 
   // Auto-register Telegram webhook
   const baseUrl = process.env.ADMIN_URL ?? `https://esep-production.up.railway.app`;
