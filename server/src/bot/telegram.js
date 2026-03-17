@@ -542,7 +542,7 @@ const CHANNEL_CTA_KEYBOARD = {
   reply_markup: {
     inline_keyboard: [
       [
-        { text: '🧮 Калькулятор налогов', url: 'https://t.me/esep_bot' },
+        { text: '🧮 Калькулятор налогов', url: 'https://t.me/EsepKZ_bot' },
         { text: '📲 Скачать Esep', url: 'https://github.com/alibekovakarakat5-png/esep/releases/latest/download/esep.apk' },
       ],
     ],
@@ -624,7 +624,7 @@ async function postTaxTip() {
   const tip = TAX_TIPS[Math.floor(Math.random() * TAX_TIPS.length)];
   await postToChannel(
     `💡 <b>${tip.title}</b>\n\n${tip.body}\n\n` +
-    `Считайте налоги точно — в боте @esep_bot или в приложении Esep.`,
+    `Считайте налоги точно — в боте @EsepKZ_bot или в приложении Esep.`,
     CHANNEL_CTA_KEYBOARD,
   );
 }
@@ -681,12 +681,12 @@ async function postLeadMagnet() {
 
     '📊 <b>Какой режим выгоднее?</b>\n\n' +
     'Упрощёнка, ЕСП или самозанятый? Зависит от дохода.\n' +
-    'Бот @esep_bot сравнит все режимы за секунду.\n\n' +
+    'Бот @EsepKZ_bot сравнит все режимы за секунду.\n\n' +
     'Просто напишите: "сколько налогов с 3 млн?"',
 
     '💰 <b>Сколько реально платит ИП?</b>\n\n' +
     'Налог 3% — это не всё. Есть ОПВ, ОПВР, СО, ВОСМС — ещё ~21 500 тенге/мес.\n' +
-    'Хотите точную сумму? Спросите бота @esep_bot.',
+    'Хотите точную сумму? Спросите бота @EsepKZ_bot.',
   ];
 
   const msg = messages[Math.floor(Math.random() * messages.length)];

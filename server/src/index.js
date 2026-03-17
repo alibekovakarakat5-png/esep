@@ -144,7 +144,7 @@ app.get('/api/bot/channel-test', async (req, res) => {
       {
         reply_markup: {
           inline_keyboard: [[
-            { text: '🧮 Калькулятор', url: 'https://t.me/esep_bot' },
+            { text: '🧮 Калькулятор', url: 'https://t.me/EsepKZ_bot' },
           ]],
         },
       },
