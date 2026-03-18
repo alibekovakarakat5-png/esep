@@ -461,7 +461,7 @@ class _BankFlowSheet extends StatelessWidget {
         const SizedBox(height: 12),
 
         // Supported formats
-        Center(
+        const Center(
           child: Text(
             'Поддерживаются .xlsx, .xls, .csv',
             style: TextStyle(fontSize: 12, color: EsepColors.textDisabled),
