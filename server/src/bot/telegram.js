@@ -145,26 +145,43 @@ async function checkAndBump(chatId) {
 // COMMANDS — обработчики команд пользователей
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function handleStart(chatId, from) {
+async function handleStart(chatId, from, payload) {
+  // Deep links: /start calc_5000000 → instant calculation
+  if (payload) {
+    const p = payload.toLowerCase();
+    if (p.startsWith('calc_')) {
+      const amount = p.replace('calc_', '');
+      return handleCalc(chatId, amount);
+    }
+    if (p === 'social') return handleSocial(chatId);
+    if (p === 'rates') return handleRates(chatId);
+    if (p === 'deadlines') return handleDeadlines(chatId);
+    if (p === 'esp') return handleEsp(chatId);
+    if (p.startsWith('self_')) {
+      const amount = p.replace('self_', '');
+      return handleSelf(chatId, amount);
+    }
+  }
+
+  // Welcome series: regime selection
   send(chatId,
-    `Привет, ${from.first_name || 'друг'}! Я — <b>Esep Bot</b> 🧮\n\n` +
-    `Помогаю ИП Казахстана считать налоги и разбираться в ставках.\n\n` +
-    `<b>Команды:</b>\n` +
-    `/calc 5000000 — налог 910 за полугодие\n` +
-    `/social — соцплатежи за себя (ежемесячно)\n` +
-    `/rates — актуальные ставки 2026\n` +
-    `/esp — расчёт ЕСП\n` +
-    `/self 1000000 — налог самозанятого\n` +
-    `/deadlines — сроки сдачи\n` +
-    `/link email — привязать аккаунт Esep\n\n` +
-    `Или просто спросите: <i>"сколько налогов с 3 млн?"</i>\n\n` +
-    `Бесплатно: ${FREE_DAILY_LIMIT} запросов/день\n` +
-    `Без ограничений: подключите платный тариф Esep`,
+    `Привет, ${from.first_name || 'друг'}! Я — <b>Esep Bot</b>\n\n` +
+    `Помогаю ИП и самозанятым Казахстана считать налоги.\n\n` +
+    `<b>На каком вы налоговом режиме?</b>`,
     {
       reply_markup: {
         inline_keyboard: [
-          [{ text: '📲 Скачать Esep', url: 'https://github.com/alibekovakarakat5-png/esep/releases/latest/download/esep.apk' }],
-          [{ text: '🧮 Калькулятор онлайн', url: 'https://esep.kz/calculator' }],
+          [
+            { text: '📋 Упрощёнка (910)', callback_data: 'regime_910' },
+            { text: '🏷 ЕСП', callback_data: 'regime_esp' },
+          ],
+          [
+            { text: '👤 Самозанятый', callback_data: 'regime_self' },
+            { text: '🏢 ОУР', callback_data: 'regime_our' },
+          ],
+          [
+            { text: '❓ Не знаю / хочу разобраться', callback_data: 'regime_unknown' },
+          ],
         ],
       },
     },
@@ -221,6 +238,20 @@ async function handleCalc(chatId, args) {
     `💰 <b>Общий итог: ${fmt(grand)} ₸</b>\n` +
     `📊 Эффективная ставка: ${(grand / income * 100).toFixed(1)}%` +
     warn,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: '📊 Помесячная разбивка', callback_data: `monthly_${Math.round(income)}` },
+            { text: '💼 Соцплатежи', callback_data: 'go_social' },
+          ],
+          [
+            { text: '🔢 Другая сумма', callback_data: 'prompt_calc' },
+            { text: '📅 Сроки сдачи', callback_data: 'go_deadlines' },
+          ],
+        ],
+      },
+    },
   );
 }
 
@@ -245,6 +276,16 @@ async function handleSocial(chatId) {
     `💰 <b>Итого: ${fmt(total)} ₸/мес</b>\n` +
     `  (без ОПВР, до 1975 г.р.: ${fmt(totalNoOpvr)} ₸)\n\n` +
     `📅 Срок оплаты: до 25 числа следующего месяца`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: '🧮 Калькулятор 910', callback_data: 'prompt_calc' },
+            { text: '📅 Сроки сдачи', callback_data: 'go_deadlines' },
+          ],
+        ],
+      },
+    },
   );
 }
 
@@ -306,6 +347,16 @@ async function handleSelf(chatId, args) {
     `Ставка: ${c.self_emp_rate * 100}%\n` +
     `Налог: <b>${fmt(tax)} ₸</b>\n\n` +
     `Лимит: ${fmt(limit)} ₸/год (${c.self_emp_year_limit} МРП)` + warn,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: '🔢 Другая сумма', callback_data: 'prompt_self' },
+            { text: '💼 Соцплатежи', callback_data: 'go_social' },
+          ],
+        ],
+      },
+    },
   );
 }
 
@@ -321,6 +372,73 @@ function handleDeadlines(chatId) {
     `<b>Соцплатежи:</b>\n` +
     `  Ежемесячно до 25 числа следующего месяца\n` +
     `  Январь → до 25 февраля и т.д.`,
+  );
+}
+
+async function handleStatus(chatId) {
+  const user = await getUserState(chatId);
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Queries remaining
+  let queriesUsed = 0;
+  if (user.last_query_date === today) {
+    queriesUsed = user.queries_today || 0;
+  }
+  const remaining = FREE_DAILY_LIMIT - queriesUsed;
+
+  // Linked account info
+  let accountLine = 'Аккаунт Esep: <b>не привязан</b>';
+  let tierLine = 'Тариф: Бесплатный';
+  let unlimited = false;
+
+  if (user.linked_user_id) {
+    try {
+      const { rows } = await db.query('SELECT email, name, tier FROM users WHERE id = $1', [user.linked_user_id]);
+      if (rows.length) {
+        const u = rows[0];
+        const tierLabel = { free: 'Бесплатный', ip: 'ИП', accountant: 'Бухгалтер', corporate: 'Корпоративный' };
+        accountLine = `Аккаунт: <b>${u.email}</b>`;
+        tierLine = `Тариф: <b>${tierLabel[u.tier] || u.tier}</b>`;
+        if (u.tier !== 'free') unlimited = true;
+      }
+    } catch {}
+  }
+
+  const limitLine = unlimited
+    ? 'Запросы: <b>безлимит</b>'
+    : `Запросов сегодня: <b>${remaining} из ${FREE_DAILY_LIMIT}</b>`;
+
+  send(chatId,
+    `📊 <b>Ваш статус</b>\n\n` +
+    `${limitLine}\n` +
+    `${accountLine}\n` +
+    `${tierLine}\n\n` +
+    (unlimited ? '' : `Для безлимита привяжите платный аккаунт:\n<code>/link your@email.com</code>`),
+  );
+}
+
+function handleHelp(chatId) {
+  send(chatId,
+    `📖 <b>Команды Esep Bot</b>\n\n` +
+    `/calc 5000000 — налог 910 за полугодие\n` +
+    `/social — соцплатежи за себя\n` +
+    `/rates — актуальные ставки 2026\n` +
+    `/esp — расчёт ЕСП\n` +
+    `/self 1000000 — налог самозанятого\n` +
+    `/deadlines — сроки сдачи\n` +
+    `/status — ваш статус и лимиты\n` +
+    `/link email — привязать аккаунт Esep\n\n` +
+    `Или просто спросите: <i>"сколько налогов с 3 млн?"</i>`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: '🧮 Рассчитать налог', callback_data: 'prompt_calc' },
+            { text: '📊 Ставки 2026', callback_data: 'go_rates' },
+          ],
+        ],
+      },
+    },
   );
 }
 
@@ -438,9 +556,16 @@ async function handleUpdate(update) {
     const text   = msg.text.trim();
     const from   = msg.from || {};
 
-    // Commands
+    // Commands that don't consume rate limit
     if (text === '/start' || text.startsWith('/start ')) {
-      return handleStart(chatId, from);
+      const payload = text.startsWith('/start ') ? text.slice(7).trim() : null;
+      return handleStart(chatId, from, payload);
+    }
+    if (text === '/status' || text.startsWith('/status ')) {
+      return handleStatus(chatId);
+    }
+    if (text === '/help' || text.startsWith('/help ')) {
+      return handleHelp(chatId);
     }
 
     // Admin channel commands (no rate limit)
@@ -477,7 +602,6 @@ async function handleUpdate(update) {
       case '/self':      return handleSelf(chatId, args);
       case '/deadlines': return handleDeadlines(chatId);
       case '/link':      return handleLink(chatId, args);
-      case '/help':      return handleStart(chatId, from);
       default:
         // Free text
         return handleFreeText(chatId, text);
@@ -542,6 +666,195 @@ async function handleCallbackQuery(cb) {
 
   if (data === 'noop') {
     return botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+  }
+
+  const chatId = cb.message?.chat?.id;
+  if (!chatId) return;
+
+  // ── Inline keyboards after calculations ──
+
+  // Monthly breakdown: monthly_{income}
+  if (data.startsWith('monthly_')) {
+    const income = parseFloat(data.replace('monthly_', ''));
+    if (!income) return;
+    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+
+    const c = await getTaxConfig();
+    const monthlyTax = income * (c.ipn_rate_910 + c.sn_rate_910) / 6;
+    const opv   = c.mzp * c.opv_rate;
+    const opvr  = c.mzp * c.opvr_rate;
+    const so    = c.mzp * c.so_rate;
+    const vosms = c.mzp * c.vosms_base_mult * c.vosms_rate_self;
+    const socialMonth = opv + opvr + so + vosms;
+    const totalMonth = monthlyTax + socialMonth;
+    const fmt = (n) => Math.round(n).toLocaleString('ru-RU');
+
+    return send(chatId,
+      `📊 <b>Помесячная разбивка</b>\n` +
+      `(доход ${fmt(income)} ₸ за полугодие)\n\n` +
+      `<b>Каждый месяц (×6):</b>\n` +
+      `  Налог (910): ~${fmt(monthlyTax)} ₸\n` +
+      `  ОПВ: ${fmt(opv)} ₸\n` +
+      `  ОПВР: ${fmt(opvr)} ₸\n` +
+      `  СО: ${fmt(so)} ₸\n` +
+      `  ВОСМС: ${fmt(vosms)} ₸\n\n` +
+      `💰 <b>Итого в месяц: ~${fmt(totalMonth)} ₸</b>\n` +
+      `📅 Налог платится раз в полугодие, соцплатежи — ежемесячно`,
+    );
+  }
+
+  // Navigation callbacks
+  if (data === 'go_social') {
+    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    return handleSocial(chatId);
+  }
+  if (data === 'go_deadlines') {
+    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    return handleDeadlines(chatId);
+  }
+  if (data === 'go_rates') {
+    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    return handleRates(chatId);
+  }
+  if (data === 'prompt_calc') {
+    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    return send(chatId, '🔢 Введите сумму дохода за полугодие:\n\nНапример: <code>/calc 5000000</code>\n\nИли просто напишите: <i>"сколько налогов с 3 млн?"</i>');
+  }
+  if (data === 'prompt_self') {
+    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    return send(chatId, '🔢 Введите сумму дохода самозанятого:\n\nНапример: <code>/self 1000000</code>');
+  }
+  if (data === 'show_help') {
+    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    return handleHelp(chatId);
+  }
+
+  // ── Welcome series: regime selection ──
+
+  if (data === 'regime_910') {
+    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    return send(chatId,
+      `📋 <b>Упрощёнка (форма 910)</b>\n\n` +
+      `Самый популярный режим для ИП в Казахстане.\n\n` +
+      `<b>Ставка:</b> 3% от дохода (1.5% ИПН + 1.5% СН)\n` +
+      `<b>Лимит:</b> ~103.9 млн ₸ за полугодие\n` +
+      `<b>Отчётность:</b> 910.00 раз в полугодие\n` +
+      `<b>+ Соцплатежи:</b> ~21 525 ₸/мес за себя\n\n` +
+      `Попробуйте расчёт:`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🧮 Рассчитать 5 000 000 ₸', callback_data: 'demo_calc_5000000' }],
+            [
+              { text: '📖 Все команды', callback_data: 'show_help' },
+              { text: '💼 Соцплатежи', callback_data: 'go_social' },
+            ],
+          ],
+        },
+      },
+    );
+  }
+
+  if (data === 'regime_esp') {
+    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    const c = await getTaxConfig();
+    const city = Math.round(c.mrp * c.esp_mrp_city_mult);
+    return send(chatId,
+      `🏷 <b>ЕСП (Единый совокупный платёж)</b>\n\n` +
+      `Самый простой режим — фиксированная сумма.\n\n` +
+      `<b>Город:</b> ${city.toLocaleString('ru-RU')} ₸/мес (1 МРП)\n` +
+      `<b>Село:</b> ${Math.round(city / 2).toLocaleString('ru-RU')} ₸/мес (0.5 МРП)\n` +
+      `<b>Лимит дохода:</b> ~5 млн ₸/год\n` +
+      `<b>Включает:</b> ИПН + СО + ВОСМС + ОПВ\n\n` +
+      `Подходит для мелкой торговли, услуг физлицам.`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '📖 Все команды', callback_data: 'show_help' },
+              { text: '📊 Ставки 2026', callback_data: 'go_rates' },
+            ],
+          ],
+        },
+      },
+    );
+  }
+
+  if (data === 'regime_self') {
+    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    return send(chatId,
+      `👤 <b>Режим самозанятого</b>\n\n` +
+      `Минимум бюрократии, без регистрации ИП.\n\n` +
+      `<b>Ставка:</b> 4% от дохода (ЕСП)\n` +
+      `<b>Лимит:</b> ~15.3 млн ₸/год\n` +
+      `<b>Нельзя:</b> нанимать сотрудников\n` +
+      `<b>Оплата:</b> через приложение e-Salyk Azamat\n\n` +
+      `Попробуйте расчёт:`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🧮 Рассчитать 1 000 000 ₸', callback_data: 'demo_self_1000000' }],
+            [{ text: '📖 Все команды', callback_data: 'show_help' }],
+          ],
+        },
+      },
+    );
+  }
+
+  if (data === 'regime_our') {
+    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    return send(chatId,
+      `🏢 <b>ОУР (Общеустановленный режим)</b>\n\n` +
+      `Для крупного бизнеса или тех, кто превысил лимит 910.\n\n` +
+      `<b>ИПН:</b> 10% от чистого дохода\n` +
+      `<b>НДС:</b> 12% (при обороте > 20 000 МРП)\n` +
+      `<b>Отчётность:</b> ежеквартальная\n\n` +
+      `Бот пока не считает ОУР — это сложный режим.\n` +
+      `Рекомендуем обратиться к бухгалтеру.`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '📋 Попробовать 910', callback_data: 'regime_910' },
+              { text: '📖 Все команды', callback_data: 'show_help' },
+            ],
+          ],
+        },
+      },
+    );
+  }
+
+  if (data === 'regime_unknown') {
+    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    return send(chatId,
+      `❓ <b>Какой режим выбрать?</b>\n\n` +
+      `Кратко:\n\n` +
+      `🏷 <b>ЕСП</b> — доход до ~5 млн/год, фикс. ~4 325 ₸/мес\n` +
+      `👤 <b>Самозанятый</b> — до ~15 млн/год, 4%, без сотрудников\n` +
+      `📋 <b>Упрощёнка 910</b> — до ~104 млн/полугодие, 3%\n` +
+      `🏢 <b>ОУР</b> — без лимитов, 10% + НДС\n\n` +
+      `Большинство ИП работают на <b>упрощёнке (910)</b>.\n` +
+      `Попробуйте рассчитать:`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🧮 Рассчитать 5 000 000 ₸ (910)', callback_data: 'demo_calc_5000000' }],
+            [{ text: '👤 Рассчитать 1 000 000 ₸ (самозан.)', callback_data: 'demo_self_1000000' }],
+            [{ text: '📖 Все команды', callback_data: 'show_help' }],
+          ],
+        },
+      },
+    );
+  }
+
+  // Demo calculations from welcome series (don't consume rate limit)
+  if (data === 'demo_calc_5000000') {
+    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    return handleCalc(chatId, '5000000');
+  }
+  if (data === 'demo_self_1000000') {
+    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    return handleSelf(chatId, '1000000');
   }
 }
 
@@ -980,8 +1293,9 @@ async function setupWebhook(baseUrl) {
       { command: 'esp',       description: 'Расчёт ЕСП' },
       { command: 'self',      description: 'Налог самозанятого' },
       { command: 'deadlines', description: 'Сроки подачи и оплаты' },
+      { command: 'status',    description: 'Статус и лимиты' },
       { command: 'link',      description: 'Привязать аккаунт Esep' },
-      { command: 'help',      description: 'Помощь' },
+      { command: 'help',      description: 'Список команд' },
     ],
   });
 }
