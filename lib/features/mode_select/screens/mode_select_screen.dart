@@ -13,44 +13,11 @@ class ModeSelectScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 48),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= 900;
 
-              // ── Header ───────────────────────────────────────────────────
-              const Text(
-                'Esep',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                  color: EsepColors.primary,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Кто вы?',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                  color: EsepColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Выберите режим — интерфейс подстроится\nпод ваши задачи',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: EsepColors.textSecondary,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 36),
-
-              // ── ИП card ──────────────────────────────────────────────────
+            final cards = [
               _ModeCard(
                 mode: UserMode.ip,
                 icon: Iconsax.user_square,
@@ -65,9 +32,6 @@ class ModeSelectScreen extends ConsumerWidget {
                 ],
                 onTap: () => _select(context, ref, UserMode.ip),
               ),
-              const SizedBox(height: 14),
-
-              // ── ТОО card ───────────────────────────────────────────────
               _ModeCard(
                 mode: UserMode.too,
                 icon: Iconsax.building,
@@ -82,9 +46,6 @@ class ModeSelectScreen extends ConsumerWidget {
                 ],
                 onTap: () => _select(context, ref, UserMode.too),
               ),
-              const SizedBox(height: 14),
-
-              // ── Бухгалтер card ───────────────────────────────────────────
               _ModeCard(
                 mode: UserMode.accountant,
                 icon: Iconsax.briefcase,
@@ -99,19 +60,72 @@ class ModeSelectScreen extends ConsumerWidget {
                 ],
                 onTap: () => _select(context, ref, UserMode.accountant),
               ),
+            ];
 
-              const Spacer(),
-
-              // ── Footer ───────────────────────────────────────────────────
-              const Center(
-                child: Text(
-                  'Режим можно сменить в Настройках',
-                  style: TextStyle(fontSize: 12, color: EsepColors.textDisabled),
+            final header = Column(
+              crossAxisAlignment: isWide ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: isWide ? 80 : 48),
+                const Text('Esep', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: EsepColors.primary, letterSpacing: -0.5)),
+                const SizedBox(height: 4),
+                const Text('Кто вы?', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: EsepColors.textPrimary)),
+                const SizedBox(height: 6),
+                Text(
+                  'Выберите режим — интерфейс подстроится под ваши задачи',
+                  style: const TextStyle(fontSize: 14, color: EsepColors.textSecondary, height: 1.4),
+                  textAlign: isWide ? TextAlign.center : TextAlign.start,
                 ),
+                SizedBox(height: isWide ? 48 : 36),
+              ],
+            );
+
+            if (isWide) {
+              // Desktop: 3 cards in a row, centered
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1100),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Column(
+                      children: [
+                        header,
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (int i = 0; i < cards.length; i++) ...[
+                              if (i > 0) const SizedBox(width: 20),
+                              Expanded(child: cards[i]),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+                        const Text('Режим можно сменить в Настройках', style: TextStyle(fontSize: 12, color: EsepColors.textDisabled)),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            // Mobile: vertical stack
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  header,
+                  cards[0],
+                  const SizedBox(height: 14),
+                  cards[1],
+                  const SizedBox(height: 14),
+                  cards[2],
+                  const Spacer(),
+                  const Center(child: Text('Режим можно сменить в Настройках', style: TextStyle(fontSize: 12, color: EsepColors.textDisabled))),
+                  const SizedBox(height: 24),
+                ],
               ),
-              const SizedBox(height: 24),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

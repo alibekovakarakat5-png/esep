@@ -28,33 +28,48 @@ class _TaxesScreenState extends State<TaxesScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           // Быстрые инструменты
-          Row(
-            children: [
-              Expanded(
-                child: _ToolButton(
-                  icon: Iconsax.people,
-                  label: 'Зарплатный\nкалькулятор',
-                  onTap: () => context.push('/salary-calculator'),
+          LayoutBuilder(builder: (context, constraints) {
+            final wide = constraints.maxWidth >= 600;
+            final buttonWidth = wide ? (constraints.maxWidth - 36) / 4 : (constraints.maxWidth - 12) / 2;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                SizedBox(
+                  width: buttonWidth,
+                  child: _ToolButton(
+                    icon: Iconsax.document_text,
+                    label: 'Форма 910',
+                    onTap: () => context.push('/form-910'),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _ToolButton(
-                  icon: Iconsax.building_4,
-                  label: 'Калькулятор\nТОО',
-                  onTap: () => context.push('/too-calculator'),
+                SizedBox(
+                  width: buttonWidth,
+                  child: _ToolButton(
+                    icon: Iconsax.people,
+                    label: 'Зарплатный калькулятор',
+                    onTap: () => context.push('/salary-calculator'),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _ToolButton(
-                  icon: Iconsax.search_normal_1,
-                  label: 'Поиск\nпо БИН',
-                  onTap: () => context.push('/bin-lookup'),
+                SizedBox(
+                  width: buttonWidth,
+                  child: _ToolButton(
+                    icon: Iconsax.building_4,
+                    label: 'Калькулятор ТОО',
+                    onTap: () => context.push('/too-calculator'),
+                  ),
                 ),
-              ),
-            ],
-          ),
+                SizedBox(
+                  width: buttonWidth,
+                  child: _ToolButton(
+                    icon: Iconsax.search_normal_1,
+                    label: 'Поиск по БИН',
+                    onTap: () => context.push('/bin-lookup'),
+                  ),
+                ),
+              ],
+            );
+          }),
           const SizedBox(height: 16),
 
           // Баннер о реформе 2026

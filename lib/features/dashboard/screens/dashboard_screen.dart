@@ -5,11 +5,10 @@ import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
-import 'dart:io';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:path_provider/path_provider.dart';
+import '../../../shared/widgets/adaptive_sheet.dart';
+import '../../../core/services/file_saver.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/kz_tax_constants.dart';
@@ -19,6 +18,9 @@ import '../../../core/providers/invoice_provider.dart';
 import '../../../core/providers/demo_provider.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/services/pdf_service.dart';
+import '../../../core/services/excel_export_service.dart';
+import '../../../core/providers/client_provider.dart';
+import '../../../core/providers/company_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -61,8 +63,11 @@ class DashboardScreen extends ConsumerWidget {
           const SizedBox(width: 4),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 800;
+        return ListView(
+        padding: EdgeInsets.all(wide ? 24 : 16),
         children: [
 
           // ── Demo banner ────────────────────────────────────────────
@@ -103,35 +108,36 @@ class DashboardScreen extends ConsumerWidget {
           ],
 
           // 1. Быстрые действия — первое что видит пользователь
-          Row(children: [
-            Expanded(child: _ActionButton(
-              icon: Iconsax.arrow_circle_up,
-              label: '+ Доход',
-              color: EsepColors.income,
-              onTap: () => _showQuickAdd(context, ref, isIncome: true),
-            )),
-            const SizedBox(width: 10),
-            Expanded(child: _ActionButton(
-              icon: Iconsax.arrow_circle_down,
-              label: '+ Расход',
-              color: EsepColors.expense,
-              onTap: () => _showQuickAdd(context, ref, isIncome: false),
-            )),
-            const SizedBox(width: 10),
-            Expanded(child: _ActionButton(
-              icon: Iconsax.receipt_add,
-              label: 'Счёт',
-              color: EsepColors.primary,
-              onTap: () => context.go('/invoices'),
-            )),
-            const SizedBox(width: 10),
-            Expanded(child: _ActionButton(
-              icon: Iconsax.document_download,
-              label: 'Отчёт',
-              color: EsepColors.info,
-              onTap: () => _exportReport(context, ref),
-            )),
-          ]),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              SizedBox(width: wide ? null : (constraints.maxWidth - 42) / 2, child: _ActionButton(
+                icon: Iconsax.arrow_circle_up,
+                label: '+ Доход',
+                color: EsepColors.income,
+                onTap: () => _showQuickAdd(context, ref, isIncome: true),
+              )),
+              SizedBox(width: wide ? null : (constraints.maxWidth - 42) / 2, child: _ActionButton(
+                icon: Iconsax.arrow_circle_down,
+                label: '+ Расход',
+                color: EsepColors.expense,
+                onTap: () => _showQuickAdd(context, ref, isIncome: false),
+              )),
+              SizedBox(width: wide ? null : (constraints.maxWidth - 42) / 2, child: _ActionButton(
+                icon: Iconsax.receipt_add,
+                label: 'Счёт',
+                color: EsepColors.primary,
+                onTap: () => context.go('/invoices'),
+              )),
+              SizedBox(width: wide ? null : (constraints.maxWidth - 42) / 2, child: _ActionButton(
+                icon: Iconsax.document_download,
+                label: 'Отчёт',
+                color: EsepColors.info,
+                onTap: () => _exportReport(context, ref),
+              )),
+            ],
+          ),
           const SizedBox(height: 10),
 
           // ── Bank connect CTA ───────────────────────────────────────
@@ -188,23 +194,29 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ],
 
-          // 3. Метрики месяца
+          // 3. Метрики + 4. Налоговый прогноз — side-by-side on desktop
           const SizedBox(height: 16),
-          _MetricsSummary(
-            title: _monthTitle(),
-            income: monthIncome,
-            expense: monthExpense,
-            profit: profit,
-          ),
-
-          // 4. Налоговый прогноз — сколько отложить
-          if (halfYearIncome > 0) ...[
-            const SizedBox(height: 12),
-            _TaxForecastCard(
-              halfYearIncome: halfYearIncome,
-              monthIncome: monthIncome,
-              socialMonthly: social.total,
-            ),
+          if (wide && halfYearIncome > 0)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: _MetricsSummary(title: _monthTitle(), income: monthIncome, expense: monthExpense, profit: profit),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 2,
+                  child: _TaxForecastCard(halfYearIncome: halfYearIncome, monthIncome: monthIncome, socialMonthly: social.total),
+                ),
+              ],
+            )
+          else ...[
+            _MetricsSummary(title: _monthTitle(), income: monthIncome, expense: monthExpense, profit: profit),
+            if (halfYearIncome > 0) ...[
+              const SizedBox(height: 12),
+              _TaxForecastCard(halfYearIncome: halfYearIncome, monthIncome: monthIncome, socialMonthly: social.total),
+            ],
           ],
 
           // Последние операции
@@ -322,6 +334,8 @@ class DashboardScreen extends ConsumerWidget {
 
           const SizedBox(height: 32),
         ],
+      );
+      },
       ),
     );
   }
@@ -335,11 +349,8 @@ class DashboardScreen extends ConsumerWidget {
       return;
     }
 
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+    showAdaptiveSheet(
+      context,
       builder: (ctx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -375,6 +386,28 @@ class DashboardScreen extends ConsumerWidget {
                 },
               )),
             ]),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: _ReportAction(
+                icon: Iconsax.document_download,
+                label: 'Экспорт в Excel',
+                color: const Color(0xFF217346),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  final invoices = ref.read(invoiceProvider);
+                  final clients = ref.read(clientProvider);
+                  final company = ref.read(companyProvider);
+                  ExcelExportService.exportFullReport(
+                    transactions: txs,
+                    invoices: invoices,
+                    clients: clients,
+                    companyName: company.name,
+                    companyIin: company.iin,
+                  );
+                },
+              ),
+            ),
             const SizedBox(height: 8),
           ]),
         ),
@@ -395,19 +428,10 @@ class DashboardScreen extends ConsumerWidget {
     try {
       final doc = await _buildReport(txs);
       final bytes = await doc.save();
-      final dir = await getTemporaryDirectory();
       final now = DateTime.now();
       final fileName = 'esep_report_${DateFormat('yyyy_MM').format(now)}.pdf';
-      final file = File('${dir.path}/$fileName');
-      await file.writeAsBytes(bytes);
 
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(file.path, mimeType: 'application/pdf')],
-          subject: 'Финансовый отчёт — Esep',
-          text: 'Финансовый отчёт ИП за ${DateFormat('LLLL yyyy', 'ru_RU').format(now)}. Сформировано в Esep.',
-        ),
-      );
+      await saveAndShareFile(bytes, fileName, subject: 'Финансовый отчёт — Esep');
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -418,10 +442,8 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   static void _showQuickAdd(BuildContext context, WidgetRef ref, {required bool isIncome}) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+    showAdaptiveSheet(
+      context,
       builder: (ctx) => _QuickAddSheet(isIncome: isIncome, ref: ref),
     );
   }

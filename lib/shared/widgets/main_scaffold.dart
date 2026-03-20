@@ -7,7 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/providers/user_mode_provider.dart';
 
 /// Breakpoint: wider than this → sidebar, narrower → bottom nav.
-const _kDesktopBreakpoint = 720.0;
+const _kDesktopBreakpoint = 900.0;
 
 class MainScaffold extends ConsumerWidget {
   const MainScaffold({super.key, required this.child});
@@ -20,6 +20,7 @@ class MainScaffold extends ConsumerWidget {
     _TabItem(path: '/transactions', icon: Iconsax.wallet_2,   label: 'Учёт'),
     _TabItem(path: '/taxes',        icon: Iconsax.calculator, label: 'Налоги'),
     _TabItem(path: '/clients',      icon: Iconsax.people,     label: 'Клиенты'),
+    _TabItem(path: '/settings',     icon: Iconsax.setting_2,  label: 'Настройки'),
   ];
 
   // ── Tabs: ТОО mode ────────────────────────────────────────────────────────
@@ -29,6 +30,7 @@ class MainScaffold extends ConsumerWidget {
     _TabItem(path: '/transactions', icon: Iconsax.wallet_2,   label: 'Учёт'),
     _TabItem(path: '/taxes',        icon: Iconsax.calculator, label: 'Налоги'),
     _TabItem(path: '/clients',      icon: Iconsax.people,     label: 'Клиенты'),
+    _TabItem(path: '/settings',     icon: Iconsax.setting_2,  label: 'Настройки'),
   ];
 
   // ── Tabs: Бухгалтер mode ──────────────────────────────────────────────────
@@ -105,7 +107,7 @@ class _DesktopLayout extends StatelessWidget {
         children: [
           // ── Sidebar ──────────────────────────────────────────────────
           Container(
-            width: 220,
+            width: 260,
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1A1D23) : Colors.white,
               border: const Border(
@@ -163,11 +165,9 @@ class _DesktopLayout extends StatelessWidget {
 
           // ── Content ──────────────────────────────────────────────────
           Expanded(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 640),
-                child: child,
-              ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: child,
             ),
           ),
         ],

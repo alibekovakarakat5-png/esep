@@ -7,8 +7,11 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/models/transaction.dart' as model;
 import '../../../core/providers/transaction_provider.dart';
 import '../../../core/providers/subscription_provider.dart';
+import '../../../core/services/excel_export_service.dart';
 import 'add_transaction_screen.dart';
 import 'kaspi_import_screen.dart';
+import 'receipt_scanner_stub.dart'
+    if (dart.library.io) 'receipt_scanner_screen.dart';
 
 class TransactionsScreen extends ConsumerStatefulWidget {
   const TransactionsScreen({super.key});
@@ -42,6 +45,27 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
       appBar: AppBar(
         title: const Text('Учёт'),
         actions: [
+          IconButton(
+            icon: const Icon(Iconsax.document_download),
+            tooltip: 'Экспорт в Excel',
+            onPressed: () {
+              final all = ref.read(transactionProvider);
+              if (all.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Нет транзакций для экспорта')),
+                );
+                return;
+              }
+              ExcelExportService.exportTransactions(all);
+            },
+          ),
+          IconButton(
+            icon: const Icon(Iconsax.scan),
+            tooltip: 'Сканер чеков',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ReceiptScannerScreen()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Iconsax.import),
             tooltip: 'Импорт Kaspi',
@@ -113,6 +137,7 @@ class _TxList extends StatelessWidget {
     final fmt = NumberFormat('#,##0', 'ru_RU');
     final total = items.fold(0.0, (sum, t) => sum + t.amount);
     final color = isIncome ? EsepColors.income : EsepColors.expense;
+    final wide = MediaQuery.sizeOf(context).width >= 900;
 
     if (items.isEmpty) {
       return Center(
@@ -131,25 +156,83 @@ class _TxList extends StatelessWidget {
       );
     }
 
+    final summaryCard = Card(
+      color: color.withValues(alpha: 0.08),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(children: [
+          Icon(isIncome ? Iconsax.arrow_circle_up : Iconsax.arrow_circle_down, color: color),
+          const SizedBox(width: 12),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(isIncome ? 'Итого доходов' : 'Итого расходов',
+                style: const TextStyle(fontSize: 12, color: EsepColors.textSecondary)),
+            Text('${fmt.format(total)} ₸',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: color)),
+          ]),
+          const Spacer(),
+          Text('${items.length} операций',
+              style: const TextStyle(fontSize: 13, color: EsepColors.textSecondary)),
+        ]),
+      ),
+    );
+
+    if (wide) {
+      final dateFmt = DateFormat('dd.MM.yyyy', 'ru_RU');
+      return ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          summaryCard,
+          const SizedBox(height: 16),
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: DataTable(
+              columnSpacing: 24,
+              headingRowColor: WidgetStateProperty.all(
+                color.withValues(alpha: 0.05),
+              ),
+              columns: const [
+                DataColumn(label: Text('Дата', style: TextStyle(fontWeight: FontWeight.w600))),
+                DataColumn(label: Text('Описание', style: TextStyle(fontWeight: FontWeight.w600))),
+                DataColumn(label: Text('Клиент', style: TextStyle(fontWeight: FontWeight.w600))),
+                DataColumn(label: Text('Источник', style: TextStyle(fontWeight: FontWeight.w600))),
+                DataColumn(label: Text('Сумма', style: TextStyle(fontWeight: FontWeight.w600)), numeric: true),
+                DataColumn(label: Text('', style: TextStyle(fontWeight: FontWeight.w600))),
+              ],
+              rows: items.map((tx) => DataRow(
+                cells: [
+                  DataCell(Text(dateFmt.format(tx.date), style: const TextStyle(fontSize: 13))),
+                  DataCell(Text(tx.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
+                  DataCell(Text(tx.clientName ?? '', style: const TextStyle(fontSize: 13, color: EsepColors.textSecondary))),
+                  DataCell(Text(tx.source ?? '', style: const TextStyle(fontSize: 13, color: EsepColors.textSecondary))),
+                  DataCell(Text(
+                    '${isIncome ? '+' : '−'} ${fmt.format(tx.amount)} ₸',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color),
+                  )),
+                  DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
+                    IconButton(
+                      icon: const Icon(Iconsax.edit_2, size: 18),
+                      tooltip: 'Редактировать',
+                      onPressed: () => onEdit(tx),
+                    ),
+                    IconButton(
+                      icon: const Icon(Iconsax.trash, size: 18, color: EsepColors.expense),
+                      tooltip: 'Удалить',
+                      onPressed: () => _confirmDelete(context, tx),
+                    ),
+                  ])),
+                ],
+              )).toList(),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Mobile: card list
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Card(
-          color: color.withValues(alpha: 0.08),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(children: [
-              Icon(isIncome ? Iconsax.arrow_circle_up : Iconsax.arrow_circle_down, color: color),
-              const SizedBox(width: 12),
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(isIncome ? 'Итого доходов' : 'Итого расходов',
-                    style: const TextStyle(fontSize: 12, color: EsepColors.textSecondary)),
-                Text('${fmt.format(total)} ₸',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: color)),
-              ]),
-            ]),
-          ),
-        ),
+        summaryCard,
         const SizedBox(height: 16),
         ...items.map((tx) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -157,6 +240,23 @@ class _TxList extends StatelessWidget {
             )),
       ],
     );
+  }
+
+  void _confirmDelete(BuildContext context, model.Transaction tx) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Удалить?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Удалить', style: TextStyle(color: EsepColors.expense)),
+          ),
+        ],
+      ),
+    ) ?? false;
+    if (ok) onDelete(tx.id);
   }
 }
 

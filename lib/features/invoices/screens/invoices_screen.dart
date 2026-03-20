@@ -9,6 +9,8 @@ import '../../../core/models/invoice.dart';
 import '../../../core/providers/invoice_provider.dart';
 import '../../../core/providers/client_provider.dart';
 import '../../../core/providers/subscription_provider.dart';
+import '../../../core/services/excel_export_service.dart';
+import '../../../shared/widgets/adaptive_sheet.dart';
 
 extension InvoiceStatusExt on InvoiceStatus {
   String get label => switch (this) {
@@ -53,6 +55,20 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
         title: const Text('Счета'),
         actions: [
           IconButton(
+            icon: const Icon(Iconsax.document_download),
+            tooltip: 'Экспорт в Excel',
+            onPressed: () {
+              final all = ref.read(invoiceProvider);
+              if (all.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Нет счетов для экспорта')),
+                );
+                return;
+              }
+              ExcelExportService.exportInvoices(all);
+            },
+          ),
+          IconButton(
             icon: Icon(Iconsax.filter,
                 color: _filter != null ? EsepColors.primary : null),
             onPressed: () => _showFilterSheet(context),
@@ -76,66 +92,163 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                     style: TextStyle(color: EsepColors.textDisabled, fontSize: 13)),
               ]),
             )
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Row(children: [
-                  _SummaryChip(label: 'Ожидает', amount: pending, color: EsepColors.info),
-                  const SizedBox(width: 8),
-                  _SummaryChip(label: 'Просрочено', amount: overdue, color: EsepColors.expense),
-                  const SizedBox(width: 8),
-                  _SummaryChip(label: 'Оплачено', amount: paid, color: EsepColors.income),
-                ]),
-                const SizedBox(height: 20),
-                ...invoices.map((inv) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Dismissible(
-                        key: Key(inv.id),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 20),
-                          decoration: BoxDecoration(
-                            color: EsepColors.expense.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Icon(Iconsax.trash, color: EsepColors.expense),
-                        ),
-                        confirmDismiss: (_) async {
-                          return await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Удалить счёт?'),
-                              content: Text('Счёт ${inv.number} для ${inv.clientName} будет удалён.'),
-                              actions: [
-                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text('Удалить', style: TextStyle(color: EsepColors.expense)),
-                                ),
-                              ],
-                            ),
-                          ) ?? false;
-                        },
-                        onDismissed: (_) => ref.read(invoiceProvider.notifier).remove(inv.id),
-                        child: GestureDetector(
-                          onTap: () => context.go('/invoices/${inv.id}'),
-                          child: _InvoiceTile(invoice: inv, fmt: fmt, onStatusChange: (status) {
-                            ref.read(invoiceProvider.notifier).updateStatus(inv.id, status);
-                          }),
-                        ),
-                      ),
-                    )),
+          : _buildBody(context, invoices, pending, overdue, paid, fmt),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, List<Invoice> invoices, double pending, double overdue, double paid, NumberFormat fmt) {
+    final wide = isDesktop(context);
+    final dateFmt = DateFormat('dd.MM.yyyy', 'ru_RU');
+
+    final summaryRow = Row(children: [
+      _SummaryChip(label: 'Ожидает', amount: pending, color: EsepColors.info),
+      const SizedBox(width: 8),
+      _SummaryChip(label: 'Просрочено', amount: overdue, color: EsepColors.expense),
+      const SizedBox(width: 8),
+      _SummaryChip(label: 'Оплачено', amount: paid, color: EsepColors.income),
+    ]);
+
+    if (wide) {
+      // Desktop: inline filter chips + DataTable
+      return ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          summaryRow,
+          const SizedBox(height: 16),
+          // Inline filter chips
+          Wrap(
+            spacing: 8,
+            children: [
+              FilterChip(
+                label: const Text('Все'),
+                selected: _filter == null,
+                onSelected: (_) => setState(() => _filter = null),
+                selectedColor: EsepColors.primary.withValues(alpha: 0.15),
+              ),
+              ...InvoiceStatus.values.map((s) => FilterChip(
+                label: Text(s.label),
+                selected: _filter == s,
+                onSelected: (_) => setState(() => _filter = s),
+                selectedColor: s.color.withValues(alpha: 0.15),
+                avatar: Icon(Icons.circle, color: s.color, size: 10),
+              )),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: DataTable(
+              columnSpacing: 24,
+              headingRowColor: WidgetStateProperty.all(
+                EsepColors.primary.withValues(alpha: 0.05),
+              ),
+              columns: const [
+                DataColumn(label: Text('№', style: TextStyle(fontWeight: FontWeight.w600))),
+                DataColumn(label: Text('Клиент', style: TextStyle(fontWeight: FontWeight.w600))),
+                DataColumn(label: Text('Дата', style: TextStyle(fontWeight: FontWeight.w600))),
+                DataColumn(label: Text('Сумма', style: TextStyle(fontWeight: FontWeight.w600)), numeric: true),
+                DataColumn(label: Text('Статус', style: TextStyle(fontWeight: FontWeight.w600))),
               ],
+              rows: invoices.map((inv) => DataRow(
+                cells: [
+                  DataCell(
+                    Text(inv.number, style: const TextStyle(fontSize: 13)),
+                    onTap: () => context.go('/invoices/${inv.id}'),
+                  ),
+                  DataCell(
+                    Text(inv.clientName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                    onTap: () => context.go('/invoices/${inv.id}'),
+                  ),
+                  DataCell(Text(dateFmt.format(inv.createdAt), style: const TextStyle(fontSize: 13))),
+                  DataCell(Text('${fmt.format(inv.totalAmount)} ₸',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+                  DataCell(
+                    PopupMenuButton<InvoiceStatus>(
+                      initialValue: inv.status,
+                      onSelected: (s) => ref.read(invoiceProvider.notifier).updateStatus(inv.id, s),
+                      itemBuilder: (_) => InvoiceStatus.values.map((s) => PopupMenuItem(
+                        value: s,
+                        child: Row(children: [
+                          Icon(Icons.circle, color: s.color, size: 10),
+                          const SizedBox(width: 8),
+                          Text(s.label),
+                        ]),
+                      )).toList(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: inv.status.color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Text(inv.status.label,
+                              style: TextStyle(fontSize: 12, color: inv.status.color, fontWeight: FontWeight.w500)),
+                          const SizedBox(width: 4),
+                          Icon(Icons.arrow_drop_down, size: 16, color: inv.status.color),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ],
+              )).toList(),
             ),
+          ),
+        ],
+      );
+    }
+
+    // Mobile: card list
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        summaryRow,
+        const SizedBox(height: 20),
+        ...invoices.map((inv) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Dismissible(
+                key: Key(inv.id),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  decoration: BoxDecoration(
+                    color: EsepColors.expense.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Iconsax.trash, color: EsepColors.expense),
+                ),
+                confirmDismiss: (_) async {
+                  return await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Удалить счёт?'),
+                      content: Text('Счёт ${inv.number} для ${inv.clientName} будет удалён.'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('Удалить', style: TextStyle(color: EsepColors.expense)),
+                        ),
+                      ],
+                    ),
+                  ) ?? false;
+                },
+                onDismissed: (_) => ref.read(invoiceProvider.notifier).remove(inv.id),
+                child: GestureDetector(
+                  onTap: () => context.go('/invoices/${inv.id}'),
+                  child: _InvoiceTile(invoice: inv, fmt: fmt, onStatusChange: (status) {
+                    ref.read(invoiceProvider.notifier).updateStatus(inv.id, status);
+                  }),
+                ),
+              ),
+            )),
+      ],
     );
   }
 
   void _showFilterSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+    showAdaptiveSheet(
+      context,
       builder: (ctx) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Padding(
@@ -175,10 +288,8 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
     final descCtrl = TextEditingController();
     final amountCtrl = TextEditingController();
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+    showAdaptiveSheet(
+      context,
       builder: (ctx) => Padding(
         padding: EdgeInsets.fromLTRB(16, 24, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -290,9 +401,8 @@ class _InvoiceTile extends StatelessWidget {
       );
 
   void _showStatusMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+    showAdaptiveSheet(
+      context,
       builder: (ctx) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Padding(

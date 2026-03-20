@@ -7,6 +7,7 @@ import '../../../core/services/notification_service.dart';
 import '../../../core/providers/company_provider.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_mode_provider.dart';
+import '../../../shared/widgets/adaptive_sheet.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -73,11 +74,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final bikCtrl     = TextEditingController(text: company.bik ?? '');
     final kbeCtrl     = TextEditingController(text: company.kbe ?? '19');
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+    showAdaptiveSheet(
+      context,
       builder: (ctx) => Padding(
         padding: EdgeInsets.fromLTRB(16, 24, 16, MediaQuery.of(ctx).viewInsets.bottom + 24),
         child: SingleChildScrollView(

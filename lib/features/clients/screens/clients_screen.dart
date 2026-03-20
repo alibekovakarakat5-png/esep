@@ -5,6 +5,8 @@ import 'package:iconsax/iconsax.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/models/client.dart';
 import '../../../core/providers/client_provider.dart';
+import '../../../core/services/excel_export_service.dart';
+import '../../../shared/widgets/adaptive_sheet.dart';
 
 class ClientsScreen extends ConsumerStatefulWidget {
   const ClientsScreen({super.key});
@@ -51,6 +53,20 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
             : const Text('Клиенты'),
         actions: [
           IconButton(
+            icon: const Icon(Iconsax.document_download),
+            tooltip: 'Экспорт в Excel',
+            onPressed: () {
+              final all = ref.read(clientProvider);
+              if (all.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Нет клиентов для экспорта')),
+                );
+                return;
+              }
+              ExcelExportService.exportClients(all);
+            },
+          ),
+          IconButton(
             icon: Icon(_searching ? Iconsax.close_circle : Iconsax.search_normal),
             onPressed: () => setState(() {
               _searching = !_searching;
@@ -89,16 +105,77 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
                           color: EsepColors.textDisabled, fontSize: 13)),
               ]),
             )
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: filtered.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (_, i) => _ClientTile(
-                client: filtered[i],
-                onDelete: () =>
-                    ref.read(clientProvider.notifier).remove(filtered[i].id),
+          : isDesktop(context)
+            ? _buildDesktopTable(filtered)
+            : ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: filtered.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (_, i) => _ClientTile(
+                  client: filtered[i],
+                  onDelete: () =>
+                      ref.read(clientProvider.notifier).remove(filtered[i].id),
+                ),
               ),
+    );
+  }
+
+  Widget _buildDesktopTable(List<Client> clients) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Card(
+          clipBehavior: Clip.antiAlias,
+          child: DataTable(
+            columnSpacing: 24,
+            headingRowColor: WidgetStateProperty.all(
+              EsepColors.primary.withValues(alpha: 0.05),
             ),
+            columns: const [
+              DataColumn(label: Text('Название / ФИО', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('БИН / ИИН', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Телефон', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Email', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('', style: TextStyle(fontWeight: FontWeight.w600))),
+            ],
+            rows: clients.map((c) => DataRow(cells: [
+              DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
+                CircleAvatar(
+                  radius: 14,
+                  backgroundColor: EsepColors.primary.withValues(alpha: 0.15),
+                  child: Text(c.name.substring(0, 1),
+                      style: const TextStyle(color: EsepColors.primary, fontWeight: FontWeight.w700, fontSize: 12)),
+                ),
+                const SizedBox(width: 10),
+                Text(c.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+              ])),
+              DataCell(Text(c.bin ?? '—', style: const TextStyle(fontSize: 13, color: EsepColors.textSecondary))),
+              DataCell(Text(c.phone ?? '—', style: const TextStyle(fontSize: 13, color: EsepColors.textSecondary))),
+              DataCell(Text(c.email ?? '—', style: const TextStyle(fontSize: 13, color: EsepColors.textSecondary))),
+              DataCell(IconButton(
+                icon: const Icon(Iconsax.trash, size: 18, color: EsepColors.expense),
+                tooltip: 'Удалить',
+                onPressed: () async {
+                  final ok = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Удалить?'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('Удалить', style: TextStyle(color: EsepColors.expense)),
+                        ),
+                      ],
+                    ),
+                  ) ?? false;
+                  if (ok) ref.read(clientProvider.notifier).remove(c.id);
+                },
+              )),
+            ])).toList(),
+          ),
+        ),
+      ],
     );
   }
 
@@ -108,12 +185,8 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
     final phoneCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+    showAdaptiveSheet(
+      context,
       builder: (ctx) => Padding(
         padding: EdgeInsets.fromLTRB(
             16, 24, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
