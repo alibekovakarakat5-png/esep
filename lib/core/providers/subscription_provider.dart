@@ -425,7 +425,7 @@ class _PaywallSheetState extends State<_PaywallSheet> {
                   '${_selectedTier.label} ($price ₸/$period) в Esep.',
                 );
                 launchUrl(
-                  Uri.parse('https://wa.me/77000000000?text=$msg'),
+                  Uri.parse('https://wa.me/77075884651?text=$msg'),
                   mode: LaunchMode.externalApplication,
                 );
               },
