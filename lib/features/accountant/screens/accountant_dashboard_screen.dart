@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/models/accounting_client.dart';
 import '../../../core/providers/accounting_provider.dart';
+import '../../../core/services/excel_export_service.dart';
 import 'add_accounting_client_screen.dart';
 
 // ── Filter enum ───────────────────────────────────────────────────────────────
@@ -50,6 +51,20 @@ class _AccountantDashboardScreenState
       appBar: AppBar(
         title: const Text('Бухгалтерия'),
         actions: [
+          IconButton(
+            icon: const Icon(Iconsax.document_download),
+            tooltip: 'Экспорт в Excel',
+            onPressed: () {
+              final all = ref.read(accountingProvider);
+              if (all.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Нет клиентов для экспорта')),
+                );
+                return;
+              }
+              ExcelExportService.exportAccountingClients(all);
+            },
+          ),
           IconButton(
             icon: const Icon(Iconsax.search_normal_1),
             tooltip: 'Поиск клиентов (ЛПР)',

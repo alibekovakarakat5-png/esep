@@ -18,6 +18,8 @@ import '../../features/accountant/screens/lpr_finder_screen.dart';
 import '../../features/mode_select/screens/mode_select_screen.dart';
 import '../../features/taxes/screens/salary_calculator_screen.dart';
 import '../../features/taxes/screens/too_calculator_screen.dart';
+import '../../features/taxes/screens/form910_screen.dart';
+import '../../features/transactions/screens/receipt_scanner_screen.dart';
 import '../../features/tools/screens/bin_lookup_screen.dart';
 import '../../features/transactions/screens/bank_connect_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
@@ -143,6 +145,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/bin-lookup',
             builder: (_, __) => const BinLookupScreen(),
+          ),
+          GoRoute(
+            path: '/form-910',
+            builder: (_, __) => const Form910Screen(),
+          ),
+          GoRoute(
+            path: '/receipt-scanner',
+            builder: (_, __) => const ReceiptScannerScreen(),
           ),
           GoRoute(
             path: '/bank-connect',
