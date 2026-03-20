@@ -139,7 +139,8 @@ jobs:
 
   # ── Create GitHub Release ────────────────────────────────────────────────────
   release:
-    needs: [build-android, build-ios]
+    needs: [build-android]
+    if: success()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -157,12 +158,6 @@ jobs:
           name: esep-apk
           path: ./release
 
-      - name: Download IPA
-        uses: actions/download-artifact@v4
-        with:
-          name: esep-ipa
-          path: ./release
-
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -174,19 +169,8 @@ jobs:
             **Web:** https://alibekovakarakat5-png.github.io/esep/
 
             **Android:** скачайте `esep.apk` и установите (разрешите "Неизвестные источники")
-
-            **iOS:** пока используйте веб-версию, или установите .ipa через AltStore
-
-            ### Что нового
-            - Монетизация: 4 тарифа (Бесплатный, Solo, Бухгалтер, Бухгалтер Про)
-            - Демо-режим без регистрации
-            - Онбординг (3 экрана)
-            - Подключение банков (Kaspi, Halyk, Forte)
-            - Ежедневный мониторинг лидов
-            - Веб-версия для iPhone
           files: |
             ./release/esep.apk
-            ./release/esep-unsigned.ipa
           draft: false
           prerelease: false
         env:
@@ -202,10 +186,8 @@ jobs:
 
             **Web:** https://alibekovakarakat5-png.github.io/esep/
             **Android:** скачайте `esep.apk`
-            **iOS:** используйте веб-версию или установите .ipa через AltStore
           files: |
             ./release/esep.apk
-            ./release/esep-unsigned.ipa
           draft: false
           prerelease: false
           make_latest: true
