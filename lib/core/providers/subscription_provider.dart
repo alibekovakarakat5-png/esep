@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../theme/app_theme.dart';
 
@@ -23,9 +24,9 @@ extension SubscriptionTierExt on SubscriptionTier {
   int get monthlyPrice {
     switch (this) {
       case SubscriptionTier.free: return 0;
-      case SubscriptionTier.solo: return 1990;
-      case SubscriptionTier.accountant: return 4990;
-      case SubscriptionTier.accountantPro: return 14990;
+      case SubscriptionTier.solo: return 1900;
+      case SubscriptionTier.accountant: return 4900;
+      case SubscriptionTier.accountantPro: return 14900;
     }
   }
 
@@ -33,9 +34,9 @@ extension SubscriptionTierExt on SubscriptionTier {
   int get yearlyPrice {
     switch (this) {
       case SubscriptionTier.free: return 0;
-      case SubscriptionTier.solo: return 19900;
-      case SubscriptionTier.accountant: return 49900;
-      case SubscriptionTier.accountantPro: return 149900;
+      case SubscriptionTier.solo: return 18900;
+      case SubscriptionTier.accountant: return 48900;
+      case SubscriptionTier.accountantPro: return 148900;
     }
   }
 
@@ -283,6 +284,7 @@ class _PaywallSheet extends StatefulWidget {
 
 class _PaywallSheetState extends State<_PaywallSheet> {
   bool _yearly = true; // default to yearly (better value)
+  SubscriptionTier _selectedTier = SubscriptionTier.solo;
 
   @override
   Widget build(BuildContext context) {
@@ -360,21 +362,24 @@ class _PaywallSheetState extends State<_PaywallSheet> {
           _PlanCard(
             tier: SubscriptionTier.solo,
             yearly: _yearly,
-            highlighted: true,
+            highlighted: _selectedTier == SubscriptionTier.solo,
             badge: 'Популярный',
+            onTap: () => setState(() => _selectedTier = SubscriptionTier.solo),
           ),
           const SizedBox(height: 10),
           _PlanCard(
             tier: SubscriptionTier.accountant,
             yearly: _yearly,
-            highlighted: false,
+            highlighted: _selectedTier == SubscriptionTier.accountant,
+            onTap: () => setState(() => _selectedTier = SubscriptionTier.accountant),
           ),
           const SizedBox(height: 10),
           _PlanCard(
             tier: SubscriptionTier.accountantPro,
             yearly: _yearly,
-            highlighted: false,
+            highlighted: _selectedTier == SubscriptionTier.accountantPro,
             badge: 'Макс',
+            onTap: () => setState(() => _selectedTier = SubscriptionTier.accountantPro),
           ),
           const SizedBox(height: 8),
 
@@ -411,7 +416,18 @@ class _PaywallSheetState extends State<_PaywallSheet> {
               ),
               onPressed: () {
                 Navigator.pop(context);
-                // Will open WhatsApp/Telegram via url_launcher
+                final price = _yearly
+                    ? _selectedTier.yearlyPrice
+                    : _selectedTier.monthlyPrice;
+                final period = _yearly ? 'год' : 'мес';
+                final msg = Uri.encodeComponent(
+                  'Здравствуйте! Хочу подключить тариф '
+                  '${_selectedTier.label} ($price ₸/$period) в Esep.',
+                );
+                launchUrl(
+                  Uri.parse('https://wa.me/77000000000?text=$msg'),
+                  mode: LaunchMode.externalApplication,
+                );
               },
             ),
           ),
@@ -493,18 +509,22 @@ class _PlanCard extends StatelessWidget {
     required this.yearly,
     required this.highlighted,
     this.badge,
+    this.onTap,
   });
   final SubscriptionTier tier;
   final bool yearly;
   final bool highlighted;
   final String? badge;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final price = yearly ? tier.yearlyPrice : tier.monthlyPrice;
     final period = yearly ? '/год' : '/мес';
 
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: highlighted ? EsepColors.primary.withValues(alpha: 0.06) : null,
@@ -560,6 +580,7 @@ class _PlanCard extends StatelessWidget {
           ],
         ]),
       ]),
+    ),
     );
   }
 

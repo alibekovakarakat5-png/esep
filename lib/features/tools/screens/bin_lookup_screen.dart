@@ -9,6 +9,9 @@ import 'package:iconsax/iconsax.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/subscription_provider.dart';
+import '../../../core/services/base_url_stub.dart'
+    if (dart.library.html) '../../../core/services/base_url_web.dart'
+    if (dart.library.js_interop) '../../../core/services/base_url_web.dart';
 
 class BinLookupScreen extends ConsumerStatefulWidget {
   const BinLookupScreen({super.key});
@@ -72,7 +75,7 @@ class _BinLookupScreenState extends ConsumerState<BinLookupScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('https://esep-production.up.railway.app/api/bin/$bin'),
+        Uri.parse('${detectApiBase()}/bin/$bin'),
       );
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
