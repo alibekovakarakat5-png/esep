@@ -22,6 +22,20 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ── GET /api/articles/admin/all — admin full list (MUST be before /:slug) ────
+router.get('/admin/all', adminAuth, async (_req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, slug, title, audience, status, tags, published_at, created_at
+       FROM articles ORDER BY created_at DESC`,
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /articles/admin/all error:', err);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
 // ── GET /api/articles/:slug — public single ───────────────────────────────────
 router.get('/:slug', async (req, res) => {
   try {
@@ -33,20 +47,6 @@ router.get('/:slug', async (req, res) => {
     res.json(rows[0]);
   } catch (err) {
     console.error('GET /articles/:slug error:', err);
-    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
-  }
-});
-
-// ── GET /api/articles/admin/all — admin full list ─────────────────────────────
-router.get('/admin/all', adminAuth, async (_req, res) => {
-  try {
-    const { rows } = await db.query(
-      `SELECT id, slug, title, audience, status, tags, published_at, created_at
-       FROM articles ORDER BY created_at DESC`,
-    );
-    res.json(rows);
-  } catch (err) {
-    console.error('GET /articles/admin/all error:', err);
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });

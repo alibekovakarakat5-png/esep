@@ -16,6 +16,15 @@ const { startMonitor }                    = require('./jobs/taxMonitor');
 const { startLeadMonitor }                = require('./jobs/leadMonitor');
 const { seedMarketingContent }            = require('./bot/marketing');
 
+// ── Env validation ───────────────────────────────────────────────────────────
+const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET'];
+for (const key of REQUIRED_ENV) {
+  if (!process.env[key]) {
+    console.error(`[FATAL] Missing required env var: ${key}`);
+    process.exit(1);
+  }
+}
+
 const app  = express();
 const PORT = process.env.PORT ?? 3001;
 
@@ -183,8 +192,9 @@ app.post('/api/bot/webhook', (req, res) => {
   res.json({ ok: true });
 });
 
-// Test channel posting (admin only, one-time check)
-app.get('/api/bot/channel-test', async (req, res) => {
+// Test channel posting (admin only)
+const { adminAuth: adminCheck } = require('./routes/admin');
+app.get('/api/bot/channel-test', adminCheck, async (req, res) => {
   try {
     const result = await tg.postToChannel(
       '✅ <b>Esep подключен к каналу!</b>\n\n' +
@@ -205,7 +215,7 @@ app.get('/api/bot/channel-test', async (req, res) => {
 
 // ── Manual lead scan trigger (admin) ──────────────────────────────────────────
 const { runLeadScan } = require('./jobs/leadMonitor');
-app.get('/api/admin/lead-scan', async (req, res) => {
+app.get('/api/admin/lead-scan', adminCheck, async (req, res) => {
   try {
     await runLeadScan();
     res.json({ ok: true, message: 'Lead scan complete, digest sent to private channel' });
