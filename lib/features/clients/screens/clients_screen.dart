@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/models/client.dart';
 import '../../../core/providers/client_provider.dart';
+import '../../../core/providers/user_mode_provider.dart';
 import '../../../core/services/excel_export_service.dart';
 import '../../../shared/widgets/adaptive_sheet.dart';
 
@@ -84,39 +86,53 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
         icon: const Icon(Iconsax.user_add, color: Colors.white),
         label: const Text('Добавить', style: TextStyle(color: Colors.white)),
       ),
-      body: filtered.isEmpty
-          ? Center(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(
-                  _query.isNotEmpty ? Iconsax.search_normal : Iconsax.people,
-                  color: EsepColors.textDisabled,
-                  size: 48,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  _query.isNotEmpty ? 'Ничего не найдено' : 'Нет клиентов',
-                  style: const TextStyle(
-                      color: EsepColors.textSecondary, fontSize: 16),
-                ),
-                const SizedBox(height: 4),
-                if (_query.isEmpty)
-                  const Text('Нажмите "Добавить" для создания',
-                      style: TextStyle(
-                          color: EsepColors.textDisabled, fontSize: 13)),
-              ]),
-            )
-          : isDesktop(context)
-            ? _buildDesktopTable(filtered)
-            : ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: filtered.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (_, i) => _ClientTile(
-                  client: filtered[i],
-                  onDelete: () =>
-                      ref.read(clientProvider.notifier).remove(filtered[i].id),
-                ),
-              ),
+      body: Column(
+        children: [
+          // Upsell banner for IP mode
+          if (ref.watch(userModeProvider) != UserMode.accountant)
+            _AccountantUpsellBanner(
+              onSwitch: () {
+                ref.read(userModeProvider.notifier).set(UserMode.accountant);
+                context.go('/accountant');
+              },
+            ),
+          Expanded(
+            child: filtered.isEmpty
+                ? Center(
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(
+                        _query.isNotEmpty ? Iconsax.search_normal : Iconsax.people,
+                        color: EsepColors.textDisabled,
+                        size: 48,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _query.isNotEmpty ? 'Ничего не найдено' : 'Нет клиентов',
+                        style: const TextStyle(
+                            color: EsepColors.textSecondary, fontSize: 16),
+                      ),
+                      const SizedBox(height: 4),
+                      if (_query.isEmpty)
+                        const Text('Нажмите "Добавить" для создания',
+                            style: TextStyle(
+                                color: EsepColors.textDisabled, fontSize: 13)),
+                    ]),
+                  )
+                : isDesktop(context)
+                  ? _buildDesktopTable(filtered)
+                  : ListView.separated(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (_, i) => _ClientTile(
+                        client: filtered[i],
+                        onDelete: () =>
+                            ref.read(clientProvider.notifier).remove(filtered[i].id),
+                      ),
+                    ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -306,4 +322,80 @@ class _ClientTile extends StatelessWidget {
           ),
         ),
       );
+}
+
+class _AccountantUpsellBanner extends StatelessWidget {
+  const _AccountantUpsellBanner({required this.onSwitch});
+  final VoidCallback onSwitch;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            EsepColors.primary.withValues(alpha: 0.08),
+            EsepColors.info.withValues(alpha: 0.08),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: EsepColors.primary.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: EsepColors.primary.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Iconsax.people, color: EsepColors.primary, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Ведёте учёт нескольких ИП?',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: EsepColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Режим Бухгалтера — дедлайны, документы и отчёты по каждому клиенту',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: EsepColors.textSecondary.withValues(alpha: 0.8),
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: onSwitch,
+            style: TextButton.styleFrom(
+              backgroundColor: EsepColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('Перейти', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
 }
