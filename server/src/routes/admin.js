@@ -78,6 +78,12 @@ router.get('/', adminAuth, async (_req, res) => {
       ),
     ]);
 
+    const promoData = await db.query(
+      `SELECT p.*, (SELECT COUNT(*) FROM promo_usages WHERE promo_id = p.id) AS actual_uses
+       FROM promo_codes p ORDER BY p.created_at DESC`
+    );
+    const promos = promoData.rows;
+
     const tierColor = { free: '#6b7280', ip: '#2563eb', accountant: '#7c3aed', corporate: '#d97706' };
     const userRows = users.map((u) => {
       const safeEmail = escapeHtml(u.email);
@@ -176,6 +182,7 @@ router.get('/', adminAuth, async (_req, res) => {
     <a href="#users" class="active" onclick="showSection('users',this)">Пользователи</a>
     <a href="#tax" onclick="showSection('tax',this)">Налоговые ставки</a>
     <a href="#articles" onclick="showSection('articles',this)">Статьи</a>
+    <a href="#promos" onclick="showSection('promos',this)">Промокоды</a>
   </nav>
 
   <!-- ── Users ── -->
@@ -236,6 +243,42 @@ router.get('/', adminAuth, async (_req, res) => {
     </table>
   </div>
 
+  <!-- ── Promos ── -->
+  <div id="sec-promos" style="display:none">
+    <h2>Создать промокод</h2>
+    <div class="new-art" style="margin-bottom:24px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px">
+        <div class="field"><label>Код</label><input id="p-code" placeholder="REVIEW6" style="text-transform:uppercase"></div>
+        <div class="field"><label>Тариф</label>
+          <select id="p-tier">
+            <option value="ip">IP (Solo)</option>
+            <option value="accountant">Бухгалтер</option>
+            <option value="corporate">Корпоративный</option>
+          </select>
+        </div>
+        <div class="field"><label>Дней</label><input id="p-days" type="number" value="180" placeholder="180"></div>
+        <div class="field"><label>Макс. использ. (0=безлимит)</label><input id="p-max" type="number" value="100"></div>
+      </div>
+      <div class="field"><label>Описание</label><input id="p-desc" placeholder="Отзыв = 6 мес бесплатно"></div>
+      <button class="btn-primary" onclick="createPromo()">Создать промокод</button>
+    </div>
+    <h2>Все промокоды</h2>
+    <table>
+      <thead><tr><th>Код</th><th>Тариф</th><th>Дней</th><th>Использовано</th><th>Макс</th><th>Статус</th><th></th></tr></thead>
+      <tbody>${promos.map(p => \`
+        <tr>
+          <td style="font-family:monospace;font-weight:700;letter-spacing:2px">\${escapeHtml(p.code)}</td>
+          <td><span class="badge" style="background:\${tierColor[p.grant_tier]??'#6b7280'}20;color:\${tierColor[p.grant_tier]??'#6b7280'}">\${escapeHtml(p.grant_tier)}</span></td>
+          <td>\${p.duration_days}</td>
+          <td>\${p.actual_uses}</td>
+          <td>\${p.max_uses === 0 ? '∞' : p.max_uses}</td>
+          <td><span class="badge" style="background:\${p.active?'#dcfce7':'#fee2e2'};color:\${p.active?'#16a34a':'#dc2626'}">\${p.active?'Активен':'Выключен'}</span></td>
+          <td><button onclick="deletePromo(\${p.id})" style="padding:3px 8px;border:none;background:#fee2e2;color:#dc2626;border-radius:5px;cursor:pointer;font-size:12px">Выключить</button></td>
+        </tr>\`).join('')}
+      </tbody>
+    </table>
+  </div>
+
   <div class="toast" id="toast"></div>
   <script>
     const pass = new URLSearchParams(location.search).get('pass') || '';
@@ -245,7 +288,7 @@ router.get('/', adminAuth, async (_req, res) => {
     });
 
     function showSection(id, el) {
-      ['users','tax','articles'].forEach(s => {
+      ['users','tax','articles','promos'].forEach(s => {
         document.getElementById('sec-'+s).style.display = s===id ? '' : 'none';
       });
       document.querySelectorAll('.nav a').forEach(a => a.classList.remove('active'));
@@ -253,7 +296,7 @@ router.get('/', adminAuth, async (_req, res) => {
     }
     // Handle hash on load
     const hash = location.hash.replace('#','');
-    if (['tax','articles'].includes(hash)) {
+    if (['tax','articles','promos'].includes(hash)) {
       document.querySelectorAll('.nav a').forEach(a => {
         if (a.getAttribute('href')==='#'+hash) showSection(hash,a);
       });
@@ -314,6 +357,28 @@ router.get('/', adminAuth, async (_req, res) => {
       if (!confirm('Удалить статью?')) return;
       const r = await api('/api/articles/'+id, {method:'DELETE'});
       if (r.ok) { toast('Удалено'); setTimeout(()=>location.reload(),800); }
+      else toast('Ошибка', false);
+    }
+
+    async function createPromo() {
+      const r = await api('/api/promos', {
+        method:'POST',
+        body: JSON.stringify({
+          code: document.getElementById('p-code').value,
+          grant_tier: document.getElementById('p-tier').value,
+          duration_days: parseInt(document.getElementById('p-days').value) || 180,
+          max_uses: parseInt(document.getElementById('p-max').value) || 0,
+          description: document.getElementById('p-desc').value,
+        }),
+      });
+      if (r.ok) { toast('Промокод создан'); setTimeout(()=>location.reload(),1000); }
+      else toast('Ошибка при создании', false);
+    }
+
+    async function deletePromo(id) {
+      if (!confirm('Выключить промокод?')) return;
+      const r = await api('/api/promos/'+id, {method:'DELETE'});
+      if (r.ok) { toast('Промокод выключен'); setTimeout(()=>location.reload(),800); }
       else toast('Ошибка', false);
     }
   </script>

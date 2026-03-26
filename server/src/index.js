@@ -9,6 +9,8 @@ const invoiceRoutes                       = require('./routes/invoices');
 const { router: adminRoutes }             = require('./routes/admin');
 const { router: taxConfigRoutes,
         seedTaxConfig }                   = require('./routes/tax-config');
+const { router: promoRoutes,
+        seedPromos }                      = require('./routes/promos');
 const articleRoutes                       = require('./routes/articles');
 const binLookupRoutes                    = require('./routes/bin-lookup');
 const lprRoutes                          = require('./routes/lpr-search');
@@ -112,6 +114,47 @@ async function migrate() {
     -- Add column if table already exists without it
     ALTER TABLE articles ADD COLUMN IF NOT EXISTS channel_posted BOOLEAN DEFAULT FALSE;
 
+    CREATE TABLE IF NOT EXISTS payments (
+      id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id       UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      tier          TEXT        NOT NULL,
+      period        TEXT        NOT NULL DEFAULT 'monthly',  -- 'monthly' | 'yearly'
+      amount        NUMERIC(10,2) NOT NULL,
+      status        TEXT        NOT NULL DEFAULT 'pending',  -- pending | paid | expired | refunded
+      payment_method TEXT       DEFAULT 'kaspi_pay',
+      kaspi_txn_id  TEXT,
+      expires_at    TIMESTAMPTZ,
+      paid_at       TIMESTAMPTZ,
+      created_at    TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_payments_user   ON payments(user_id);
+    CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
+
+    CREATE TABLE IF NOT EXISTS promo_codes (
+      id            SERIAL      PRIMARY KEY,
+      code          TEXT        UNIQUE NOT NULL,
+      grant_tier    TEXT        NOT NULL DEFAULT 'ip',
+      duration_days INT         NOT NULL DEFAULT 30,
+      max_uses      INT         NOT NULL DEFAULT 0,  -- 0 = unlimited
+      used_count    INT         NOT NULL DEFAULT 0,
+      description   TEXT        DEFAULT '',
+      active        BOOLEAN     DEFAULT TRUE,
+      expires_at    TIMESTAMPTZ,
+      created_at    TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS promo_usages (
+      id         SERIAL      PRIMARY KEY,
+      promo_id   INT         NOT NULL REFERENCES promo_codes(id) ON DELETE CASCADE,
+      user_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(promo_id, user_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_promo_usages_user ON promo_usages(user_id);
+
     CREATE TABLE IF NOT EXISTS bot_users (
       chat_id         TEXT        PRIMARY KEY,
       linked_user_id  UUID        REFERENCES users(id) ON DELETE SET NULL,
@@ -162,6 +205,7 @@ async function migrate() {
     ON CONFLICT DO NOTHING;
   `);
   await seedTaxConfig();
+  await seedPromos();
   await seedMarketingContent();
   console.log('✅  DB migrated');
 }
@@ -181,6 +225,7 @@ app.use('/api/transactions', authMiddleware, txRoutes);
 app.use('/api/invoices',     authMiddleware, invoiceRoutes);
 app.use('/api/admin',        adminRoutes);
 app.use('/api/config/tax',   taxConfigRoutes);
+app.use('/api/promos',       promoRoutes);
 app.use('/api/articles',     articleRoutes);
 app.use('/api/bin',          binLookupRoutes);
 app.use('/api/lpr',          authMiddleware, lprRoutes);

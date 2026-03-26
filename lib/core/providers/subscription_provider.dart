@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../services/promo_service.dart';
 import '../theme/app_theme.dart';
 
 // ── Subscription tiers ──────────────────────────────────────────────────────
@@ -285,6 +286,51 @@ class _PaywallSheet extends StatefulWidget {
 class _PaywallSheetState extends State<_PaywallSheet> {
   bool _yearly = true; // default to yearly (better value)
   SubscriptionTier _selectedTier = SubscriptionTier.solo;
+  final _promoController = TextEditingController();
+  String? _promoMessage;
+  bool _promoLoading = false;
+  bool _promoSuccess = false;
+
+  @override
+  void dispose() {
+    _promoController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _activatePromo() async {
+    final code = _promoController.text.trim();
+    if (code.isEmpty) return;
+
+    setState(() { _promoLoading = true; _promoMessage = null; });
+
+    final result = await PromoService.activate(code);
+
+    if (!mounted) return;
+    setState(() {
+      _promoLoading = false;
+      _promoSuccess = result.success;
+      _promoMessage = result.success
+          ? result.message
+          : (result.error ?? 'Ошибка');
+    });
+
+    if (result.success) {
+      // Update local tier
+      final tier = SubscriptionTier.values.firstWhere(
+        (t) => t.name == result.tier,
+        orElse: () => SubscriptionTier.solo,
+      );
+      // ignore: use_build_context_synchronously
+      ProviderScope.containerOf(context)
+          .read(subscriptionProvider.notifier)
+          .setTier(tier);
+
+      // Close after short delay
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) Navigator.pop(context);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -403,15 +449,116 @@ class _PaywallSheetState extends State<_PaywallSheet> {
           ),
           const SizedBox(height: 20),
 
-          // CTA — WhatsApp / Telegram
+          // Promo code input
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _promoSuccess
+                  ? EsepColors.income.withValues(alpha: 0.08)
+                  : EsepColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: _promoSuccess
+                  ? Border.all(color: EsepColors.income.withValues(alpha: 0.3))
+                  : null,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Есть промокод?',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: EsepColors.textSecondary),
+                ),
+                const SizedBox(height: 8),
+                Row(children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _promoController,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: InputDecoration(
+                        hintText: 'REVIEW6',
+                        hintStyle: const TextStyle(color: EsepColors.textDisabled),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: EsepColors.divider),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: EsepColors.divider),
+                        ),
+                      ),
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 2),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    height: 40,
+                    child: FilledButton(
+                      onPressed: _promoLoading ? null : _activatePromo,
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        backgroundColor: EsepColors.income,
+                      ),
+                      child: _promoLoading
+                          ? const SizedBox(
+                              width: 16, height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Text('OK', style: TextStyle(fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ]),
+                if (_promoMessage != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _promoMessage!,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: _promoSuccess ? EsepColors.income : EsepColors.expense,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // CTA — Kaspi Pay
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              icon: const Icon(Iconsax.message, size: 18),
-              label: const Text('Оформить подписку',
+              icon: const Icon(Iconsax.card, size: 18),
+              label: const Text('Оплатить через Kaspi Pay',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                backgroundColor: const Color(0xFFDC2626), // Kaspi red
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                // Kaspi Pay remote payment link — replace with your actual link
+                const kaspiPayUrl = 'https://pay.kaspi.kz/pay/0mg3eonh';
+                launchUrl(
+                  Uri.parse(kaspiPayUrl),
+                  mode: LaunchMode.externalApplication,
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Fallback — WhatsApp
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              icon: const Icon(Iconsax.message, size: 16),
+              label: const Text('Написать в WhatsApp',
+                style: TextStyle(fontSize: 14)),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
               onPressed: () {
