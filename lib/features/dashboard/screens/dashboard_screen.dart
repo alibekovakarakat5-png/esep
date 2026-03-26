@@ -879,7 +879,7 @@ class _TaxForecastCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fmt = NumberFormat('#,##0', 'ru_RU');
-    const taxRate = KzTax.simplified910TotalRate; // 3%
+    const taxRate = KzTax.simplified910TotalRate; // 4%
     final halfYearTax = halfYearIncome * taxRate;
     final monthTax = monthIncome * taxRate;
     final monthTotal = monthTax + socialMonthly;
@@ -992,7 +992,7 @@ class _RegimeOptimizerCard extends StatelessWidget {
     final tax910 = halfYearIncome * KzTax.simplified910TotalRate;
     final total910 = tax910 + social6;
     if (halfYearIncome <= KzTax.simplified910HalfYearLimit) {
-      regimes.add(_RegimeOption('Упрощёнка (910)', total910, '3% от дохода', true));
+      regimes.add(_RegimeOption('Упрощёнка (910)', total910, '4% от дохода', true));
     }
 
     // ЕСП
@@ -1009,8 +1009,10 @@ class _RegimeOptimizerCard extends StatelessWidget {
 
     // ОУР
     final netIncome = halfYearIncome - (monthExpense * 6);
-    final ourTax = (netIncome > 0 ? netIncome : 0) * KzTax.generalIpnRate + social6;
-    regimes.add(_RegimeOption('ОУР', ourTax, '10% от чистого дохода', false));
+    final annualNetIncome = (netIncome > 0 ? netIncome : 0.0) * 2;
+    final ourIpn = KzTax.calculateProgressiveIpn(annualNetIncome) / 2; // за полугодие
+    final ourTax = ourIpn + social6;
+    regimes.add(_RegimeOption('ОУР', ourTax, '10-15% от чистого дохода', false));
 
     // Сортируем по стоимости
     regimes.sort((a, b) => a.total.compareTo(b.total));

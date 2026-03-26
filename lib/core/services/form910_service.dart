@@ -103,8 +103,8 @@ class Form910Service {
         .where((t) => t.isIncome && (t.source == 'kaspi' || t.source == 'перевод' || t.source == 'карта'))
         .fold(0.0, (s, t) => s + t.amount);
 
-    // Tax calculation (ст. 683 НК РК)
-    final calculatedTax = income * KzTax.simplified910TotalRate; // 3%
+    // Tax calculation (Новый НК РК 2026, ставка 4%)
+    final calculatedTax = income * KzTax.simplified910TotalRate; // 4%
 
     // Tax adjustment for employees (1.5% per employee if avg wage >= 23 МРП)
     double taxAdjustment = 0;

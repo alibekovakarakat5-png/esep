@@ -407,7 +407,8 @@ class _GeneralCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ipn = income * KzTax.generalIpnRate;
+    final ipn = KzTax.calculateProgressiveIpn(income);
+    final rateLabel = income > KzTax.generalIpnThreshold ? '10-15%' : '10%';
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -420,7 +421,7 @@ class _GeneralCard extends StatelessWidget {
           const Divider(height: 24),
           _TaxRow('Чистый доход', fmt.format(income), EsepColors.textPrimary),
           const SizedBox(height: 8),
-          _TaxRow('ИПН (10%)', fmt.format(ipn), EsepColors.expense),
+          _TaxRow('ИПН ($rateLabel)', fmt.format(ipn), EsepColors.expense),
           const Divider(height: 20),
           const Text(
             'ОУР: без лимита дохода. ИПН 10% от чистого дохода (доход − вычеты).\n'

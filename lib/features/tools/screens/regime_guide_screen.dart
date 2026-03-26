@@ -604,13 +604,14 @@ class _RegimeGuideScreenState extends ConsumerState<RegimeGuideScreen> {
         _paymentRow(
             'КПН', '20% от прибыли (авансы ежемесячно/ежеквартально)'),
         _paymentRow(
-            'НДС (если плательщик)', '12% (оборот > 20 000 МРП)'),
+            'НДС (если плательщик)', '16% (оборот > 10 000 МРП)'),
         const SizedBox(height: 12),
         const Text('За сотрудников:',
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
         _paymentRow('ОПВ', '10%'),
-        _paymentRow('ИПН', '10%'),
+        _paymentRow('ИПН', '10-15%'),
+        _paymentRow('СН', '6%'),
         _paymentRow('СО', '5%'),
         _paymentRow('ОПВР', '3.5%'),
         _paymentRow('ВОСМС работник', '2%'),

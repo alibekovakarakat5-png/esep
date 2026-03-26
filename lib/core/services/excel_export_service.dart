@@ -317,9 +317,8 @@ class ExcelExportService {
 
     final tax910 = KzTax.calculate910(incomeTotal);
     for (final item in [
-      ['ИПН (1.5%)', tax910.ipn],
-      ['СН (1.5%)', tax910.sn],
-      ['Итого 910 налог (3%)', tax910.totalTax],
+      ['ИПН (4%)', tax910.ipn],
+      ['Итого 910 налог (4%)', tax910.totalTax],
     ]) {
       summary.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value = TextCellValue(item[0] as String);
       summary.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value = DoubleCellValue(item[1] as double);

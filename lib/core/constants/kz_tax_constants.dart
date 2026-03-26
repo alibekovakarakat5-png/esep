@@ -1,5 +1,6 @@
 /// Константы налогового законодательства Казахстана
-/// Источник: НК РК 2026, Закон о бюджете № 239-VIII от 08.12.2025,
+/// Источник: Новый НК РК (Закон 214-VIII от 18.07.2025, в силу с 01.01.2026),
+///           Закон о бюджете № 239-VIII от 08.12.2025,
 ///           Закон о ОСМС, Закон о пенсионном обеспечении, Закон о СО
 /// Обновлено: март 2026
 library kz_tax_constants;
@@ -21,31 +22,34 @@ class KzTax {
   static double get currentMzp => mzp2026;
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // УПРОЩЁННАЯ ДЕКЛАРАЦИЯ (Форма 910) — ст. 683 НК РК
-  // Ставка: 3% от дохода (1.5% ИПН + 1.5% СН)
+  // УПРОЩЁННАЯ ДЕКЛАРАЦИЯ (Форма 910) — Новый НК РК 2026
+  // Ставка: 4% от дохода (100% ИПН, СН = 0% для СНР)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Максимальный доход за полугодие: 24 038 МРП (ст. 683 п.2 НК РК)
-  static double get simplified910HalfYearLimit => currentMrp * 24038;
+  /// Максимальный доход за год: 600 000 МРП (новый НК РК 2026)
+  /// Лимит за полугодие убран — теперь годовой
+  static double get simplified910YearLimit => currentMrp * 600000;
 
-  /// Максимальный доход за год
-  static double get simplified910YearLimit => simplified910HalfYearLimit * 2;
+  /// Лимит за полугодие (половина годового, для обратной совместимости)
+  static double get simplified910HalfYearLimit => simplified910YearLimit / 2;
 
-  /// Макс. кол-во сотрудников (ст. 683 п.2 НК РК)
-  static const int simplified910MaxEmployees = 30;
+  /// Ограничение на кол-во сотрудников снято с 2026 года
+  static const int simplified910MaxEmployees = 999999; // без ограничений
 
-  /// ИПН: 1.5% от дохода (ст. 683 п.1 НК РК)
-  static const double ipnRate = 0.015;
+  /// Ставка 910: 4% от дохода (100% идёт в ИПН, СН = 0%)
+  /// Новый НК РК 2026 — ранее было 3% (1.5% ИПН + 1.5% СН)
+  static const double ipnRate = 0.04;
 
-  /// СН: 1.5% от дохода (ст. 683 п.1 НК РК)
-  static const double snRate = 0.015;
+  /// СН для СНР = 0% (новый НК РК 2026, ранее было 1.5%)
+  static const double snRate = 0.0;
 
-  /// Суммарная ставка 910: 3%
-  static const double simplified910TotalRate = ipnRate + snRate;
+  /// Суммарная ставка 910: 4%
+  static const double simplified910TotalRate = 0.04;
 
-  /// Региональные корректировки (ст. 686 НК РК)
+  /// Региональные корректировки — маслихат может менять ±50% от 4%
+  /// Диапазон: от 2% до 6%
   static const double regionalDiscountMin = 0.0;
-  static const double regionalDiscountMax = 0.02;
+  static const double regionalDiscountMax = 0.02; // маслихат может снизить до 2%
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ЕЖЕМЕСЯЧНЫЕ СОЦПЛАТЕЖИ "ЗА СЕБЯ" (ИП без сотрудников)
@@ -124,59 +128,63 @@ class KzTax {
   /// Ставка: 4% от дохода
   static const double selfEmployedRate = 0.04;
 
-  /// Лимит дохода: 3 528 МРП в год
-  static double get selfEmployedYearLimit => currentMrp * 3528;
+  /// Лимит дохода: 3 600 МРП в год (300 МРП/мес × 12)
+  static double get selfEmployedYearLimit => currentMrp * 3600;
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // НДС — ст. 367-368 НК РК
+  // НДС — Новый НК РК 2026
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Порог обязательной постановки на учёт по НДС: 20 000 МРП за 12 мес
-  static double get vatRegistrationThreshold => currentMrp * 20000;
+  /// Порог обязательной постановки на учёт по НДС: 10 000 МРП за 12 мес
+  /// (снижен с 20 000 МРП в новом НК РК 2026)
+  static double get vatRegistrationThreshold => currentMrp * 10000;
 
-  /// Стандартная ставка НДС: 12%
-  static const double vatRate = 0.12;
+  /// Стандартная ставка НДС: 16% (повышена с 12% в новом НК РК 2026)
+  static const double vatRate = 0.16;
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ОУР (Общеустановленный режим) — ст. 317 НК РК
+  // ОУР (Общеустановленный режим) — Новый НК РК 2026
+  // Прогрессивная шкала ИПН: 10% до 8 500 МРП/год, 15% свыше
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// ИПН: 10% от чистого дохода
+  /// ИПН базовая ставка: 10% (до порога)
   static const double generalIpnRate = 0.10;
+
+  /// ИПН повышенная ставка: 15% (свыше порога)
+  static const double generalIpnRateHigh = 0.15;
+
+  /// Порог для повышенной ставки ИПН: 8 500 МРП в год
+  static double get generalIpnThreshold => currentMrp * 8500;
+
+  /// Базовый вычет ИПН: 30 МРП в месяц (новый НК РК 2026)
+  static double get ipnMonthlyDeduction => currentMrp * 30;
+
+  /// Рассчитать ИПН по прогрессивной шкале (годовой доход)
+  static double calculateProgressiveIpn(double annualIncome) {
+    if (annualIncome <= 0) return 0;
+    final threshold = generalIpnThreshold;
+    if (annualIncome <= threshold) {
+      return annualIncome * generalIpnRate;
+    }
+    return threshold * generalIpnRate +
+        (annualIncome - threshold) * generalIpnRateHigh;
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ТОО — ОТЧЁТНОСТЬ В КОМИТЕТ СТАТИСТИКИ (stat.gov.kz)
   // Закон РК «О государственной статистике», Приказ Бюро нацстатистики
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Формы статистической отчётности для малого бизнеса (ТОО)
+  /// Формы статистической отчётности для малого бизнеса (ТОО, ≤100 чел.)
   static const List<StatForm> tooStatForms = [
     StatForm(
-      code: '1-МП',
+      code: '2-МП',
       name: 'Отчёт о деятельности малого предприятия',
       frequency: 'Ежеквартально',
       deadlineDescription: 'До 25 числа месяца после отчётного квартала',
       deadlineMonths: [4, 7, 10, 1],  // апрель, июль, октябрь, январь
       deadlineDay: 25,
       submitTo: 'stat.gov.kz (кабинет респондента)',
-    ),
-    StatForm(
-      code: '2-МП',
-      name: 'Годовой отчёт малого предприятия',
-      frequency: 'Ежегодно',
-      deadlineDescription: 'До 1 апреля года, следующего за отчётным',
-      deadlineMonths: [4],
-      deadlineDay: 1,
-      submitTo: 'stat.gov.kz (кабинет респондента)',
-    ),
-    StatForm(
-      code: '1-Т',
-      name: 'Отчёт по труду (если есть сотрудники)',
-      frequency: 'Ежеквартально',
-      deadlineDescription: 'До 15 числа месяца после отчётного квартала',
-      deadlineMonths: [4, 7, 10, 1],
-      deadlineDay: 15,
-      submitTo: 'stat.gov.kz',
     ),
   ];
 
@@ -210,6 +218,14 @@ class KzTax {
       deadlineMonths: [5, 8, 11, 2],
       deadlineDay: 15,
     ),
+    TaxForm(
+      code: '700.00',
+      name: 'Земельный налог, имущество, транспорт',
+      frequency: 'Ежегодно',
+      deadlineDescription: 'До 31 марта года, следующего за отчётным',
+      deadlineMonths: [3],
+      deadlineDay: 31,
+    ),
   ];
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -229,21 +245,19 @@ class KzTax {
   // РАСЧЁТЫ
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Рассчитать налоги по упрощёнке (910) за полугодие (ст. 683 НК РК)
+  /// Рассчитать налоги по упрощёнке (910) за полугодие (Новый НК РК 2026)
+  /// Ставка 4% — 100% ИПН, СН = 0%. Маслихат может скорректировать ±50%.
   static TaxCalculation910 calculate910(double income, {double regionalDiscount = 0.0}) {
-    final effectiveIpnRate = (ipnRate - regionalDiscount / 2).clamp(0.0, 1.0);
-    final effectiveSnRate  = (snRate  - regionalDiscount / 2).clamp(0.0, 1.0);
-
-    final ipn = income * effectiveIpnRate;
-    final sn  = income * effectiveSnRate;
+    final effectiveRate = (simplified910TotalRate - regionalDiscount).clamp(0.0, 1.0);
+    final ipn = income * effectiveRate;
 
     return TaxCalculation910(
       income: income,
       ipn: ipn,
-      sn: sn,
-      totalTax: ipn + sn,
-      effectiveIpnRate: effectiveIpnRate,
-      effectiveSnRate: effectiveSnRate,
+      sn: 0, // СН = 0% для СНР с 2026
+      totalTax: ipn,
+      effectiveIpnRate: effectiveRate,
+      effectiveSnRate: 0,
     );
   }
 
@@ -295,8 +309,9 @@ class KzTax {
   /// ИПН у источника (дивиденды): 5% (ст. 320 НК РК)
   static const double dividendTaxRate = 0.05;
 
-  /// Социальный налог ТОО: 9.5% от (ФОТ - ОПВ работников) (ст. 485 НК РК)
-  static const double socialTaxTooRate = 0.095;
+  /// Социальный налог ТОО: 6% от ФОТ (Новый НК РК 2026)
+  /// Ранее: 9.5% от (ФОТ - ОПВ), теперь: 6% от ФОТ (без вычета СО)
+  static const double socialTaxTooRate = 0.06;
 
   /// Расчёт КПН
   static TooTaxCalculation calculateToo({
@@ -314,9 +329,8 @@ class KzTax {
     final vatPaid = isVatPayer ? expenses * vatRate : 0.0;
     final vatPayable = max(0.0, vatReceived - vatPaid);
 
-    // Социальный налог за сотрудников (9.5% от ФОТ - ОПВ)
-    final opvEmployees = monthlyPayroll * employeeOpvRate;
-    final socialTax = max(0.0, (monthlyPayroll - opvEmployees) * socialTaxTooRate) * employeeCount;
+    // Социальный налог за сотрудников: 6% от ФОТ (новый НК РК 2026, без вычета СО)
+    final socialTax = max(0.0, monthlyPayroll * socialTaxTooRate) * employeeCount;
 
     // Dividend tax on remaining profit
     final netProfit = taxableIncome - kpn;
