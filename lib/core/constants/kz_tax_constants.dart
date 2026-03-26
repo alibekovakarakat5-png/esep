@@ -145,6 +145,74 @@ class KzTax {
   static const double generalIpnRate = 0.10;
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // ТОО — ОТЧЁТНОСТЬ В КОМИТЕТ СТАТИСТИКИ (stat.gov.kz)
+  // Закон РК «О государственной статистике», Приказ Бюро нацстатистики
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Формы статистической отчётности для малого бизнеса (ТОО)
+  static const List<StatForm> tooStatForms = [
+    StatForm(
+      code: '1-МП',
+      name: 'Отчёт о деятельности малого предприятия',
+      frequency: 'Ежеквартально',
+      deadlineDescription: 'До 25 числа месяца после отчётного квартала',
+      deadlineMonths: [4, 7, 10, 1],  // апрель, июль, октябрь, январь
+      deadlineDay: 25,
+      submitTo: 'stat.gov.kz (кабинет респондента)',
+    ),
+    StatForm(
+      code: '2-МП',
+      name: 'Годовой отчёт малого предприятия',
+      frequency: 'Ежегодно',
+      deadlineDescription: 'До 1 апреля года, следующего за отчётным',
+      deadlineMonths: [4],
+      deadlineDay: 1,
+      submitTo: 'stat.gov.kz (кабинет респондента)',
+    ),
+    StatForm(
+      code: '1-Т',
+      name: 'Отчёт по труду (если есть сотрудники)',
+      frequency: 'Ежеквартально',
+      deadlineDescription: 'До 15 числа месяца после отчётного квартала',
+      deadlineMonths: [4, 7, 10, 1],
+      deadlineDay: 15,
+      submitTo: 'stat.gov.kz',
+    ),
+  ];
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ТОО — НАЛОГОВАЯ ОТЧЁТНОСТЬ (cabinet.salyk.kz)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Основные налоговые формы ТОО (ОУР)
+  static const List<TaxForm> tooTaxForms = [
+    TaxForm(
+      code: '100.00',
+      name: 'Декларация по КПН',
+      frequency: 'Ежегодно',
+      deadlineDescription: 'До 31 марта года, следующего за отчётным',
+      deadlineMonths: [3],
+      deadlineDay: 31,
+    ),
+    TaxForm(
+      code: '300.00',
+      name: 'Декларация по НДС (если плательщик)',
+      frequency: 'Ежеквартально',
+      deadlineDescription: 'До 15 числа 2-го месяца после отчётного квартала',
+      deadlineMonths: [5, 8, 11, 2],
+      deadlineDay: 15,
+    ),
+    TaxForm(
+      code: '200.00',
+      name: 'Декларация по ИПН и СН (если есть сотрудники)',
+      frequency: 'Ежеквартально',
+      deadlineDescription: 'До 15 числа 2-го месяца после отчётного квартала',
+      deadlineMonths: [5, 8, 11, 2],
+      deadlineDay: 15,
+    ),
+  ];
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // ДЕДЛАЙНЫ — НК РК и Закон о социальном страховании
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -354,6 +422,46 @@ class TooTaxCalculation {
   });
 
   double get effectiveRate => income > 0 ? totalTax / income : 0;
+}
+
+/// Форма статистической отчётности
+class StatForm {
+  final String code;
+  final String name;
+  final String frequency;
+  final String deadlineDescription;
+  final List<int> deadlineMonths;
+  final int deadlineDay;
+  final String submitTo;
+
+  const StatForm({
+    required this.code,
+    required this.name,
+    required this.frequency,
+    required this.deadlineDescription,
+    required this.deadlineMonths,
+    required this.deadlineDay,
+    required this.submitTo,
+  });
+}
+
+/// Форма налоговой отчётности ТОО
+class TaxForm {
+  final String code;
+  final String name;
+  final String frequency;
+  final String deadlineDescription;
+  final List<int> deadlineMonths;
+  final int deadlineDay;
+
+  const TaxForm({
+    required this.code,
+    required this.name,
+    required this.frequency,
+    required this.deadlineDescription,
+    required this.deadlineMonths,
+    required this.deadlineDay,
+  });
 }
 
 /// Налоговые режимы ИП в Казахстане (2026)

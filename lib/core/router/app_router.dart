@@ -21,6 +21,7 @@ import '../../features/taxes/screens/too_calculator_screen.dart';
 import '../../features/taxes/screens/form910_screen.dart';
 import '../../features/transactions/screens/receipt_scanner_screen.dart';
 import '../../features/tools/screens/bin_lookup_screen.dart';
+import '../../features/tools/screens/regime_guide_screen.dart';
 import '../../features/transactions/screens/bank_connect_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
 import '../providers/auth_provider.dart';
@@ -145,6 +146,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/bin-lookup',
             builder: (_, __) => const BinLookupScreen(),
+          ),
+          GoRoute(
+            path: '/regime-guide',
+            builder: (ctx, state) => const RegimeGuideScreen(),
           ),
           GoRoute(
             path: '/form-910',

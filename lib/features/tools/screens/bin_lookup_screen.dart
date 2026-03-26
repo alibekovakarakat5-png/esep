@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:iconsax/iconsax.dart';
@@ -168,6 +169,17 @@ class _BinLookupScreenState extends ConsumerState<BinLookupScreen> {
             if (_state == _ScreenState.error) _buildError(),
             if (_state == _ScreenState.success && _result != null)
               _buildResult(_result!),
+            if (_state == _ScreenState.success && _result != null) ...[
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: () {
+                  final isIP = _result?['isIP'] == true;
+                  context.push('/regime-guide?type=${isIP ? "ip" : "too"}');
+                },
+                icon: const Icon(Iconsax.book_1),
+                label: const Text('Какие у меня отчёты и налоги?'),
+              ),
+            ],
           ],
         ),
       ),

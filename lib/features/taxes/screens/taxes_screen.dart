@@ -67,6 +67,14 @@ class _TaxesScreenState extends State<TaxesScreen> {
                     onTap: () => context.push('/bin-lookup'),
                   ),
                 ),
+                SizedBox(
+                  width: buttonWidth,
+                  child: _ToolButton(
+                    icon: Iconsax.book_1,
+                    label: 'Гид по режимам',
+                    onTap: () => context.push('/regime-guide'),
+                  ),
+                ),
               ],
             );
           }),
