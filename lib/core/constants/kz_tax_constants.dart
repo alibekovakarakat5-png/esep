@@ -3,79 +3,80 @@
 ///           Закон о бюджете № 239-VIII от 08.12.2025,
 ///           Закон о ОСМС, Закон о пенсионном обеспечении, Закон о СО
 /// Обновлено: март 2026
+///
+/// Значения загружаются из PostgreSQL (Railway) через /api/config/tax.
+/// Хардкод используется как fallback если сервер недоступен.
 library kz_tax_constants;
 
 import 'dart:math';
+
+import '../services/tax_config_service.dart';
+
+/// Хелпер для чтения из TaxConfigService с fallback
+double _cfg(String key, double fallback) =>
+    TaxConfigService.getDouble(key, fallback);
 
 class KzTax {
   KzTax._();
 
   // ─── МРП (Месячный расчётный показатель) ─────────────────────────────────
-  // Закон РК «О республиканском бюджете на 2026–2028 годы» № 239-VIII от 08.12.2025
-  static const double mrp2025 = 3932.0;
-  static const double mrp2026 = 4325.0; // ↑ с 3 932 в 2025
-  static double get currentMrp => mrp2026;
+  static const double _mrpDefault = 4325.0;
+  static double get currentMrp => _cfg('mrp', _mrpDefault);
 
   // ─── МЗП (Минимальная заработная плата) ──────────────────────────────────
-  static const double mzp2025 = 85000.0;
-  static const double mzp2026 = 85000.0; // не изменилась
-  static double get currentMzp => mzp2026;
+  static const double _mzpDefault = 85000.0;
+  static double get currentMzp => _cfg('mzp', _mzpDefault);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // УПРОЩЁННАЯ ДЕКЛАРАЦИЯ (Форма 910) — Новый НК РК 2026
   // Ставка: 4% от дохода (100% ИПН, СН = 0% для СНР)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Максимальный доход за год: 600 000 МРП (новый НК РК 2026)
-  /// Лимит за полугодие убран — теперь годовой
-  static double get simplified910YearLimit => currentMrp * 600000;
+  /// Максимальный доход за год (МРП × множитель)
+  static double get simplified910YearLimit =>
+      currentMrp * _cfg('910_year_mrp', 600000);
 
-  /// Лимит за полугодие (половина годового, для обратной совместимости)
+  /// Лимит за полугодие (для обратной совместимости)
   static double get simplified910HalfYearLimit => simplified910YearLimit / 2;
 
-  /// Ограничение на кол-во сотрудников снято с 2026 года
-  static const int simplified910MaxEmployees = 999999; // без ограничений
+  /// Ограничение на кол-во сотрудников
+  static int get simplified910MaxEmployees =>
+      TaxConfigService.getInt('910_max_employees', 999999);
 
-  /// Ставка 910: 4% от дохода (100% идёт в ИПН, СН = 0%)
-  /// Новый НК РК 2026 — ранее было 3% (1.5% ИПН + 1.5% СН)
-  static const double ipnRate = 0.04;
+  /// Ставка 910: 4% (ИПН)
+  static double get ipnRate => _cfg('ipn_rate_910', 0.04);
 
-  /// СН для СНР = 0% (новый НК РК 2026, ранее было 1.5%)
-  static const double snRate = 0.0;
+  /// СН для СНР = 0%
+  static double get snRate => _cfg('sn_rate_910', 0.0);
 
-  /// Суммарная ставка 910: 4%
-  static const double simplified910TotalRate = 0.04;
+  /// Суммарная ставка 910
+  static double get simplified910TotalRate => ipnRate + snRate;
 
-  /// Региональные корректировки — маслихат может менять ±50% от 4%
-  /// Диапазон: от 2% до 6%
+  /// Региональные корректировки — маслихат ±50%
   static const double regionalDiscountMin = 0.0;
-  static const double regionalDiscountMax = 0.02; // маслихат может снизить до 2%
+  static const double regionalDiscountMax = 0.02;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ЕЖЕМЕСЯЧНЫЕ СОЦПЛАТЕЖИ "ЗА СЕБЯ" (ИП без сотрудников)
-  // База расчёта: 1 МЗП (если иное не оговорено)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// ОПВ: 10% от 1 МЗП — ст. 25 Закона о пенсионном обеспечении
-  static const double opvRate = 0.10;
+  /// ОПВ: 10% от 1 МЗП
+  static double get opvRate => _cfg('opv_rate', 0.10);
   static double get opvMonthly => currentMzp * opvRate;
   static double get opvMaxBase => currentMzp * 50;
 
-  /// ОПВР: 3.5% от 1 МЗП (2026) — постепенный рост: 1.5% (2024) → 2.5% (2025) → 3.5% (2026) → 5% (2027)
-  /// Не применяется для родившихся до 1975 года
-  /// Ст. 26-1 Закона о пенсионном обеспечении
-  static const double opvrRate = 0.035;
+  /// ОПВР: 3.5% (2026)
+  static double get opvrRate => _cfg('opvr_rate', 0.035);
   static double get opvrMonthly => currentMzp * opvrRate;
 
-  /// СО: 5% от 1 МЗП — ст. 15 Закона о социальном страховании
-  static const double soRate = 0.05;
+  /// СО: 5%
+  static double get soRate => _cfg('so_rate', 0.05);
   static double get soMonthly => currentMzp * soRate;
   static double get soMaxBase => currentMzp * 7;
 
-  /// ВОСМС "за себя": 5% от 1.4 МЗП — ст. 28 Закона о ОСМС
-  /// (объединяет долю работника 2% + работодателя 3% = 5% от фиксированной базы 1.4 МЗП)
-  static const double vosmsRate = 0.05;
-  static const double vosmsBaseMultiplier = 1.4;
+  /// ВОСМС "за себя": 5% от 1.4 МЗП
+  static double get vosmsRate => _cfg('vosms_rate_self', 0.05);
+  static double get vosmsBaseMultiplier => _cfg('vosms_base_mult', 1.4);
   static double get vosmsMonthly => currentMzp * vosmsBaseMultiplier * vosmsRate;
 
   /// Итого ежемесячно "за себя" (с ОПВР)
@@ -87,77 +88,84 @@ class KzTax {
       opvMonthly + soMonthly + vosmsMonthly;
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // СОЦПЛАТЕЖИ ЗА СОТРУДНИКОВ (работодатель начисляет и удерживает)
+  // СОЦПЛАТЕЖИ ЗА СОТРУДНИКОВ
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// ОПВ (с сотрудника): 10%, база 1–50 МЗП
-  static const double employeeOpvRate = 0.10;
+  /// ОПВ (с сотрудника): 10%
+  static double get employeeOpvRate => _cfg('ee_opv_rate', 0.10);
 
-  /// ВОСМС (с сотрудника): 2%, база до 20 МЗП — ст. 28 Закона о ОСМС
-  static const double employeeVosmsRate = 0.02;
-  static double get employeeVosmsMaxBase => currentMzp * 20;
+  /// ВОСМС (с сотрудника): 2%, база до 20 МЗП
+  static double get employeeVosmsRate => _cfg('ee_vosms_rate', 0.02);
+  static double get employeeVosmsMaxBase =>
+      currentMzp * _cfg('ee_vosms_max_mult', 20);
 
-  /// ОПВР (работодатель): 3.5% (2026), база 1–50 МЗП
-  /// Постепенный рост: 1.5%(2024) → 2.5%(2025) → 3.5%(2026) → 5%(2027)
-  static const double employerOpvrRate = 0.035;
+  /// ОПВР (работодатель): 3.5% (2026)
+  static double get employerOpvrRate => _cfg('emp_opvr_rate', 0.035);
 
-  /// СО (работодатель): 5%, база МЗП–7МЗП (от разницы зарплата - ОПВ)
-  static const double employerSoRate = 0.05;
+  /// СО (работодатель): 5%
+  static double get employerSoRate => _cfg('emp_so_rate', 0.05);
 
-  /// ООСМС (работодатель): 3%, база до 40 МЗП — ст. 27 Закона о ОСМС
-  static const double employerVosmsRate = 0.03;
-  static double get employerVosmsMaxBase => currentMzp * 40;
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // ЕСП (Единый совокупный платёж) — ст. 775-779 НК РК
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  /// Лимит дохода: 1 175 МРП в год
-  static double get espYearLimit => currentMrp * 1175;
-
-  /// Платёж: 1 МРП/мес в городе
-  static double get espMonthlyCity => currentMrp;
-
-  /// Платёж: 0.5 МРП/мес в селе
-  static double get espMonthlyRural => currentMrp * 0.5;
+  /// ООСМС (работодатель): 3%, база до 40 МЗП
+  static double get employerVosmsRate => _cfg('emp_vosms_rate', 0.03);
+  static double get employerVosmsMaxBase =>
+      currentMzp * _cfg('emp_vosms_max_mult', 40);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // РЕЖИМ САМОЗАНЯТЫХ (заменил Патент с 2026) — ст. 774-1 НК РК
+  // ЕСП (Единый совокупный платёж)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Ставка: 4% от дохода
-  static const double selfEmployedRate = 0.04;
+  /// Лимит дохода (МРП × множитель)
+  static double get espYearLimit =>
+      currentMrp * _cfg('esp_year_mrp_limit', 1175);
 
-  /// Лимит дохода: 3 600 МРП в год (300 МРП/мес × 12)
-  static double get selfEmployedYearLimit => currentMrp * 3600;
+  /// Платёж: МРП × множитель /мес в городе
+  static double get espMonthlyCity =>
+      currentMrp * _cfg('esp_mrp_city_mult', 1);
+
+  /// Платёж: МРП × множитель /мес в селе
+  static double get espMonthlyRural =>
+      currentMrp * _cfg('esp_mrp_rural_mult', 0.5);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // РЕЖИМ САМОЗАНЯТЫХ
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Ставка: 4%
+  static double get selfEmployedRate => _cfg('self_emp_rate', 0.04);
+
+  /// Лимит дохода (МРП × множитель)
+  static double get selfEmployedYearLimit =>
+      currentMrp * _cfg('self_emp_year_limit', 3600);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // НДС — Новый НК РК 2026
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Порог обязательной постановки на учёт по НДС: 10 000 МРП за 12 мес
-  /// (снижен с 20 000 МРП в новом НК РК 2026)
-  static double get vatRegistrationThreshold => currentMrp * 10000;
+  /// Порог НДС (МРП × множитель)
+  static double get vatRegistrationThreshold =>
+      currentMrp * _cfg('vat_threshold_mrp', 10000);
 
-  /// Стандартная ставка НДС: 16% (повышена с 12% в новом НК РК 2026)
-  static const double vatRate = 0.16;
+  /// Ставка НДС: 16%
+  static double get vatRate => _cfg('vat_rate', 0.16);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ОУР (Общеустановленный режим) — Новый НК РК 2026
-  // Прогрессивная шкала ИПН: 10% до 8 500 МРП/год, 15% свыше
+  // ОУР — Прогрессивная шкала ИПН
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// ИПН базовая ставка: 10% (до порога)
-  static const double generalIpnRate = 0.10;
+  /// ИПН базовая ставка: 10%
+  static double get generalIpnRate => _cfg('general_ipn_rate', 0.10);
 
-  /// ИПН повышенная ставка: 15% (свыше порога)
-  static const double generalIpnRateHigh = 0.15;
+  /// ИПН повышенная ставка: 15%
+  static double get generalIpnRateHigh =>
+      _cfg('general_ipn_rate_high', 0.15);
 
-  /// Порог для повышенной ставки ИПН: 8 500 МРП в год
-  static double get generalIpnThreshold => currentMrp * 8500;
+  /// Порог для повышенной ставки (МРП × множитель)
+  static double get generalIpnThreshold =>
+      currentMrp * _cfg('general_ipn_threshold_mrp', 8500);
 
-  /// Базовый вычет ИПН: 30 МРП в месяц (новый НК РК 2026)
-  static double get ipnMonthlyDeduction => currentMrp * 30;
+  /// Базовый вычет ИПН: 30 МРП в месяц
+  static double get ipnMonthlyDeduction =>
+      currentMrp * _cfg('ipn_deduction_mrp', 30);
 
   /// Рассчитать ИПН по прогрессивной шкале (годовой доход)
   static double calculateProgressiveIpn(double annualIncome) {
@@ -300,18 +308,17 @@ class KzTax {
   // ТОО (Товарищество с ограниченной ответственностью)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// КПН: 20% от налогооблагаемого дохода (ст. 313 НК РК)
-  static const double kpnRate = 0.20;
+  /// КПН: 20%
+  static double get kpnRate => _cfg('kpn_rate', 0.20);
 
-  /// КПН для малого бизнеса на упрощёнке: 0% (ст. 697 НК РК, до 2028)
+  /// КПН для малого бизнеса на упрощёнке: 0% (до 2028)
   static const double kpnSmallBusinessRate = 0.0;
 
-  /// ИПН у источника (дивиденды): 5% (ст. 320 НК РК)
-  static const double dividendTaxRate = 0.05;
+  /// ИПН у источника (дивиденды): 5%
+  static double get dividendTaxRate => _cfg('dividend_tax_rate', 0.05);
 
   /// Социальный налог ТОО: 6% от ФОТ (Новый НК РК 2026)
-  /// Ранее: 9.5% от (ФОТ - ОПВ), теперь: 6% от ФОТ (без вычета СО)
-  static const double socialTaxTooRate = 0.06;
+  static double get socialTaxTooRate => _cfg('social_tax_too_rate', 0.06);
 
   /// Расчёт КПН
   static TooTaxCalculation calculateToo({

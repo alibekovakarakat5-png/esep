@@ -879,7 +879,7 @@ class _TaxForecastCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fmt = NumberFormat('#,##0', 'ru_RU');
-    const taxRate = KzTax.simplified910TotalRate; // 4%
+    final taxRate = KzTax.simplified910TotalRate; // 4%
     final halfYearTax = halfYearIncome * taxRate;
     final monthTax = monthIncome * taxRate;
     final monthTotal = monthTax + socialMonthly;
