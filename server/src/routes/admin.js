@@ -23,8 +23,8 @@ function adminAuth(req, res, next) {
   // Basic auth: Authorization: Bearer <password>
   if (auth === `Bearer ${pass}`) return next();
 
-  // Also allow ?pass=... for browser convenience
-  if (req.query.pass === pass) return next();
+  // Also allow ?pass=... for browser convenience (case-insensitive)
+  if (req.query.pass && req.query.pass.toLowerCase() === pass.toLowerCase()) return next();
 
   res.status(401).json({ error: 'Unauthorized' });
 }
