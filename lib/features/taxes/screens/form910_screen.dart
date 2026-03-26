@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/transaction_provider.dart';
@@ -232,20 +233,47 @@ class _Form910ScreenState extends ConsumerState<Form910Screen> {
             ]),
             const SizedBox(height: 12),
 
-            // Info note
+            // Submit to cabinet.kgd.gov.kz
             Card(
-              color: EsepColors.info.withValues(alpha: 0.08),
-              child: const Padding(
-                padding: EdgeInsets.all(12),
-                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Icon(Iconsax.info_circle, color: EsepColors.info, size: 18),
-                  SizedBox(width: 10),
-                  Expanded(child: Text(
-                    'XML-файл можно использовать для справки. '
-                    'Для подачи формы 910 перейдите в cabinet.kgd.gov.kz '
-                    'и заполните данные вручную или загрузите через СОНО.',
-                    style: TextStyle(fontSize: 11, color: EsepColors.info),
-                  )),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Row(children: [
+                    Icon(Iconsax.export_1, color: EsepColors.primary, size: 18),
+                    SizedBox(width: 8),
+                    Text('Подать форму 910', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  ]),
+                  const SizedBox(height: 10),
+                  const Text(
+                    '1. Скачайте XML-файл выше\n'
+                    '2. Войдите в Кабинет налогоплательщика\n'
+                    '3. Загрузите XML или заполните вручную',
+                    style: TextStyle(fontSize: 12, color: EsepColors.textSecondary, height: 1.6),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => launchUrl(
+                        Uri.parse('https://cabinet.kgd.gov.kz'),
+                        mode: LaunchMode.externalApplication,
+                      ),
+                      icon: const Icon(Iconsax.export_3, size: 18),
+                      label: const Text('Открыть cabinet.kgd.gov.kz'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton.icon(
+                      onPressed: () => launchUrl(
+                        Uri.parse('https://sono.kgd.gov.kz'),
+                        mode: LaunchMode.externalApplication,
+                      ),
+                      icon: const Icon(Iconsax.document_upload, size: 16),
+                      label: const Text('Или через СОНО', style: TextStyle(fontSize: 13)),
+                    ),
+                  ),
                 ]),
               ),
             ),

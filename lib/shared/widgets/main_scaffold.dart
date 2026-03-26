@@ -9,6 +9,9 @@ import '../../core/providers/user_mode_provider.dart';
 /// Breakpoint: wider than this → sidebar, narrower → bottom nav.
 const _kDesktopBreakpoint = 900.0;
 
+/// Provider to track sidebar collapsed state across the app.
+final sidebarCollapsedProvider = StateProvider<bool>((ref) => false);
+
 class MainScaffold extends ConsumerWidget {
   const MainScaffold({super.key, required this.child});
   final Widget child;
@@ -65,7 +68,14 @@ class MainScaffold extends ConsumerWidget {
     final isWide = MediaQuery.sizeOf(context).width >= _kDesktopBreakpoint;
 
     if (isWide) {
-      return _DesktopLayout(tabs: tabs, currentIndex: _currentIndex(context, tabs), child: child);
+      final collapsed = ref.watch(sidebarCollapsedProvider);
+      return _DesktopLayout(
+        tabs: tabs,
+        currentIndex: _currentIndex(context, tabs),
+        collapsed: collapsed,
+        onToggle: () => ref.read(sidebarCollapsedProvider.notifier).state = !collapsed,
+        child: child,
+      );
     }
 
     // Mobile: bottom nav
@@ -88,26 +98,40 @@ class MainScaffold extends ConsumerWidget {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// Desktop layout: sidebar + centered content
+// Desktop layout: collapsible sidebar + centered content
 // ═════════════════════════════════════════════════════════════════════════════
 
 class _DesktopLayout extends StatelessWidget {
-  const _DesktopLayout({required this.tabs, required this.currentIndex, required this.child});
+  const _DesktopLayout({
+    required this.tabs,
+    required this.currentIndex,
+    required this.collapsed,
+    required this.onToggle,
+    required this.child,
+  });
   final List<_TabItem> tabs;
   final int currentIndex;
+  final bool collapsed;
+  final VoidCallback onToggle;
   final Widget child;
+
+  static const _expandedWidth = 240.0;
+  static const _collapsedWidth = 72.0;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final width = collapsed ? _collapsedWidth : _expandedWidth;
 
     return Scaffold(
       body: Row(
         children: [
           // ── Sidebar ──────────────────────────────────────────────────
-          Container(
-            width: 260,
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            width: width,
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1A1D23) : Colors.white,
               border: const Border(
@@ -116,9 +140,9 @@ class _DesktopLayout extends StatelessWidget {
             ),
             child: Column(
               children: [
-                // Logo
+                // Logo + collapse toggle
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+                  padding: EdgeInsets.fromLTRB(collapsed ? 16 : 20, 20, collapsed ? 16 : 20, 16),
                   child: Row(
                     children: [
                       Container(
@@ -131,8 +155,12 @@ class _DesktopLayout extends StatelessWidget {
                         alignment: Alignment.center,
                         child: const Text('e', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
                       ),
-                      const SizedBox(width: 10),
-                      Text('esep', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                      if (!collapsed) ...[
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text('esep', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -148,16 +176,56 @@ class _DesktopLayout extends StatelessWidget {
                     icon: tab.icon,
                     label: tab.label,
                     selected: selected,
+                    collapsed: collapsed,
                     onTap: () => context.go(tab.path),
                   );
                 }),
 
                 const Spacer(),
 
+                // Collapse toggle button
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: onToggle,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: collapsed ? 0 : 14,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: collapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
+                          children: [
+                            Icon(
+                              collapsed ? Iconsax.arrow_right_1 : Iconsax.arrow_left_2,
+                              size: 18,
+                              color: EsepColors.textSecondary,
+                            ),
+                            if (!collapsed) ...[
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Свернуть',
+                                style: TextStyle(fontSize: 13, color: EsepColors.textSecondary),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
                 // Version
-                const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text('Esep v1.0', style: TextStyle(fontSize: 11, color: EsepColors.textSecondary)),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                  child: Text(
+                    collapsed ? 'v1.0' : 'Esep v1.0',
+                    style: const TextStyle(fontSize: 11, color: EsepColors.textSecondary),
+                  ),
                 ),
               ],
             ),
@@ -177,10 +245,17 @@ class _DesktopLayout extends StatelessWidget {
 }
 
 class _SidebarItem extends StatelessWidget {
-  const _SidebarItem({required this.icon, required this.label, required this.selected, required this.onTap});
+  const _SidebarItem({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.collapsed,
+    required this.onTap,
+  });
   final IconData icon;
   final String label;
   final bool selected;
+  final bool collapsed;
   final VoidCallback onTap;
 
   @override
@@ -193,23 +268,34 @@ class _SidebarItem extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
           onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: [
-                Icon(icon, size: 20, color: selected ? EsepColors.primary : EsepColors.textSecondary),
-                const SizedBox(width: 12),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                    color: selected ? EsepColors.primary : EsepColors.textPrimary,
+          child: collapsed
+              ? Tooltip(
+                  message: label,
+                  preferBelow: false,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Center(
+                      child: Icon(icon, size: 20, color: selected ? EsepColors.primary : EsepColors.textSecondary),
+                    ),
+                  ),
+                )
+              : Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  child: Row(
+                    children: [
+                      Icon(icon, size: 20, color: selected ? EsepColors.primary : EsepColors.textSecondary),
+                      const SizedBox(width: 12),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                          color: selected ? EsepColors.primary : EsepColors.textPrimary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ),
         ),
       ),
     );

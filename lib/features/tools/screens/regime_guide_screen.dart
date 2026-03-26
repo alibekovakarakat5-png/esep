@@ -24,6 +24,10 @@ class _RegimeGuideScreenState extends ConsumerState<RegimeGuideScreen> {
   bool _reportsExpanded = true;
   bool _paymentsExpanded = false;
   bool _deadlinesExpanded = false;
+  bool _showQuiz = false;
+  final _incomeCtrl = TextEditingController();
+  final _expenseCtrl = TextEditingController();
+  String? _recommendation;
 
   @override
   void didChangeDependencies() {
@@ -35,6 +39,64 @@ class _RegimeGuideScreenState extends ConsumerState<RegimeGuideScreen> {
     } else if (type == 'ip') {
       _entityType = _EntityType.ip;
     }
+  }
+
+  @override
+  void dispose() {
+    _incomeCtrl.dispose();
+    _expenseCtrl.dispose();
+    super.dispose();
+  }
+
+  void _calculateRecommendation() {
+    final monthlyIncome = double.tryParse(_incomeCtrl.text.replaceAll(' ', '')) ?? 0;
+    final monthlyExpense = double.tryParse(_expenseCtrl.text.replaceAll(' ', '')) ?? 0;
+    if (monthlyIncome <= 0) return;
+
+    final yearIncome = monthlyIncome * 12;
+    final halfYearIncome = monthlyIncome * 6;
+    final social6 = KzTax.calculateMonthlySocial().total * 6;
+    final fmt = NumberFormat('#,##0', 'ru_RU');
+
+    String best = '';
+    String explanation = '';
+
+    // ЕСП check
+    if (yearIncome <= KzTax.espYearLimit && monthlyExpense < monthlyIncome * 0.3) {
+      final espTotal = KzTax.espMonthlyCity * 12;
+      best = 'ЕСП (Единый совокупный платёж)';
+      explanation = 'При доходе ${fmt.format(yearIncome)} ₸/год вы укладываетесь в лимит ЕСП. '
+          'Ежемесячный платёж всего ${fmt.format(KzTax.espMonthlyCity)} ₸ — это самый дешёвый вариант (${fmt.format(espTotal)} ₸/год).';
+    }
+    // Упрощёнка check
+    else if (halfYearIncome <= KzTax.simplified910HalfYearLimit) {
+      final tax910 = halfYearIncome * KzTax.simplified910TotalRate;
+      final yearTotal = (tax910 + social6) * 2;
+      best = 'Упрощёнка (910)';
+      explanation = 'При доходе ${fmt.format(halfYearIncome)} ₸/полугодие вы в лимите. '
+          'Налог 3% + соцплатежи = ~${fmt.format(yearTotal)} ₸/год. Минимум отчётности — всего 2 раза в год.';
+
+      // Check if large expenses make general better
+      if (monthlyExpense > monthlyIncome * 0.5) {
+        final netIncome = (monthlyIncome - monthlyExpense) * 12;
+        final ourTax = KzTax.calculateProgressiveIpn(netIncome > 0 ? netIncome : 0);
+        final ourTotal = ourTax + social6 * 2;
+        if (ourTotal < yearTotal * 0.7) {
+          best = 'ОУР (Общеустановленный режим)';
+          explanation = 'У вас расходы > 50% от дохода. На ОУР налог считается от чистой прибыли '
+              '(${fmt.format(netIncome > 0 ? netIncome : 0)} ₸), что даст ~${fmt.format(ourTotal)} ₸/год — дешевле упрощёнки.';
+        }
+      }
+    }
+    // Over simplified limit
+    else {
+      best = 'ОУР (Общеустановленный режим)';
+      final netIncome = (monthlyIncome - monthlyExpense) * 12;
+      explanation = 'Доход превышает лимит упрощёнки (${fmt.format(KzTax.simplified910HalfYearLimit)} ₸/полугодие). '
+          'На ОУР налог 10% от чистой прибыли (${fmt.format(netIncome > 0 ? netIncome : 0)} ₸/год). Больше отчётности, но единственный вариант.';
+    }
+
+    setState(() => _recommendation = '$best\n\n$explanation');
   }
 
   @override
@@ -54,6 +116,96 @@ class _RegimeGuideScreenState extends ConsumerState<RegimeGuideScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // --- Quiz: which regime fits? ---
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  InkWell(
+                    onTap: () => setState(() => _showQuiz = !_showQuiz),
+                    child: Row(children: [
+                      const Icon(Iconsax.lamp_charge, color: EsepColors.primary, size: 20),
+                      const SizedBox(width: 10),
+                      const Expanded(child: Text(
+                        'Какой режим мне подходит?',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: EsepColors.primary),
+                      )),
+                      AnimatedRotation(
+                        turns: _showQuiz ? 0.5 : 0.0,
+                        duration: const Duration(milliseconds: 200),
+                        child: const Icon(Iconsax.arrow_down_1, size: 18, color: EsepColors.textSecondary),
+                      ),
+                    ]),
+                  ),
+                  if (_showQuiz) ...[
+                    const SizedBox(height: 12),
+                    const Divider(height: 1),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Введите примерный месячный доход и расходы, чтобы узнать оптимальный режим',
+                      style: TextStyle(fontSize: 12, color: EsepColors.textSecondary),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(children: [
+                      Expanded(child: TextField(
+                        controller: _incomeCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Доход/мес, \u20b8',
+                          hintText: '500 000',
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                      )),
+                      const SizedBox(width: 12),
+                      Expanded(child: TextField(
+                        controller: _expenseCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Расходы/мес, \u20b8',
+                          hintText: '200 000',
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                      )),
+                    ]),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: _calculateRecommendation,
+                        icon: const Icon(Iconsax.calculator, size: 18),
+                        label: const Text('Подобрать режим'),
+                      ),
+                    ),
+                    if (_recommendation != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: EsepColors.income.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: EsepColors.income.withValues(alpha: 0.25)),
+                        ),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          const Row(children: [
+                            Icon(Iconsax.tick_circle, color: EsepColors.income, size: 18),
+                            SizedBox(width: 8),
+                            Text('Рекомендация', style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w700, color: EsepColors.income,
+                            )),
+                          ]),
+                          const SizedBox(height: 8),
+                          Text(_recommendation!,
+                              style: const TextStyle(fontSize: 13, color: EsepColors.textPrimary, height: 1.5)),
+                        ]),
+                      ),
+                    ],
+                  ],
+                ]),
+              ),
+            ),
+            const SizedBox(height: 16),
+
             // --- Entity type selector ---
             const Text(
               'Форма организации',

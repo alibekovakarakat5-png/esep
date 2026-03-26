@@ -21,6 +21,7 @@ import '../../../core/services/pdf_service.dart';
 import '../../../core/services/excel_export_service.dart';
 import '../../../core/providers/client_provider.dart';
 import '../../../core/providers/company_provider.dart';
+import '../../../core/providers/feature_tour_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -106,6 +107,16 @@ class DashboardScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
           ],
+
+          // ── Feature Tour ───────────────────────────────────────
+          if (ref.watch(featureTourProvider).showDashboardTour)
+            _FeatureTourBanner(
+              step: ref.watch(featureTourProvider).dashboardStep,
+              onNext: () => ref.read(featureTourProvider.notifier).nextStep(),
+              onDismiss: () => ref.read(featureTourProvider.notifier).dismiss(),
+            ),
+          if (ref.watch(featureTourProvider).showDashboardTour)
+            const SizedBox(height: 10),
 
           // 1. Быстрые действия — первое что видит пользователь
           Wrap(
@@ -674,44 +685,71 @@ class _MetricsSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fmt = NumberFormat('#,##0', 'ru_RU');
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: const TextStyle(fontSize: 13, color: EsepColors.textSecondary, fontWeight: FontWeight.w500)),
-          const SizedBox(height: 12),
-          Row(children: [
-            Expanded(child: _MetricItem(label: 'Доход', amount: income, color: EsepColors.income, fmt: fmt)),
-            const SizedBox(width: 1, child: ColoredBox(color: EsepColors.divider, child: SizedBox(height: 36))),
-            Expanded(child: _MetricItem(label: 'Расход', amount: expense, color: EsepColors.expense, fmt: fmt)),
-            const SizedBox(width: 1, child: ColoredBox(color: EsepColors.divider, child: SizedBox(height: 36))),
-            Expanded(child: _MetricItem(
-                label: 'Прибыль',
-                amount: profit,
-                color: profit >= 0 ? EsepColors.primary : EsepColors.expense,
-                fmt: fmt)),
-          ]),
-        ]),
-      ),
-    );
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(title, style: const TextStyle(fontSize: 15, color: EsepColors.textSecondary, fontWeight: FontWeight.w500)),
+      const SizedBox(height: 10),
+      Row(children: [
+        Expanded(child: _MetricCard(
+          label: 'Доход',
+          amount: income,
+          color: EsepColors.income,
+          icon: Iconsax.arrow_circle_up,
+          fmt: fmt,
+        )),
+        const SizedBox(width: 10),
+        Expanded(child: _MetricCard(
+          label: 'Расход',
+          amount: expense,
+          color: EsepColors.expense,
+          icon: Iconsax.arrow_circle_down,
+          fmt: fmt,
+        )),
+        const SizedBox(width: 10),
+        Expanded(child: _MetricCard(
+          label: 'Прибыль',
+          amount: profit,
+          color: profit >= 0 ? EsepColors.primary : EsepColors.expense,
+          icon: Iconsax.wallet_money,
+          fmt: fmt,
+        )),
+      ]),
+    ]);
   }
 }
 
-class _MetricItem extends StatelessWidget {
-  const _MetricItem({required this.label, required this.amount, required this.color, required this.fmt});
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({required this.label, required this.amount, required this.color, required this.icon, required this.fmt});
   final String label;
   final double amount;
   final Color color;
+  final IconData icon;
   final NumberFormat fmt;
 
   @override
-  Widget build(BuildContext context) => Column(children: [
-    Text(label, style: const TextStyle(fontSize: 11, color: EsepColors.textSecondary)),
-    const SizedBox(height: 4),
-    Text('${fmt.format(amount)} ₸',
-        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color),
-        textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
-  ]);
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            width: 32, height: 32,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 16),
+          ),
+          const Spacer(),
+        ]),
+        const SizedBox(height: 10),
+        Text(label, style: const TextStyle(fontSize: 12, color: EsepColors.textSecondary)),
+        const SizedBox(height: 2),
+        Text('${fmt.format(amount)} ₸',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: color),
+            maxLines: 1, overflow: TextOverflow.ellipsis),
+      ]),
+    ),
+  );
 }
 
 // ── Action Button ────────────────────────────────────────────────────────────
@@ -723,20 +761,31 @@ class _ActionButton extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
+  Widget build(BuildContext context) => Material(
+    color: Colors.transparent,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
+        ]),
       ),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, color: color, size: 22),
-        const SizedBox(height: 5),
-        Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
-      ]),
     ),
   );
 }
@@ -1141,4 +1190,114 @@ class _Legend extends StatelessWidget {
     const SizedBox(width: 4),
     Text(label, style: const TextStyle(fontSize: 11, color: EsepColors.textSecondary)),
   ]);
+}
+
+// ── Feature Tour Banner ─────────────────────────────────────────────────────
+class _FeatureTourBanner extends StatelessWidget {
+  const _FeatureTourBanner({required this.step, required this.onNext, required this.onDismiss});
+  final int step;
+  final VoidCallback onNext;
+  final VoidCallback onDismiss;
+
+  static const _tips = [
+    _TourTip(
+      icon: Iconsax.arrow_circle_up,
+      title: 'Быстрый ввод',
+      body: 'Нажмите "+ Доход" или "+ Расход" чтобы быстро добавить операцию.',
+      color: EsepColors.income,
+    ),
+    _TourTip(
+      icon: Iconsax.calculator,
+      title: 'Налоговый прогноз',
+      body: 'Esep автоматически считает сколько отложить на налоги каждый месяц.',
+      color: Color(0xFF7B2FBE),
+    ),
+    _TourTip(
+      icon: Iconsax.notification,
+      title: 'Дедлайны',
+      body: 'Напоминания о соцплатежах (25-е число) и форме 910 (15 авг / 15 фев).',
+      color: EsepColors.warning,
+    ),
+    _TourTip(
+      icon: Iconsax.link_21,
+      title: 'Загрузка выписки',
+      body: 'Загрузите выписку Kaspi или другого банка — транзакции добавятся автоматически.',
+      color: Color(0xFFF14635),
+    ),
+    _TourTip(
+      icon: Iconsax.chart,
+      title: 'Оптимизация режима',
+      body: 'Пролистайте вниз — Esep покажет какой налоговый режим вам выгоднее.',
+      color: EsepColors.primary,
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    if (step >= _tips.length) {
+      // Auto-dismiss when all tips shown
+      WidgetsBinding.instance.addPostFrameCallback((_) => onDismiss());
+      return const SizedBox.shrink();
+    }
+
+    final tip = _tips[step];
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: tip.color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: tip.color.withValues(alpha: 0.25)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(
+              color: tip.color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(tip.icon, color: tip.color, size: 20),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Text(tip.title,
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: tip.color))),
+          GestureDetector(
+            onTap: onDismiss,
+            child: const Icon(Iconsax.close_circle, size: 20, color: EsepColors.textDisabled),
+          ),
+        ]),
+        const SizedBox(height: 8),
+        Text(tip.body, style: const TextStyle(fontSize: 13, color: EsepColors.textSecondary, height: 1.4)),
+        const SizedBox(height: 10),
+        Row(children: [
+          // Step indicator
+          ...List.generate(_tips.length, (i) => Container(
+            width: i == step ? 16 : 6,
+            height: 6,
+            margin: const EdgeInsets.only(right: 4),
+            decoration: BoxDecoration(
+              color: i == step ? tip.color : EsepColors.divider,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          )),
+          const Spacer(),
+          TextButton(
+            onPressed: step < _tips.length - 1 ? onNext : onDismiss,
+            child: Text(
+              step < _tips.length - 1 ? 'Далее' : 'Понятно',
+              style: TextStyle(color: tip.color, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ]),
+      ]),
+    );
+  }
+}
+
+class _TourTip {
+  final IconData icon;
+  final String title;
+  final String body;
+  final Color color;
+  const _TourTip({required this.icon, required this.title, required this.body, required this.color});
 }
