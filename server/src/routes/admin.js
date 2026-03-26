@@ -61,6 +61,114 @@ router.patch('/users/:id/tier', adminAuth, async (req, res) => {
   }
 });
 
+// ── POST /api/admin/payments — create payment & activate tier ────────────────
+router.post('/payments', adminAuth, async (req, res) => {
+  try {
+    const { user_id, tier, period, amount, payment_method, kaspi_txn_id, note } = req.body ?? {};
+    if (!user_id || !tier || !amount) {
+      return res.status(400).json({ error: 'user_id, tier, amount required' });
+    }
+    if (!TIERS.includes(tier)) {
+      return res.status(400).json({ error: `tier must be one of: ${TIERS.join(', ')}` });
+    }
+
+    // Calculate expiration
+    const months = { monthly: 1, quarterly: 3, yearly: 12 }[period] ?? 1;
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + months);
+
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Create payment record
+      const { rows } = await client.query(
+        `INSERT INTO payments (user_id, tier, period, amount, status, payment_method, kaspi_txn_id, expires_at, paid_at, note)
+         VALUES ($1, $2, $3, $4, 'paid', $5, $6, $7, NOW(), $8)
+         RETURNING *`,
+        [user_id, tier, period ?? 'monthly', amount, payment_method ?? 'kaspi_pay', kaspi_txn_id ?? null, expiresAt, note ?? null],
+      );
+
+      // Upgrade user tier
+      await client.query('UPDATE users SET tier = $1 WHERE id = $2', [tier, user_id]);
+
+      await client.query('COMMIT');
+      res.status(201).json(rows[0]);
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('POST /admin/payments error:', err);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// ── GET /api/admin/payments ─────────────────────────────────────────────────
+router.get('/payments', adminAuth, async (_req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT p.*, u.email, u.name
+        FROM payments p
+        JOIN users u ON u.id = p.user_id
+       ORDER BY p.created_at DESC
+       LIMIT 200
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /admin/payments error:', err);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// ── PATCH /api/admin/payments/:id/expire — manually expire ──────────────────
+router.patch('/payments/:id/expire', adminAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `UPDATE payments SET status = 'expired' WHERE id = $1 RETURNING user_id`,
+      [req.params.id],
+    );
+    if (rows.length > 0) {
+      // Check if user has other active payments
+      const { rows: other } = await db.query(
+        `SELECT 1 FROM payments WHERE user_id = $1 AND status = 'paid' AND id != $2 LIMIT 1`,
+        [rows[0].user_id, req.params.id],
+      );
+      const { rows: promos } = await db.query(
+        `SELECT 1 FROM promo_usages WHERE user_id = $1 AND expires_at > NOW() LIMIT 1`,
+        [rows[0].user_id],
+      );
+      if (other.length === 0 && promos.length === 0) {
+        await db.query('UPDATE users SET tier = $1 WHERE id = $2', ['free', rows[0].user_id]);
+      }
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('PATCH /admin/payments/:id/expire error:', err);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// ── PATCH /api/admin/payments/:id/extend — extend by N months ───────────────
+router.patch('/payments/:id/extend', adminAuth, async (req, res) => {
+  try {
+    const months = parseInt(req.body?.months) || 1;
+    await db.query(
+      `UPDATE payments
+         SET expires_at = GREATEST(expires_at, NOW()) + ($1 || ' months')::INTERVAL,
+             status = 'paid'
+       WHERE id = $2`,
+      [months, req.params.id],
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('PATCH /admin/payments/:id/extend error:', err);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
 // ── GET /api/admin — HTML dashboard ──────────────────────────────────────────
 router.get('/', adminAuth, async (_req, res) => {
   try {
@@ -84,7 +192,78 @@ router.get('/', adminAuth, async (_req, res) => {
     );
     const promos = promoData.rows;
 
+    // Payments with user info
+    const paymentData = await db.query(`
+      SELECT p.*, u.email AS user_email, u.name AS user_name
+        FROM payments p
+        JOIN users u ON u.id = p.user_id
+       ORDER BY p.created_at DESC
+       LIMIT 100
+    `);
+    const payments = paymentData.rows;
+
     const tierColor = { free: '#6b7280', ip: '#2563eb', accountant: '#7c3aed', corporate: '#d97706' };
+
+    // Pre-compute promos HTML
+    const promoRows = promos.map((p) => {
+      return `
+      <tr>
+        <td style="font-family:monospace;font-weight:700;letter-spacing:2px">${escapeHtml(p.code)}</td>
+        <td><span class="badge" style="background:${tierColor[p.grant_tier] ?? '#6b7280'}20;color:${tierColor[p.grant_tier] ?? '#6b7280'}">${escapeHtml(p.grant_tier)}</span></td>
+        <td>${p.duration_days}</td>
+        <td>${p.actual_uses}</td>
+        <td>${p.max_uses === 0 ? '&infin;' : p.max_uses}</td>
+        <td><span class="badge" style="background:${p.active ? '#dcfce7' : '#fee2e2'};color:${p.active ? '#16a34a' : '#dc2626'}">${p.active ? 'Активен' : 'Выключен'}</span></td>
+        <td><button onclick="deletePromo(${p.id})" style="padding:3px 8px;border:none;background:#fee2e2;color:#dc2626;border-radius:5px;cursor:pointer;font-size:12px">Выключить</button></td>
+      </tr>`;
+    }).join('');
+
+    // Pre-compute payments HTML
+    const now = Date.now();
+    const paymentRows = payments.map((p) => {
+      const exp = p.expires_at ? new Date(p.expires_at).getTime() : null;
+      const isExpiring = p.status === 'paid' && exp && exp < now + 3 * 86400000 && exp > now;
+      const isExpired = p.status === 'expired';
+      const statusColor = isExpired ? '#dc2626' : isExpiring ? '#b45309' : p.status === 'paid' ? '#16a34a' : '#6b7280';
+      const statusBg = isExpired ? '#fee2e2' : isExpiring ? '#fef3c7' : p.status === 'paid' ? '#dcfce7' : '#f3f4f6';
+      const statusLabel = isExpired ? 'Истёк' : isExpiring ? 'Скоро истекает' : p.status === 'paid' ? 'Активен' : escapeHtml(p.status);
+      const daysLeft = exp ? Math.ceil((exp - now) / 86400000) : null;
+      const daysStr = daysLeft !== null && p.status === 'paid' ? ' (' + daysLeft + ' дн.)' : '';
+      const paidDate = p.paid_at ? new Date(p.paid_at).toLocaleDateString('ru-RU') : '&mdash;';
+      const expDate = p.expires_at ? new Date(p.expires_at).toLocaleDateString('ru-RU') : '&mdash;';
+      const safeId = escapeHtml(p.id);
+
+      let actions = '';
+      if (p.status === 'paid') {
+        actions = `<button onclick="extendPayment('${safeId}')" style="padding:3px 8px;border:none;background:#dcfce7;color:#16a34a;border-radius:5px;cursor:pointer;font-size:12px">+1 мес</button>
+          <button onclick="expirePayment('${safeId}')" style="padding:3px 8px;border:none;background:#fee2e2;color:#dc2626;border-radius:5px;cursor:pointer;font-size:12px;margin-left:4px">Закрыть</button>`;
+      } else {
+        actions = `<button onclick="extendPayment('${safeId}')" style="padding:3px 8px;border:none;background:#dcfce7;color:#16a34a;border-radius:5px;cursor:pointer;font-size:12px">Возобновить</button>`;
+      }
+
+      return `
+      <tr>
+        <td>${escapeHtml(p.user_email)}</td>
+        <td><span class="badge" style="background:${tierColor[p.tier] ?? '#6b7280'}20;color:${tierColor[p.tier] ?? '#6b7280'}">${escapeHtml(p.tier)}</span></td>
+        <td>${p.amount} &#8376;</td>
+        <td>${escapeHtml(p.period)}</td>
+        <td><span class="badge" style="background:${statusBg};color:${statusColor}">${statusLabel}${daysStr}</span></td>
+        <td style="font-size:12px">${paidDate}</td>
+        <td style="font-size:12px">${expDate}</td>
+        <td>${actions}</td>
+      </tr>`;
+    }).join('');
+
+    // Pre-compute payment stats
+    const activePayments = payments.filter(p => p.status === 'paid').length;
+    const expiringSoon = payments.filter(p => p.status === 'paid' && p.expires_at && new Date(p.expires_at).getTime() < now + 3 * 86400000).length;
+    const expiredPayments = payments.filter(p => p.status === 'expired').length;
+
+    // Pre-compute user options for payment form
+    const userOptions = users.map(u =>
+      `<option value="${escapeHtml(u.id)}">${escapeHtml(u.email)} (${escapeHtml(u.tier)})</option>`
+    ).join('');
+
     const userRows = users.map((u) => {
       const safeEmail = escapeHtml(u.email);
       const safeName = escapeHtml(u.name);
@@ -177,9 +356,10 @@ router.get('/', adminAuth, async (_req, res) => {
 </head>
 <body>
   <h1>Esep Admin</h1>
-  <p class="sub">Управление пользователями, налогами и статьями</p>
+  <p class="sub">Управление пользователями, платежами, налогами и статьями</p>
   <nav class="nav">
     <a href="#users" class="active" onclick="showSection('users',this)">Пользователи</a>
+    <a href="#payments" onclick="showSection('payments',this)">Платежи</a>
     <a href="#tax" onclick="showSection('tax',this)">Налоговые ставки</a>
     <a href="#articles" onclick="showSection('articles',this)">Статьи</a>
     <a href="#promos" onclick="showSection('promos',this)">Промокоды</a>
@@ -197,6 +377,50 @@ router.get('/', adminAuth, async (_req, res) => {
     <table>
       <thead><tr><th>Email</th><th>Имя</th><th>Тариф</th><th>Транзакции</th><th>Счета</th><th>Регистрация</th><th>Сменить</th></tr></thead>
       <tbody>${userRows}</tbody>
+    </table>
+  </div>
+
+  <!-- ── Payments ── -->
+  <div id="sec-payments" style="display:none">
+    <h2>Активировать тариф</h2>
+    <div class="new-art" style="margin-bottom:24px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div class="field"><label>Пользователь</label>
+          <select id="pay-user">${userOptions}</select>
+        </div>
+        <div class="field"><label>Тариф</label>
+          <select id="pay-tier">
+            <option value="ip">IP (Solo) &mdash; 1 900</option>
+            <option value="accountant">Бухгалтер &mdash; 4 900</option>
+            <option value="corporate">Корпоративный &mdash; 14 900</option>
+          </select>
+        </div>
+        <div class="field"><label>Период</label>
+          <select id="pay-period">
+            <option value="monthly">1 месяц</option>
+            <option value="quarterly">3 месяца</option>
+            <option value="yearly">12 месяцев</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px">
+        <div class="field"><label>Сумма (тенге)</label><input id="pay-amount" type="number" value="1900"></div>
+        <div class="field"><label>Kaspi TXN ID</label><input id="pay-txn" placeholder="Номер чека"></div>
+        <div class="field"><label>Примечание</label><input id="pay-note" placeholder="Из WhatsApp / чек #..."></div>
+      </div>
+      <button class="btn-primary" onclick="createPayment()" style="margin-top:12px">Активировать тариф</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-val">${activePayments}</div><div class="stat-label">Активных</div></div>
+      <div class="stat"><div class="stat-val" style="color:#b45309">${expiringSoon}</div><div class="stat-label">Истекают скоро</div></div>
+      <div class="stat"><div class="stat-val" style="color:#dc2626">${expiredPayments}</div><div class="stat-label">Истекших</div></div>
+    </div>
+
+    <h2>Все платежи</h2>
+    <table>
+      <thead><tr><th>Email</th><th>Тариф</th><th>Сумма</th><th>Период</th><th>Статус</th><th>Оплачено</th><th>Истекает</th><th>Действия</th></tr></thead>
+      <tbody>${paymentRows}</tbody>
     </table>
   </div>
 
@@ -265,17 +489,7 @@ router.get('/', adminAuth, async (_req, res) => {
     <h2>Все промокоды</h2>
     <table>
       <thead><tr><th>Код</th><th>Тариф</th><th>Дней</th><th>Использовано</th><th>Макс</th><th>Статус</th><th></th></tr></thead>
-      <tbody>${promos.map(p => \`
-        <tr>
-          <td style="font-family:monospace;font-weight:700;letter-spacing:2px">\${escapeHtml(p.code)}</td>
-          <td><span class="badge" style="background:\${tierColor[p.grant_tier]??'#6b7280'}20;color:\${tierColor[p.grant_tier]??'#6b7280'}">\${escapeHtml(p.grant_tier)}</span></td>
-          <td>\${p.duration_days}</td>
-          <td>\${p.actual_uses}</td>
-          <td>\${p.max_uses === 0 ? '∞' : p.max_uses}</td>
-          <td><span class="badge" style="background:\${p.active?'#dcfce7':'#fee2e2'};color:\${p.active?'#16a34a':'#dc2626'}">\${p.active?'Активен':'Выключен'}</span></td>
-          <td><button onclick="deletePromo(\${p.id})" style="padding:3px 8px;border:none;background:#fee2e2;color:#dc2626;border-radius:5px;cursor:pointer;font-size:12px">Выключить</button></td>
-        </tr>\`).join('')}
-      </tbody>
+      <tbody>${promoRows}</tbody>
     </table>
   </div>
 
@@ -288,7 +502,7 @@ router.get('/', adminAuth, async (_req, res) => {
     });
 
     function showSection(id, el) {
-      ['users','tax','articles','promos'].forEach(s => {
+      ['users','payments','tax','articles','promos'].forEach(s => {
         document.getElementById('sec-'+s).style.display = s===id ? '' : 'none';
       });
       document.querySelectorAll('.nav a').forEach(a => a.classList.remove('active'));
@@ -296,7 +510,7 @@ router.get('/', adminAuth, async (_req, res) => {
     }
     // Handle hash on load
     const hash = location.hash.replace('#','');
-    if (['tax','articles','promos'].includes(hash)) {
+    if (['payments','tax','articles','promos'].includes(hash)) {
       document.querySelectorAll('.nav a').forEach(a => {
         if (a.getAttribute('href')==='#'+hash) showSection(hash,a);
       });
@@ -379,6 +593,37 @@ router.get('/', adminAuth, async (_req, res) => {
       if (!confirm('Выключить промокод?')) return;
       const r = await api('/api/promos/'+id, {method:'DELETE'});
       if (r.ok) { toast('Промокод выключен'); setTimeout(()=>location.reload(),800); }
+      else toast('Ошибка', false);
+    }
+
+    async function createPayment() {
+      const r = await api('/api/admin/payments', {
+        method:'POST',
+        body: JSON.stringify({
+          user_id: document.getElementById('pay-user').value,
+          tier: document.getElementById('pay-tier').value,
+          period: document.getElementById('pay-period').value,
+          amount: parseFloat(document.getElementById('pay-amount').value) || 0,
+          kaspi_txn_id: document.getElementById('pay-txn').value || null,
+          note: document.getElementById('pay-note').value || null,
+        }),
+      });
+      if (r.ok) { toast('Тариф активирован!'); setTimeout(()=>location.reload(),1000); }
+      else toast('Ошибка при активации', false);
+    }
+
+    async function expirePayment(id) {
+      if (!confirm('Закрыть подписку?')) return;
+      const r = await api('/api/admin/payments/'+id+'/expire', {method:'PATCH'});
+      if (r.ok) { toast('Подписка закрыта'); setTimeout(()=>location.reload(),800); }
+      else toast('Ошибка', false);
+    }
+
+    async function extendPayment(id) {
+      const r = await api('/api/admin/payments/'+id+'/extend', {
+        method:'PATCH', body:JSON.stringify({months:1})
+      });
+      if (r.ok) { toast('Продлено на 1 месяц'); setTimeout(()=>location.reload(),800); }
       else toast('Ошибка', false);
     }
   </script>

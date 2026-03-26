@@ -16,6 +16,7 @@ const binLookupRoutes                    = require('./routes/bin-lookup');
 const lprRoutes                          = require('./routes/lpr-search');
 const { startMonitor }                    = require('./jobs/taxMonitor');
 const { startLeadMonitor }                = require('./jobs/leadMonitor');
+const { startPaymentMonitor }             = require('./jobs/paymentMonitor');
 const { seedMarketingContent }            = require('./bot/marketing');
 
 // ── Env validation ───────────────────────────────────────────────────────────
@@ -118,18 +119,22 @@ async function migrate() {
       id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id       UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       tier          TEXT        NOT NULL,
-      period        TEXT        NOT NULL DEFAULT 'monthly',  -- 'monthly' | 'yearly'
+      period        TEXT        NOT NULL DEFAULT 'monthly',  -- 'monthly' | 'quarterly' | 'yearly'
       amount        NUMERIC(10,2) NOT NULL,
       status        TEXT        NOT NULL DEFAULT 'pending',  -- pending | paid | expired | refunded
       payment_method TEXT       DEFAULT 'kaspi_pay',
       kaspi_txn_id  TEXT,
+      note          TEXT,
       expires_at    TIMESTAMPTZ,
       paid_at       TIMESTAMPTZ,
       created_at    TIMESTAMPTZ DEFAULT NOW()
     );
 
+    ALTER TABLE payments ADD COLUMN IF NOT EXISTS note TEXT;
+
     CREATE INDEX IF NOT EXISTS idx_payments_user   ON payments(user_id);
     CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
+    CREATE INDEX IF NOT EXISTS idx_payments_expires ON payments(status, expires_at);
 
     CREATE TABLE IF NOT EXISTS promo_codes (
       id            SERIAL      PRIMARY KEY,
@@ -286,6 +291,7 @@ app.listen(PORT, () => {
   migrate().catch(err => console.error('Migration failed (non-fatal):', err.message));
   startMonitor();
   startLeadMonitor();
+  startPaymentMonitor();
 
   // Auto-register Telegram webhook
   const baseUrl = process.env.ADMIN_URL ?? `https://esep-production.up.railway.app`;

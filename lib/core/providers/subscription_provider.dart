@@ -297,6 +297,17 @@ class _PaywallSheetState extends State<_PaywallSheet> {
     super.dispose();
   }
 
+  void _showReceiptDialog(BuildContext ctx, String tierLabel, int price, String period) {
+    showDialog(
+      context: ctx,
+      builder: (_) => _PostPaymentDialog(
+        tierLabel: tierLabel,
+        price: price,
+        period: period,
+      ),
+    );
+  }
+
   Future<void> _activatePromo() async {
     final code = _promoController.text.trim();
     if (code.isEmpty) return;
@@ -538,43 +549,25 @@ class _PaywallSheetState extends State<_PaywallSheet> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 backgroundColor: const Color(0xFFDC2626), // Kaspi red
               ),
-              onPressed: () {
-                Navigator.pop(context);
-                // Kaspi Pay remote payment link — replace with your actual link
-                const kaspiPayUrl = 'https://pay.kaspi.kz/pay/0mg3eonh';
-                launchUrl(
-                  Uri.parse(kaspiPayUrl),
-                  mode: LaunchMode.externalApplication,
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Fallback — WhatsApp
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              icon: const Icon(Iconsax.message, size: 16),
-              label: const Text('Написать в WhatsApp',
-                style: TextStyle(fontSize: 14)),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-              onPressed: () {
-                Navigator.pop(context);
+              onPressed: () async {
                 final price = _yearly
                     ? _selectedTier.yearlyPrice
                     : _selectedTier.monthlyPrice;
                 final period = _yearly ? 'год' : 'мес';
-                final msg = Uri.encodeComponent(
-                  'Здравствуйте! Хочу подключить тариф '
-                  '${_selectedTier.label} ($price ₸/$period) в Esep.',
-                );
-                launchUrl(
-                  Uri.parse('https://wa.me/77075884651?text=$msg'),
+                final tierLabel = _selectedTier.label;
+
+                Navigator.pop(context);
+
+                // Open Kaspi Pay
+                const kaspiPayUrl = 'https://pay.kaspi.kz/pay/0mg3eonh';
+                await launchUrl(
+                  Uri.parse(kaspiPayUrl),
                   mode: LaunchMode.externalApplication,
                 );
+
+                // Show post-payment dialog
+                if (!context.mounted) return;
+                _showReceiptDialog(context, tierLabel, price, period);
               },
             ),
           ),
@@ -739,5 +732,80 @@ class _PlanCard extends StatelessWidget {
       return '$thousands ${remainder.toString().padLeft(3, '0')} ₸';
     }
     return '$price ₸';
+  }
+}
+
+// ── Post-payment receipt dialog ─────────────────────────────────────────────
+
+class _PostPaymentDialog extends StatelessWidget {
+  const _PostPaymentDialog({
+    required this.tierLabel,
+    required this.price,
+    required this.period,
+  });
+  final String tierLabel;
+  final int price;
+  final String period;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 64, height: 64,
+            decoration: BoxDecoration(
+              color: const Color(0xFFDCFCE7),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Iconsax.tick_circle, color: Color(0xFF16A34A), size: 32),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Оплатили?',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Отправьте скриншот чека в WhatsApp — мы активируем тариф в течение 5 минут!',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: EsepColors.textSecondary, height: 1.5),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              icon: const Icon(Iconsax.message, size: 18),
+              label: const Text('Отправить чек в WhatsApp',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                backgroundColor: const Color(0xFF25D366),
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                final msg = Uri.encodeComponent(
+                  'Оплатил(а) тариф $tierLabel ($price ₸/$period) в Esep. '
+                  'Прикрепляю скриншот чека.',
+                );
+                launchUrl(
+                  Uri.parse('https://wa.me/77075884651?text=$msg'),
+                  mode: LaunchMode.externalApplication,
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Позже', style: TextStyle(color: EsepColors.textSecondary)),
+          ),
+        ],
+      ),
+    );
   }
 }
