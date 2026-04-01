@@ -622,6 +622,40 @@ async function handleCallbackQuery(cb) {
     });
   }
 
+  if (data === 'tax_auto_ok') {
+    botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: '✅ Подтверждено!' });
+    if (cb.message) {
+      botRequest('editMessageReplyMarkup', {
+        chat_id: cb.message.chat.id,
+        message_id: cb.message.message_id,
+        reply_markup: { inline_keyboard: [[{ text: '✅ Подтверждено', callback_data: 'noop' }]] },
+      });
+    }
+    return;
+  }
+
+  if (data === 'tax_auto_revert') {
+    try {
+      const { revertLastAutoUpdate } = require('../jobs/taxMonitor');
+      const result = await revertLastAutoUpdate();
+      botRequest('answerCallbackQuery', {
+        callback_query_id: cb.id,
+        text: result.ok ? '↩️ Откат выполнен!' : result.error,
+      });
+      if (cb.message && result.ok) {
+        botRequest('editMessageReplyMarkup', {
+          chat_id: cb.message.chat.id,
+          message_id: cb.message.message_id,
+          reply_markup: { inline_keyboard: [[{ text: '↩️ Откачено', callback_data: 'noop' }]] },
+        });
+      }
+    } catch (err) {
+      console.error('[bot] tax_auto_revert error:', err.message);
+      botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: 'Ошибка отката' });
+    }
+    return;
+  }
+
   // Publish post from private channel → public channel
   if (data.startsWith('pub_channel_')) {
     const postId = parseInt(data.replace('pub_channel_', ''));
@@ -862,6 +896,12 @@ async function handleCallbackQuery(cb) {
 // ADMIN NOTIFICATIONS — уведомления разработчику
 // ═══════════════════════════════════════════════════════════════════════════════
 
+/** Generate a temporary admin link (password in query, valid only for admin private chat) */
+function adminLink(adminUrl, hash) {
+  const pass = process.env.ADMIN_PASSWORD ?? '';
+  return `${adminUrl}/api/admin?pass=${encodeURIComponent(pass)}#${hash}`;
+}
+
 function notifyNewUser({ email, name }) {
   sendAdmin(
     `👤 <b>Регистрация в Esep</b>\n\nEmail: <code>${email}</code>\nИмя: ${name || '—'}`,
@@ -869,7 +909,7 @@ function notifyNewUser({ email, name }) {
 }
 
 function notifyTaxCheck({ mentions, adminUrl }) {
-  const url  = `${adminUrl}/api/admin#tax`;
+  const url = adminLink(adminUrl, 'tax');
   sendAdmin(
     `📋 <b>Возможны изменения в налогах</b>\n\n` +
     `Найдено упоминаний: <b>${mentions}</b>\n\n` +
@@ -886,8 +926,37 @@ function notifyTaxCheck({ mentions, adminUrl }) {
   );
 }
 
+/** Notify admin about auto-applied tax config changes with proof */
+function notifyTaxAutoUpdate({ changes, sources, adminUrl }) {
+  const url = adminLink(adminUrl, 'tax');
+  let msg = `🤖 <b>Ставки обновлены автоматически</b>\n\n`;
+
+  for (const c of changes) {
+    msg += `• <b>${c.label}</b>: <code>${c.oldValue}</code> → <code>${c.newValue}</code>\n`;
+  }
+
+  msg += `\n📎 <b>Источники:</b>\n`;
+  for (const s of sources) {
+    msg += `• <a href="${s.url}">${s.title}</a>\n`;
+  }
+
+  msg += `\n<a href="${url}">Проверить в админке</a>`;
+
+  sendAdmin(msg, {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: '✅ Подтверждаю', callback_data: 'tax_auto_ok' },
+          { text: '↩️ Откатить', callback_data: 'tax_auto_revert' },
+        ],
+        [{ text: '⚙️ Открыть редактор', url }],
+      ],
+    },
+  });
+}
+
 function sendMonthlyReminder({ month, adminUrl }) {
-  const url  = `${adminUrl}/api/admin#tax`;
+  const url = adminLink(adminUrl, 'tax');
   const reminders = {
     11: '📅 Ноябрь — проект бюджета на следующий год. Проверьте МРП/МЗП.',
     12: '📅 Декабрь — бюджет подписан. Обновите МРП и МЗП.',
@@ -903,7 +972,7 @@ function sendMonthlyReminder({ month, adminUrl }) {
 }
 
 function notifyArticleDraft({ title, adminUrl }) {
-  const url  = `${adminUrl}/api/admin#articles`;
+  const url = adminLink(adminUrl, 'articles');
   sendAdmin(
     `✍️ <b>Новый черновик</b>\n\n«${title}»\n\n<a href="${url}">Открыть</a>`,
   );
@@ -1301,6 +1370,7 @@ module.exports = {
   handleUpdate,
   notifyNewUser,
   notifyTaxCheck,
+  notifyTaxAutoUpdate,
   sendMonthlyReminder,
   notifyArticleDraft,
   sendAdmin,
