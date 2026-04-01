@@ -31,7 +31,7 @@ router.post('/validate', authMiddleware, async (req, res) => {
     // Check if this user already used this code
     const { rows: existing } = await db.query(
       `SELECT 1 FROM promo_usages WHERE promo_id = $1 AND user_id = $2`,
-      [promo.id, req.user.id],
+      [promo.id, req.userId],
     );
     if (existing.length > 0) {
       return res.status(409).json({ error: 'Вы уже использовали этот промокод' });
@@ -77,7 +77,7 @@ router.post('/activate', authMiddleware, async (req, res) => {
     // Check duplicate usage
     const { rows: existing } = await db.query(
       `SELECT 1 FROM promo_usages WHERE promo_id = $1 AND user_id = $2`,
-      [promo.id, req.user.id],
+      [promo.id, req.userId],
     );
     if (existing.length > 0) {
       return res.status(409).json({ error: 'Вы уже использовали этот промокод' });
@@ -95,14 +95,14 @@ router.post('/activate', authMiddleware, async (req, res) => {
       // Update user tier
       await client.query(
         `UPDATE users SET tier = $1 WHERE id = $2`,
-        [promo.grant_tier, req.user.id],
+        [promo.grant_tier, req.userId],
       );
 
       // Record usage
       await client.query(
         `INSERT INTO promo_usages (promo_id, user_id, expires_at)
          VALUES ($1, $2, $3)`,
-        [promo.id, req.user.id, expiresAt],
+        [promo.id, req.userId, expiresAt],
       );
 
       // Increment used_count

@@ -216,11 +216,38 @@ async function migrate() {
 }
 
 // ── Middleware ────────────────────────────────────────────────────────────────
+const ALLOWED_ORIGINS = [
+  'https://esepkz.vercel.app',
+  'https://alibekovakarakat5-png.github.io',
+  'https://esep-production.up.railway.app',
+  'http://localhost:5500',
+  'http://localhost:8080',
+  'http://localhost:3000',
+];
 app.use(cors({
-  origin: '*',
+  origin: (origin, cb) => {
+    if (!origin || ALLOWED_ORIGINS.some(o => origin.startsWith(o))) return cb(null, true);
+    cb(null, false);
+  },
   allowedHeaders: ['Authorization', 'Content-Type'],
 }));
 app.use(express.json({ limit: '1mb' }));
+
+// ── Simple rate limiter for auth routes ─────────────────────────────────────
+const authAttempts = new Map();
+app.use('/api/auth', (req, _res, next) => {
+  if (req.method !== 'POST') return next();
+  const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+  const now = Date.now();
+  const record = authAttempts.get(ip) || { count: 0, resetAt: now + 60_000 };
+  if (now > record.resetAt) { record.count = 0; record.resetAt = now + 60_000; }
+  record.count++;
+  authAttempts.set(ip, record);
+  if (record.count > 10) {
+    return _res.status(429).json({ error: 'Слишком много попыток. Попробуйте через минуту.' });
+  }
+  next();
+});
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => res.json({ ok: true, ts: new Date() }));

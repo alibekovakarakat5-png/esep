@@ -869,8 +869,7 @@ function notifyNewUser({ email, name }) {
 }
 
 function notifyTaxCheck({ mentions, adminUrl }) {
-  const pass = process.env.ADMIN_PASSWORD ?? '';
-  const url  = `${adminUrl}/api/admin?pass=${pass}#tax`;
+  const url  = `${adminUrl}/api/admin#tax`;
   sendAdmin(
     `📋 <b>Возможны изменения в налогах</b>\n\n` +
     `Найдено упоминаний: <b>${mentions}</b>\n\n` +
@@ -888,8 +887,7 @@ function notifyTaxCheck({ mentions, adminUrl }) {
 }
 
 function sendMonthlyReminder({ month, adminUrl }) {
-  const pass = process.env.ADMIN_PASSWORD ?? '';
-  const url  = `${adminUrl}/api/admin?pass=${pass}#tax`;
+  const url  = `${adminUrl}/api/admin#tax`;
   const reminders = {
     11: '📅 Ноябрь — проект бюджета на следующий год. Проверьте МРП/МЗП.',
     12: '📅 Декабрь — бюджет подписан. Обновите МРП и МЗП.',
@@ -904,9 +902,8 @@ function sendMonthlyReminder({ month, adminUrl }) {
   );
 }
 
-function notifyArticleDraft({ title, id, adminUrl }) {
-  const pass = process.env.ADMIN_PASSWORD ?? '';
-  const url  = `${adminUrl}/api/admin?pass=${pass}#articles`;
+function notifyArticleDraft({ title, adminUrl }) {
+  const url  = `${adminUrl}/api/admin#articles`;
   sendAdmin(
     `✍️ <b>Новый черновик</b>\n\n«${title}»\n\n<a href="${url}">Открыть</a>`,
   );

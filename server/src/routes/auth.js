@@ -9,16 +9,16 @@ const sign = (userId) =>
   jwt.sign({ sub: userId }, process.env.JWT_SECRET, { expiresIn: '30d' });
 
 // POST /api/auth/register
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 router.post('/register', async (req, res) => {
   try {
     const { email, password, name = '' } = req.body ?? {};
 
-    // BUG 4: email format validation
-    if (!email || !email.includes('@')) {
+    if (!email || !emailRegex.test(email.trim())) {
       return res.status(400).json({ error: 'Укажите корректный email' });
     }
 
-    // BUG 5: password validation
     if (!password || password.length < 6) {
       return res.status(400).json({ error: 'Пароль должен содержать минимум 6 символов' });
     }
@@ -31,8 +31,7 @@ router.post('/register', async (req, res) => {
       return res.status(409).json({ error: 'Email уже зарегистрирован' });
     }
 
-    // BUG 6: reduce bcrypt cost from 12 to 10
-    const hash = await bcrypt.hash(password, 10);
+    const hash = await bcrypt.hash(password, 12);
     const { rows } = await db.query(
       'INSERT INTO users (email, name, password_hash) VALUES ($1, $2, $3) RETURNING id, tier',
       [normalizedEmail, name.trim(), hash],
@@ -51,8 +50,7 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body ?? {};
 
-    // BUG 4: email format validation
-    if (!email || !email.includes('@')) {
+    if (!email || !emailRegex.test(email.trim())) {
       return res.status(400).json({ error: 'Укажите корректный email' });
     }
 

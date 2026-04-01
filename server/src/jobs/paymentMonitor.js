@@ -59,13 +59,12 @@ async function expirePayments() {
       const user = userRows[0];
       if (user) {
         const adminUrl = process.env.ADMIN_URL ?? 'https://esep-production.up.railway.app';
-        const pass = process.env.ADMIN_PASSWORD ?? '';
         tg.sendAdmin(
           `🔴 <b>Подписка истекла</b>\n\n` +
           `Клиент: ${user.email}\n` +
           `Тариф: ${p.tier}\n` +
           `Истекла: ${new Date(p.expires_at).toLocaleDateString('ru-RU')}\n\n` +
-          `<a href="${adminUrl}/api/admin?pass=${pass}#payments">Открыть платежи</a>`,
+          `<a href="${adminUrl}/api/admin#payments">Открыть платежи</a>`,
         );
       }
     }
@@ -98,14 +97,13 @@ async function notifyExpiringSoon() {
     if (rows.length === 0) return;
 
     const adminUrl = process.env.ADMIN_URL ?? 'https://esep-production.up.railway.app';
-    const pass = process.env.ADMIN_PASSWORD ?? '';
 
     let msg = `⚠️ <b>Подписки истекают в ближ. 3 дня</b>\n\n`;
     for (const r of rows) {
       const d = new Date(r.expires_at).toLocaleDateString('ru-RU');
       msg += `• ${r.email} — ${r.tier} (${d})\n`;
     }
-    msg += `\n<a href="${adminUrl}/api/admin?pass=${pass}#payments">Управление</a>`;
+    msg += `\n<a href="${adminUrl}/api/admin#payments">Управление</a>`;
 
     tg.sendAdmin(msg);
   } catch (err) {
