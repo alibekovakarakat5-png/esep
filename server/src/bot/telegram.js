@@ -583,7 +583,8 @@ async function handleUpdate(update) {
         {
           reply_markup: {
             inline_keyboard: [
-              [{ text: '📲 Скачать Esep', url: 'https://github.com/alibekovakarakat5-png/esep/releases/latest/download/esep.apk' }],
+              [{ text: '🌐 Открыть Esep', url: 'https://esepkz.vercel.app' }],
+              [{ text: '💬 Консультация', url: 'https://t.me/alibekovakarakat' }],
             ],
           },
         },
@@ -986,8 +987,11 @@ const CHANNEL_CTA_KEYBOARD = {
   reply_markup: {
     inline_keyboard: [
       [
-        { text: '🧮 Калькулятор налогов', url: 'https://t.me/EsepKZ_bot' },
-        { text: '📲 Скачать Esep', url: 'https://github.com/alibekovakarakat5-png/esep/releases/latest/download/esep.apk' },
+        { text: '🌐 Открыть Esep', url: 'https://esepkz.vercel.app' },
+        { text: '🧮 Калькулятор', url: 'https://t.me/EsepKZ_bot' },
+      ],
+      [
+        { text: '💬 Консультация', url: 'https://t.me/alibekovakarakat' },
       ],
     ],
   },
