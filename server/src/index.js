@@ -14,6 +14,7 @@ const { router: promoRoutes,
 const articleRoutes                       = require('./routes/articles');
 const binLookupRoutes                    = require('./routes/bin-lookup');
 const lprRoutes                          = require('./routes/lpr-search');
+const aiChatRoutes                       = require('./routes/ai-chat');
 const { startMonitor }                    = require('./jobs/taxMonitor');
 const { startLeadMonitor }                = require('./jobs/leadMonitor');
 const { startPaymentMonitor }             = require('./jobs/paymentMonitor');
@@ -223,6 +224,7 @@ const ALLOWED_ORIGINS = [
   'http://localhost:5500',
   'http://localhost:8080',
   'http://localhost:3000',
+  'http://localhost:3334',
 ];
 app.use(cors({
   origin: (origin, cb) => {
@@ -261,6 +263,7 @@ app.use('/api/promos',       promoRoutes);
 app.use('/api/articles',     articleRoutes);
 app.use('/api/bin',          binLookupRoutes);
 app.use('/api/lpr',          authMiddleware, lprRoutes);
+app.use('/api/ai-chat',      aiChatRoutes);
 
 // ── Telegram bot webhook ──────────────────────────────────────────────────────
 const tg = require('./bot/telegram');
