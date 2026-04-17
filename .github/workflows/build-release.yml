@@ -56,36 +56,33 @@ jobs:
           name: esep-apk
           path: build/app/outputs/flutter-apk/esep.apk
 
-  # ── iOS IPA (unsigned — for TestFlight/AdHoc later) ──────────────────────────
-  build-ios:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: beta
-          cache: true
-
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Build iOS (no codesign)
-        run: flutter build ios --release --no-codesign
-
-      - name: Create IPA from .app
-        run: |
-          mkdir -p Payload
-          cp -r build/ios/iphoneos/Runner.app Payload/
-          zip -r esep-unsigned.ipa Payload
-          rm -rf Payload
-
-      - name: Upload IPA artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: esep-ipa
-          path: esep-unsigned.ipa
+  # ── iOS IPA (disabled — SPM resolution issues, re-enable when codesigning is set up)
+  # build-ios:
+  #   runs-on: macos-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Setup Flutter
+  #       uses: subosito/flutter-action@v2
+  #       with:
+  #         channel: beta
+  #         cache: true
+  #     - name: Disable Swift Package Manager
+  #       run: flutter config --no-enable-swift-package-manager
+  #     - name: Get dependencies
+  #       run: flutter pub get
+  #     - name: Build iOS (no codesign)
+  #       run: flutter build ios --release --no-codesign
+  #     - name: Create IPA from .app
+  #       run: |
+  #         mkdir -p Payload
+  #         cp -r build/ios/iphoneos/Runner.app Payload/
+  #         zip -r esep-unsigned.ipa Payload
+  #         rm -rf Payload
+  #     - name: Upload IPA artifact
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: esep-ipa
+  #         path: esep-unsigned.ipa
 
   # ── Web (Flutter Web → GitHub Pages) ────────────────────────────────────────
   build-web:
