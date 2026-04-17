@@ -74,7 +74,7 @@ class _RegimeGuideScreenState extends ConsumerState<RegimeGuideScreen> {
       final yearTotal = (tax910 + social6) * 2;
       best = 'Упрощёнка (910)';
       explanation = 'При доходе ${fmt.format(halfYearIncome)} ₸/полугодие вы в лимите. '
-          'Налог 3% + соцплатежи = ~${fmt.format(yearTotal)} ₸/год. Минимум отчётности — всего 2 раза в год.';
+          'Налог 4% + обязательные взносы = ~${fmt.format(yearTotal)} ₸/год. Отчётность — всего 2 раза в год.';
 
       // Check if large expenses make general better
       if (monthlyExpense > monthlyIncome * 0.5) {

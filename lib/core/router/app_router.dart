@@ -23,6 +23,7 @@ import '../../features/transactions/screens/receipt_scanner_screen.dart';
 import '../../features/tools/screens/bin_lookup_screen.dart';
 import '../../features/tools/screens/regime_guide_screen.dart';
 import '../../features/transactions/screens/bank_connect_screen.dart';
+import '../../features/ai_chat/screens/ai_chat_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
 import '../providers/auth_provider.dart';
 import '../providers/user_mode_provider.dart';
@@ -170,6 +171,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/settings',
             builder: (_, __) => const SettingsScreen(),
+          ),
+          GoRoute(
+            path: '/ai-chat',
+            builder: (_, __) => const AiChatScreen(),
           ),
 
           // ─ Бухгалтер routes ───────────────────────────────────────────────

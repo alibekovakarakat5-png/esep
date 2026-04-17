@@ -23,7 +23,7 @@ class Form910Data {
   final double transferPricing;         // 910.00.002
   final double avgEmployees;            // 910.00.003
   final double avgMonthlyWage;          // 910.00.004
-  final double calculatedTax;           // 910.00.005 = income * 3%
+  final double calculatedTax;           // 910.00.005 = income * 4%
   final double taxAdjustment;           // 910.00.006
   final double netTax;                  // 910.00.007 = 005 - 006
   final double ipn;                     // 910.00.008 = 007 * 0.5
@@ -180,7 +180,7 @@ class Form910Service {
     <field code="910.00.002" name="Корректировка трансфертного ценообразования">${fmt.format(data.transferPricing)}</field>
     <field code="910.00.003" name="Среднесписочная численность работников">${fmt.format(data.avgEmployees)}</field>
     <field code="910.00.004" name="Среднемесячная з/п на работника">${fmt.format(data.avgMonthlyWage)}</field>
-    <field code="910.00.005" name="Исчисленные налоги (3%)">${fmt.format(data.calculatedTax)}</field>
+    <field code="910.00.005" name="Исчисленные налоги (4%)">${fmt.format(data.calculatedTax)}</field>
     <field code="910.00.006" name="Корректировка налогов">${fmt.format(data.taxAdjustment)}</field>
     <field code="910.00.007" name="Итого налогов">${fmt.format(data.netTax)}</field>
     <field code="910.00.008" name="ИПН">${fmt.format(data.ipn)}</field>

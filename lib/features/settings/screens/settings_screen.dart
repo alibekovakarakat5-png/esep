@@ -308,7 +308,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 _ReminderScheduleRow(
                   icon: Iconsax.calendar_1,
                   color: EsepColors.warning,
-                  title: 'Соцплатежи (ОПВ+СО+ВОСМС)',
+                  title: 'Обязательные взносы (пенсия, медицина, страхование)',
                   subtitle: 'За 7 и 3 дня до 25-го числа',
                 ),
                 SizedBox(height: 6),

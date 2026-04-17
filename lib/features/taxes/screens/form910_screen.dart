@@ -299,7 +299,7 @@ class _ResultCard extends StatelessWidget {
           Row(children: [
             const Icon(Iconsax.calculator, color: EsepColors.primary, size: 20),
             const SizedBox(width: 8),
-            Expanded(child: Text('Раздел 1: Налоги (${data.periodLabel})',
+            Expanded(child: Text('Налоги (${data.periodLabel})',
                 style: const TextStyle(fontWeight: FontWeight.w600))),
           ]),
           const Divider(height: 24),
@@ -308,11 +308,11 @@ class _ResultCard extends StatelessWidget {
           _FormRow('910.00.003', 'Среднесп. работников', data.avgEmployees.toStringAsFixed(0)),
           _FormRow('910.00.004', 'Средняя з/п', fmt.format(data.avgMonthlyWage)),
           const Divider(height: 16),
-          _FormRow('910.00.005', 'Исчисленные налоги (3%)', fmt.format(data.calculatedTax)),
-          _FormRow('910.00.006', 'Корректировка', fmt.format(data.taxAdjustment)),
+          _FormRow('910.00.005', 'Налог с дохода (4%)', fmt.format(data.calculatedTax)),
+          _FormRow('910.00.006', 'Скидка за сотрудников', fmt.format(data.taxAdjustment)),
           _FormRow('910.00.007', 'Итого налогов', fmt.format(data.netTax), bold: true),
           const Divider(height: 16),
-          _FormRow('910.00.008', 'ИПН', fmt.format(data.ipn), color: EsepColors.expense),
+          _FormRow('910.00.008', 'Подоходный налог', fmt.format(data.ipn), color: EsepColors.expense),
           _FormRow('910.00.009', 'Социальный налог', fmt.format(data.socialTax), color: EsepColors.expense),
         ]),
       ),
@@ -334,16 +334,16 @@ class _SocialCard extends StatelessWidget {
           const Row(children: [
             Icon(Iconsax.people, color: EsepColors.warning, size: 20),
             SizedBox(width: 8),
-            Text('Раздел 2: Соцплатежи (за 6 мес)',
+            Text('Обязательные взносы (за 6 мес)',
                 style: TextStyle(fontWeight: FontWeight.w600)),
           ]),
           const Divider(height: 24),
-          _FormRow('910.00.010', 'Доход для СО', fmt.format(data.soIncome)),
-          _FormRow('910.00.011', 'СО (5%)', fmt.format(data.soAmount), color: EsepColors.warning),
-          _FormRow('910.00.012', 'Доход для ОПВ', fmt.format(data.opvIncome)),
-          _FormRow('910.00.013', 'ОПВ (10%)', fmt.format(data.opvAmount), color: EsepColors.warning),
-          _FormRow('910.00.014', 'ОПВР (3.5%)', fmt.format(data.opvrAmount), color: EsepColors.warning),
-          _FormRow('910.00.015', 'ВОСМС', fmt.format(data.vosmsAmount), color: EsepColors.warning),
+          _FormRow('910.00.010', 'База для соцстрахования', fmt.format(data.soIncome)),
+          _FormRow('910.00.011', 'Соцстрахование (5%)', fmt.format(data.soAmount), color: EsepColors.warning),
+          _FormRow('910.00.012', 'База для пенсионных', fmt.format(data.opvIncome)),
+          _FormRow('910.00.013', 'Пенсия (10%)', fmt.format(data.opvAmount), color: EsepColors.warning),
+          _FormRow('910.00.014', 'Пенсия от работодателя (3.5%)', fmt.format(data.opvrAmount), color: EsepColors.warning),
+          _FormRow('910.00.015', 'Медстрахование', fmt.format(data.vosmsAmount), color: EsepColors.warning),
         ]),
       ),
     );
@@ -370,7 +370,7 @@ class _TotalCard extends StatelessWidget {
           ]),
           const SizedBox(height: 6),
           Row(children: [
-            const Text('Соцплатежи', style: TextStyle(fontSize: 14)),
+            const Text('Обязательные взносы', style: TextStyle(fontSize: 14)),
             const Spacer(),
             Text('${fmt.format(data.totalSocial)} ₸',
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: EsepColors.warning)),
@@ -401,11 +401,7 @@ class _FormRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(children: [
-        SizedBox(
-          width: 80,
-          child: Text(code,
-              style: const TextStyle(fontSize: 10, color: EsepColors.textDisabled, fontFamily: 'monospace')),
-        ),
+        // Field codes hidden for simplicity
         Expanded(
           child: Text(label,
               style: TextStyle(

@@ -109,7 +109,7 @@ class _TaxesScreenState extends State<TaxesScreen> {
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Родился до 1975 года', style: TextStyle(fontSize: 14)),
-            subtitle: const Text('ОПВР не начисляется', style: TextStyle(fontSize: 12, color: EsepColors.textSecondary)),
+            subtitle: const Text('Пенсия работодателя (ОПВР) не начисляется', style: TextStyle(fontSize: 12, color: EsepColors.textSecondary)),
             value: _bornBefore1975,
             onChanged: (v) => setState(() => _bornBefore1975 = v),
             activeTrackColor: EsepColors.primary,
@@ -152,7 +152,7 @@ class _ReformBanner extends StatelessWidget {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Ставки обновлены по НК 2026: упрощёнка 3%, СО 5%, добавлены ОПВР и ВОСМС',
+                  'Ставки 2026: упрощёнка 3%, соцстрахование 5%, пенсия работодателя 3.5%, медстрахование 5%. Самозанятые — 4%.',
                   style: TextStyle(fontSize: 12, color: EsepColors.info),
                 ),
               ),
@@ -228,7 +228,7 @@ class _SimplifiedCard extends StatelessWidget {
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: EsepColors.expense)),
           ]),
           const SizedBox(height: 4),
-          _TaxRow('+ Соцплатежи (6 мес)', fmt.format(full.socialHalfYear), EsepColors.warning),
+          _TaxRow('+ Обязательные взносы (6 мес)', fmt.format(full.socialHalfYear), EsepColors.warning),
           const Divider(height: 24),
           Row(children: [
             const Text('Итого за полугодие', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
@@ -269,15 +269,15 @@ class _SocialPaymentsCard extends StatelessWidget {
           const Text('Платить до 25 числа следующего месяца',
               style: TextStyle(fontSize: 11, color: EsepColors.textSecondary)),
           const Divider(height: 24),
-          _TaxRow('ОПВ (10% от МЗП)', fmt.format(social.opv), EsepColors.warning),
+          _TaxRow('Пенсия — ОПВ (10% от МЗП)', fmt.format(social.opv), EsepColors.warning),
           const SizedBox(height: 8),
           if (!bornBefore1975) ...[
-            _TaxRow('ОПВР (3.5% от МЗП)', fmt.format(social.opvr), EsepColors.warning),
+            _TaxRow('Пенсия работодателя — ОПВР (3.5% от МЗП)', fmt.format(social.opvr), EsepColors.warning),
             const SizedBox(height: 8),
           ],
-          _TaxRow('СО (5% от МЗП)', fmt.format(social.so), EsepColors.warning),
+          _TaxRow('Соцстрахование — СО (5% от МЗП)', fmt.format(social.so), EsepColors.warning),
           const SizedBox(height: 8),
-          _TaxRow('ВОСМС (5% от 1.4 МЗП)', fmt.format(social.vosms), EsepColors.warning),
+          _TaxRow('Медстрахование — ВОСМС (5% от 1.4 МЗП)', fmt.format(social.vosms), EsepColors.warning),
           const Divider(height: 24),
           Row(children: [
             const Text('Итого в месяц', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),

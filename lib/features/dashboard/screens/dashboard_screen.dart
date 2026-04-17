@@ -118,7 +118,17 @@ class DashboardScreen extends ConsumerWidget {
           if (ref.watch(featureTourProvider).showDashboardTour)
             const SizedBox(height: 10),
 
-          // 1. Быстрые действия — первое что видит пользователь
+          // ── "Кнопка Спокойствия" — главная карточка ─────────────
+          _CalmCard(
+            hasTransactions: transactions.isNotEmpty,
+            halfYearIncome: halfYearIncome,
+            deadlineInfo: deadlineInfo,
+            onTapReport: () => context.go('/form-910'),
+            onTapBank: () => context.go('/bank-connect'),
+          ),
+          const SizedBox(height: 14),
+
+          // 1. Быстрые действия
           Wrap(
             spacing: 10,
             runSpacing: 10,
@@ -193,8 +203,8 @@ class DashboardScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             _DeadlineBanner(
               message: socialDays == 0
-                  ? 'Соцплатежи сегодня! — ${fmt.format(social.total)} ₸'
-                  : 'Соцплатежи через $socialDays ${_daysWord(socialDays)} — ${fmt.format(social.total)} ₸ до 25-го',
+                  ? 'Обязательные взносы сегодня! — ${fmt.format(social.total)} ₸'
+                  : 'Взносы через $socialDays ${_daysWord(socialDays)} — ${fmt.format(social.total)} ₸ до 25-го',
               urgent: socialDays <= 3,
             ),
           ] else if (deadlineInfo.daysLeft <= 30) ...[
@@ -305,7 +315,7 @@ class DashboardScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  const Text('Лимит упрощёнки (полугодие)',
+                  const Text('Лимит дохода на упрощёнке',
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: EsepColors.textPrimary)),
                   const Spacer(),
                   Text('${(usedPercent * 100).toStringAsFixed(1)}%',
@@ -331,8 +341,8 @@ class DashboardScreen extends ConsumerWidget {
           const SizedBox(height: 12),
           _EventCard(
             icon: Iconsax.money_send,
-            title: '${fmt.format(social.total)} ₸ — соцплатежи',
-            subtitle: 'Обязательный минимум ИП · ОПВ + ОПВР + СО + ВОСМС · до 25-го',
+            title: '${fmt.format(social.total)} ₸ — обязательные взносы',
+            subtitle: 'Пенсия + медстрахование + соцстрахование · платить до 25-го числа',
             daysLeft: socialDays,
             color: socialDays <= 7 ? EsepColors.expense : EsepColors.warning,
           ),
@@ -497,6 +507,241 @@ class DashboardScreen extends ConsumerWidget {
     if (n % 10 == 1 && n % 100 != 11) return 'неоплаченный счёт';
     if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return 'неоплаченных счёта';
     return 'неоплаченных счетов';
+  }
+}
+
+// ── "Кнопка Спокойствия" ─────────────────────────────────────────────────────
+class _CalmCard extends StatelessWidget {
+  const _CalmCard({
+    required this.hasTransactions,
+    required this.halfYearIncome,
+    required this.deadlineInfo,
+    required this.onTapReport,
+    required this.onTapBank,
+  });
+  final bool hasTransactions;
+  final double halfYearIncome;
+  final _DeadlineInfo deadlineInfo;
+  final VoidCallback onTapReport;
+  final VoidCallback onTapBank;
+
+  @override
+  Widget build(BuildContext context) {
+    final fmt = NumberFormat('#,##0', 'ru_RU');
+
+    // Определяем состояние
+    final bool hasData = hasTransactions && halfYearIncome > 0;
+    final bool isUrgent = deadlineInfo.daysLeft <= 30;
+    final tax = halfYearIncome * KzTax.simplified910TotalRate;
+    final social6 = KzTax.calculateMonthlySocial().total * 6;
+    final total = tax + social6;
+
+    // Прогресс: 3 шага
+    final int completedSteps = hasData ? 2 : 0; // 0=ничего, 2=данные есть, 3=отчёт отправлен
+
+    if (!hasData) {
+      // ─── Состояние 1: Нет данных — приглашаем начать ───────
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              EsepColors.primary.withValues(alpha: 0.08),
+              const Color(0xFF7B2FBE).withValues(alpha: 0.06),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: EsepColors.primary.withValues(alpha: 0.2)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: EsepColors.primary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Iconsax.document_text, color: EsepColors.primary, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Подготовим ваш отчёт',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: EsepColors.textPrimary)),
+                SizedBox(height: 2),
+                Text('Вам останется только нажать "Отправить"',
+                    style: TextStyle(fontSize: 13, color: EsepColors.textSecondary)),
+              ],
+            )),
+          ]),
+          const SizedBox(height: 20),
+          // 3 шага
+          _CalmStep(number: 1, title: 'Загрузите выписку из банка', done: false, active: true),
+          _CalmStep(number: 2, title: 'Esep посчитает налоги', done: false, active: false),
+          _CalmStep(number: 3, title: 'Отправьте готовый отчёт', done: false, active: false),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: onTapBank,
+              icon: const Icon(Iconsax.document_upload, size: 20),
+              label: const Text('Загрузить выписку', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+              style: FilledButton.styleFrom(
+                backgroundColor: EsepColors.primary,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ),
+        ]),
+      );
+    }
+
+    // ─── Состояние 2: Данные есть — отчёт готов ────────────
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            EsepColors.income.withValues(alpha: 0.08),
+            EsepColors.primary.withValues(alpha: 0.06),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: EsepColors.income.withValues(alpha: 0.25)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(
+              color: EsepColors.income.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Iconsax.tick_circle, color: EsepColors.income, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Ваш отчёт готов',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: EsepColors.textPrimary)),
+              const SizedBox(height: 2),
+              Text('Осталось нажать одну кнопку',
+                  style: TextStyle(fontSize: 13, color: EsepColors.textSecondary)),
+            ],
+          )),
+        ]),
+        const SizedBox(height: 18),
+        // Краткая сводка — без жаргона
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(children: [
+            Row(children: [
+              const Text('Ваш доход', style: TextStyle(fontSize: 13, color: EsepColors.textSecondary)),
+              const Spacer(),
+              Text('${fmt.format(halfYearIncome)} ₸',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: EsepColors.textPrimary)),
+            ]),
+            const SizedBox(height: 8),
+            Row(children: [
+              const Text('Налог + взносы', style: TextStyle(fontSize: 13, color: EsepColors.textSecondary)),
+              const Spacer(),
+              Text('${fmt.format(total)} ₸',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: EsepColors.warning)),
+            ]),
+            if (isUrgent) ...[
+              const SizedBox(height: 8),
+              Row(children: [
+                const Text('Срок сдачи', style: TextStyle(fontSize: 13, color: EsepColors.textSecondary)),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: EsepColors.expense.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text('через ${deadlineInfo.daysLeft} дн',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: EsepColors.expense)),
+                ),
+              ]),
+            ],
+          ]),
+        ),
+        const SizedBox(height: 16),
+        // 3 шага — 2 готовы
+        _CalmStep(number: 1, title: 'Данные загружены', done: true, active: false),
+        _CalmStep(number: 2, title: 'Налоги посчитаны', done: true, active: false),
+        _CalmStep(number: 3, title: 'Отправьте отчёт в налоговую', done: false, active: true),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: onTapReport,
+            icon: const Icon(Iconsax.send_2, size: 20),
+            label: const Text('Открыть готовый отчёт', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+            style: FilledButton.styleFrom(
+              backgroundColor: EsepColors.income,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+class _CalmStep extends StatelessWidget {
+  const _CalmStep({required this.number, required this.title, required this.done, required this.active});
+  final int number;
+  final String title;
+  final bool done;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = done
+        ? EsepColors.income
+        : active
+            ? EsepColors.primary
+            : EsepColors.textDisabled;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(children: [
+        Container(
+          width: 26, height: 26,
+          decoration: BoxDecoration(
+            color: done ? color.withValues(alpha: 0.15) : Colors.transparent,
+            shape: BoxShape.circle,
+            border: Border.all(color: color, width: done || active ? 2 : 1),
+          ),
+          child: done
+              ? Icon(Icons.check, size: 14, color: color)
+              : Center(child: Text('$number',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color))),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Text(title,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+              color: done || active ? EsepColors.textPrimary : EsepColors.textDisabled,
+              decoration: done ? TextDecoration.lineThrough : null,
+              decorationColor: EsepColors.textDisabled,
+            ))),
+      ]),
+    );
   }
 }
 
@@ -948,13 +1193,13 @@ class _TaxForecastCard extends StatelessWidget {
           const Row(children: [
             Icon(Iconsax.calculator, color: EsepColors.primary, size: 18),
             SizedBox(width: 8),
-            Text('Налоговый прогноз',
+            Text('Сколько отложить на налоги',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: EsepColors.textPrimary)),
           ]),
           const SizedBox(height: 12),
           // Полугодовой налог
           _ForecastRow(
-            label: 'Налог 910 за полугодие (3%)',
+            label: 'Налог за полугодие (4%)',
             amount: halfYearTax,
             color: EsepColors.expense,
           ),
@@ -967,7 +1212,7 @@ class _TaxForecastCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           _ForecastRow(
-            label: 'Соцплатежи (ОПВ+ОПВР+СО+ВОСМС)',
+            label: 'Обязательные взносы (пенсия, медицина, страхование)',
             amount: socialMonthly,
             color: EsepColors.warning,
           ),
@@ -1078,7 +1323,7 @@ class _RegimeOptimizerCard extends StatelessWidget {
           const Row(children: [
             Icon(Iconsax.chart, color: EsepColors.primary, size: 18),
             SizedBox(width: 8),
-            Text('Оптимизация режима',
+            Text('Какой режим выгоднее?',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: EsepColors.textPrimary)),
           ]),
           const SizedBox(height: 12),
@@ -1202,32 +1447,32 @@ class _FeatureTourBanner extends StatelessWidget {
   static const _tips = [
     _TourTip(
       icon: Iconsax.arrow_circle_up,
-      title: 'Быстрый ввод',
-      body: 'Нажмите "+ Доход" или "+ Расход" чтобы быстро добавить операцию.',
+      title: 'Записывайте доходы',
+      body: 'Нажмите "+ Доход" когда получили оплату. Esep сам посчитает ваш налог.',
       color: EsepColors.income,
     ),
     _TourTip(
+      icon: Iconsax.link_21,
+      title: 'Или загрузите выписку',
+      body: 'Скачайте выписку из Kaspi или другого банка — всё добавится автоматически.',
+      color: Color(0xFFF14635),
+    ),
+    _TourTip(
       icon: Iconsax.calculator,
-      title: 'Налоговый прогноз',
-      body: 'Esep автоматически считает сколько отложить на налоги каждый месяц.',
+      title: 'Налоги считаются сами',
+      body: 'Esep покажет сколько денег отложить и когда заплатить. Без бухгалтера.',
       color: Color(0xFF7B2FBE),
     ),
     _TourTip(
       icon: Iconsax.notification,
-      title: 'Дедлайны',
-      body: 'Напоминания о соцплатежах (25-е число) и форме 910 (15 авг / 15 фев).',
+      title: 'Напомним заранее',
+      body: 'За 7 и 3 дня до каждого платежа придёт уведомление. Штрафов не будет.',
       color: EsepColors.warning,
     ),
     _TourTip(
-      icon: Iconsax.link_21,
-      title: 'Загрузка выписки',
-      body: 'Загрузите выписку Kaspi или другого банка — транзакции добавятся автоматически.',
-      color: Color(0xFFF14635),
-    ),
-    _TourTip(
-      icon: Iconsax.chart,
-      title: 'Оптимизация режима',
-      body: 'Пролистайте вниз — Esep покажет какой налоговый режим вам выгоднее.',
+      icon: Iconsax.document_download,
+      title: 'Отчёт — одной кнопкой',
+      body: 'Когда придёт время — нажмите "Отчёт" и отправьте готовый файл в налоговую.',
       color: EsepColors.primary,
     ),
   ];

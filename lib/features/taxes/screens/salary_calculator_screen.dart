@@ -32,9 +32,9 @@ class _SalaryCalculatorScreenState extends State<SalaryCalculatorScreen> {
     final opvBase = min(_salary, KzTax.currentMzp * 50);
     final opv = opvBase * KzTax.employeeOpvRate;
 
-    final mrpDeduction = KzTax.currentMrp * 14;
+    final mrpDeduction = KzTax.ipnMonthlyDeduction; // 30 МРП (Новый НК РК 2026)
     final ipnTaxable = max(0.0, _salary - opv - mrpDeduction);
-    final ipn = ipnTaxable * 0.10;
+    final ipn = ipnTaxable * KzTax.generalIpnRate; // 10% (до 8500 МРП)
 
     final vosmsEmployeeBase = min(_salary, KzTax.currentMzp * 20);
     final vosmsEmployee = vosmsEmployeeBase * KzTax.employeeVosmsRate;

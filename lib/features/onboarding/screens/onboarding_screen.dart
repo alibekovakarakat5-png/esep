@@ -30,28 +30,27 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   static const _pages = [
     _PageData(
-      icon: Iconsax.import_1,
+      icon: Iconsax.heart,
       color: EsepColors.primary,
-      title: 'Загрузите выписку Kaspi',
-      subtitle: 'Узнайте свой налог за 10 секунд.\n'
-          'Скачайте выписку из банка — Esep распознает\n'
-          'все транзакции автоматически.',
+      title: 'Добро пожаловать в Esep',
+      subtitle: 'Мы поможем разобраться с налогами.\n'
+          'Даже если вы в этом ничего не понимаете —\n'
+          'это нормально.',
     ),
     _PageData(
-      icon: Iconsax.calculator,
+      icon: Iconsax.arrow_right_3,
       color: Color(0xFF7B2FBE),
-      title: '5 калькуляторов',
-      subtitle: 'ИП (910, ЕСП, Патент, ОУР), ТОО (КПН + НДС),\n'
-          'зарплатный. Все ставки 2026 года.\n'
-          'Ввёл сумму — получил налог.',
+      title: 'Как это работает',
+      subtitle: 'Записывайте доходы\n'
+          '-> Esep посчитает налоги\n'
+          '-> Покажет сколько и когда платить',
     ),
     _PageData(
-      icon: Iconsax.notification,
+      icon: Iconsax.shield_tick,
       color: EsepColors.warning,
-      title: 'Дедлайны без штрафов',
-      subtitle: 'Напоминания за 30, 7 и 3 дня до\n'
-          'ОПВ, СО, ВОСМС и 910 формы.\n'
-          'Никогда не пропустите срок.',
+      title: 'Никаких штрафов',
+      subtitle: 'Мы напомним о каждом платеже заранее.\n'
+          'Вы точно ничего не пропустите.',
     ),
   ];
 
