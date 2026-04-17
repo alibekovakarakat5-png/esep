@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Esep — Instagram Posters</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #111;
+    font-family: 'Inter', sans-serif;
+    color: #ccc;
+    padding: 20px;
+  }
+
+  /* ─── Toolbar ─── */
+  .toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: #1a1a2e;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+  }
+  .toolbar label { font-size: 14px; color: #94A3B8; }
+  .toolbar input[type="range"] { width: 200px; accent-color: #0EA5E9; }
+  .toolbar .zoom-val {
+    background: #0EA5E9;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 14px;
+    min-width: 50px;
+    text-align: center;
+  }
+  .toolbar button {
+    background: #0EA5E9;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .toolbar button:hover { background: #0284C7; }
+  .toolbar .sep { width: 1px; height: 30px; background: #333; }
+
+  /* ─── Poster wrapper ─── */
+  .poster-wrap {
+    margin-bottom: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .poster-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+  .poster-header h3 { color: #94A3B8; font-size: 16px; font-weight: 500; }
+  .poster-header .size-tag {
+    background: #222;
+    border: 1px solid #333;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #64748B;
+  }
+  .btn-download {
+    background: #22C55E;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-download:hover { background: #16A34A; }
+
+  .poster-container {
+    transform-origin: top center;
+    transition: transform 0.2s ease;
+  }
+
+  /* ─── Poster 1 ─── */
+  .poster {
+    width: 1080px;
+    height: 1080px;
+    background: linear-gradient(145deg, #0B1120 0%, #0F1E35 50%, #0B1628 100%);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #F1F5F9;
+  }
+  .poster::before {
+    content: '';
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(14,165,233,0.15) 0%, transparent 70%);
+    top: -100px;
+    right: -100px;
+    border-radius: 50%;
+  }
+  .poster::after {
+    content: '';
+    position: absolute;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(245,158,11,0.1) 0%, transparent 70%);
+    bottom: -50px;
+    left: -100px;
+    border-radius: 50%;
+  }
+  .poster-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 80px;
+    width: 100%;
+    height: 100%;
+    justify-content: space-between;
+  }
+  .poster-top {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .poster-badge {
+    background: rgba(14,165,233,0.15);
+    border: 1px solid rgba(14,165,233,0.3);
+    color: #38BDF8;
+    font-size: 18px;
+    font-weight: 600;
+    padding: 8px 28px;
+    border-radius: 50px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .poster-logo {
+    font-size: 96px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #0EA5E9, #38BDF8, #7DD3FC);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -2px;
+    line-height: 1;
+  }
+  .poster-middle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+  .poster-headline {
+    font-size: 48px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.2;
+    max-width: 800px;
+  }
+  .poster-headline span { color: #F59E0B; }
+  .poster-subtitle {
+    font-size: 24px;
+    color: #94A3B8;
+    text-align: center;
+    max-width: 700px;
+    line-height: 1.5;
+  }
+  .poster-features {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    width: 100%;
+    max-width: 800px;
+  }
+  .poster-feature {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 20px 24px;
+  }
+  .poster-feature-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+  .poster-feature-icon.blue { background: rgba(14,165,233,0.2); }
+  .poster-feature-icon.green { background: rgba(34,197,94,0.2); }
+  .poster-feature-icon.gold { background: rgba(245,158,11,0.2); }
+  .poster-feature-icon.purple { background: rgba(139,92,246,0.2); }
+  .poster-feature-text {
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .poster-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .poster-cta {
+    background: linear-gradient(135deg, #0EA5E9, #0284C7);
+    color: white;
+    font-size: 24px;
+    font-weight: 700;
+    padding: 18px 60px;
+    border-radius: 14px;
+    letter-spacing: 0.5px;
+    box-shadow: 0 8px 32px rgba(14,165,233,0.3);
+  }
+  .poster-url {
+    font-size: 20px;
+    color: #64748B;
+    letter-spacing: 1px;
+  }
+
+  /* ─── Poster 2: Stories ─── */
+  .story {
+    width: 1080px;
+    height: 1920px;
+    background: linear-gradient(180deg, #0B1120 0%, #0F1E35 40%, #0EA5E9 100%);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    color: #F1F5F9;
+  }
+  .story::before {
+    content: '';
+    position: absolute;
+    width: 800px;
+    height: 800px;
+    background: radial-gradient(circle, rgba(14,165,233,0.2) 0%, transparent 70%);
+    top: 200px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 50%;
+  }
+  .story-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 80px 60px;
+    height: 100%;
+    justify-content: space-between;
+  }
+  .story-top {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+  }
+  .story-logo {
+    font-size: 72px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #0EA5E9, #38BDF8, #7DD3FC);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .story-headline {
+    font-size: 64px;
+    font-weight: 800;
+    text-align: center;
+    line-height: 1.15;
+  }
+  .story-headline span { color: #F59E0B; }
+  .story-middle {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    width: 100%;
+  }
+  .story-item {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    padding: 28px 32px;
+  }
+  .story-item-num {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #0EA5E9, #0284C7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .story-item-text {
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .story-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+  .story-cta {
+    background: white;
+    color: #0F172A;
+    font-size: 28px;
+    font-weight: 800;
+    padding: 24px 80px;
+    border-radius: 16px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+  }
+  .story-swipe {
+    font-size: 22px;
+    color: rgba(255,255,255,0.7);
+    font-weight: 600;
+  }
+
+  /* ─── Poster 3: Calculator ─── */
+  .poster-calc {
+    width: 1080px;
+    height: 1080px;
+    background: linear-gradient(145deg, #0B1120 0%, #0F1E35 100%);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #F1F5F9;
+  }
+  .poster-calc::before {
+    content: '';
+    position: absolute;
+    width: 700px;
+    height: 700px;
+    background: radial-gradient(circle, rgba(34,197,94,0.12) 0%, transparent 70%);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+  }
+  .calc-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 80px;
+    width: 100%;
+    height: 100%;
+    justify-content: space-between;
+  }
+  .calc-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+  .calc-logo {
+    font-size: 36px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #0EA5E9, #38BDF8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .calc-badge-tax {
+    background: rgba(34,197,94,0.15);
+    border: 1px solid rgba(34,197,94,0.3);
+    color: #4ADE80;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 8px 20px;
+    border-radius: 50px;
+  }
+  .calc-middle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+  }
+  .calc-headline {
+    font-size: 52px;
+    font-weight: 800;
+    text-align: center;
+    line-height: 1.2;
+  }
+  .calc-headline span { color: #22C55E; }
+  .calc-demo {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 24px;
+    padding: 40px;
+    width: 100%;
+    max-width: 800px;
+  }
+  .calc-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-size: 22px;
+  }
+  .calc-row:last-child { border-bottom: none; }
+  .calc-row-label { color: #94A3B8; }
+  .calc-row-value { font-weight: 700; }
+  .calc-row-value.blue { color: #38BDF8; }
+  .calc-row-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0 0;
+    font-size: 28px;
+    font-weight: 800;
+  }
+  .calc-row-total .val { color: #F59E0B; }
+  .calc-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .calc-bottom-text { font-size: 22px; color: #64748B; }
+  .calc-bottom-link { font-size: 20px; color: #38BDF8; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- ─── Toolbar ─── -->
+<div class="toolbar">
+  <label>Масштаб:</label>
+  <input type="range" id="zoomRange" min="15" max="100" value="40">
+  <span class="zoom-val" id="zoomVal">40%</span>
+  <div class="sep"></div>
+  <button onclick="setZoom(25)">25%</button>
+  <button onclick="setZoom(40)">40%</button>
+  <button onclick="setZoom(50)">50%</button>
+  <button onclick="setZoom(75)">75%</button>
+  <button onclick="setZoom(100)">100%</button>
+  <div class="sep"></div>
+  <button onclick="downloadAll()" style="background:#22C55E">Скачать все PNG</button>
+</div>
+
+<!-- ═══ POSTER 1 ═══ -->
+<div class="poster-wrap">
+  <div class="poster-header">
+    <h3>Poster 1 — Feed</h3>
+    <span class="size-tag">1080 x 1080</span>
+    <button class="btn-download" onclick="downloadPoster('poster1', 'esep-launch-feed.png')">Скачать PNG</button>
+  </div>
+  <div class="poster-container" id="poster1">
+    <div class="poster">
+      <div class="poster-content">
+        <div class="poster-top">
+          <div class="poster-badge">Запуск 2026</div>
+          <div class="poster-logo">Esep</div>
+        </div>
+        <div class="poster-middle">
+          <div class="poster-headline">Учёт для <span>ИП и ТОО</span><br>без бухгалтера</div>
+          <div class="poster-subtitle">Проще 1С, умнее Excel. Все налоги Казахстана — в одном приложении.</div>
+          <div class="poster-features">
+            <div class="poster-feature">
+              <div class="poster-feature-icon blue">🧮</div>
+              <div class="poster-feature-text">5 налоговых<br>калькуляторов</div>
+            </div>
+            <div class="poster-feature">
+              <div class="poster-feature-icon green">⏰</div>
+              <div class="poster-feature-text">Дедлайны<br>без штрафов</div>
+            </div>
+            <div class="poster-feature">
+              <div class="poster-feature-icon gold">📄</div>
+              <div class="poster-feature-text">Счета и<br>отчёты в PDF</div>
+            </div>
+            <div class="poster-feature">
+              <div class="poster-feature-icon purple">🔍</div>
+              <div class="poster-feature-text">Поиск ЛПР<br>по БИН</div>
+            </div>
+          </div>
+        </div>
+        <div class="poster-bottom">
+          <div class="poster-cta">Попробовать бесплатно</div>
+          <div class="poster-url">esepkz.vercel.app</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ POSTER 2 ═══ -->
+<div class="poster-wrap">
+  <div class="poster-header">
+    <h3>Poster 2 — Stories / Reels</h3>
+    <span class="size-tag">1080 x 1920</span>
+    <button class="btn-download" onclick="downloadPoster('poster2', 'esep-stories.png')">Скачать PNG</button>
+  </div>
+  <div class="poster-container" id="poster2">
+    <div class="story">
+      <div class="story-content">
+        <div class="story-top">
+          <div class="story-logo">Esep</div>
+          <div class="story-headline">Открыли <span>ИП</span>?<br>Не знаете какие<br>налоги платить?</div>
+        </div>
+        <div class="story-middle">
+          <div class="story-item">
+            <div class="story-item-num">1</div>
+            <div class="story-item-text">Введите доход — мы посчитаем все налоги</div>
+          </div>
+          <div class="story-item">
+            <div class="story-item-num">2</div>
+            <div class="story-item-text">Напомним за 7 дней до каждого дедлайна</div>
+          </div>
+          <div class="story-item">
+            <div class="story-item-num">3</div>
+            <div class="story-item-text">Отправьте PDF-счёт клиенту за 30 секунд</div>
+          </div>
+          <div class="story-item">
+            <div class="story-item-num">4</div>
+            <div class="story-item-text">Новый НК РК 2026 — все ставки актуальны</div>
+          </div>
+        </div>
+        <div class="story-bottom">
+          <div class="story-cta">Открыть Esep</div>
+          <div class="story-swipe">esepkz.vercel.app</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ POSTER 3 ═══ -->
+<div class="poster-wrap">
+  <div class="poster-header">
+    <h3>Poster 3 — Калькулятор</h3>
+    <span class="size-tag">1080 x 1080</span>
+    <button class="btn-download" onclick="downloadPoster('poster3', 'esep-calculator.png')">Скачать PNG</button>
+  </div>
+  <div class="poster-container" id="poster3">
+    <div class="poster-calc">
+      <div class="calc-content">
+        <div class="calc-top">
+          <div class="calc-logo">Esep</div>
+          <div class="calc-badge-tax">Упрощёнка 910</div>
+        </div>
+        <div class="calc-middle">
+          <div class="calc-headline">Введите доход —<br>мы посчитаем <span>все налоги</span></div>
+          <div class="calc-demo">
+            <div class="calc-row">
+              <span class="calc-row-label">Доход за полугодие</span>
+              <span class="calc-row-value">5 000 000 ₸</span>
+            </div>
+            <div class="calc-row">
+              <span class="calc-row-label">ИПН (4%)</span>
+              <span class="calc-row-value blue">200 000 ₸</span>
+            </div>
+            <div class="calc-row">
+              <span class="calc-row-label">ОПВ (10%)</span>
+              <span class="calc-row-value blue">85 000 ₸</span>
+            </div>
+            <div class="calc-row">
+              <span class="calc-row-label">СО (5%)</span>
+              <span class="calc-row-value blue">42 500 ₸</span>
+            </div>
+            <div class="calc-row">
+              <span class="calc-row-label">ВОСМС (5%)</span>
+              <span class="calc-row-value blue">59 500 ₸</span>
+            </div>
+            <div class="calc-row-total">
+              <span>Итого к уплате</span>
+              <span class="val">387 000 ₸</span>
+            </div>
+          </div>
+        </div>
+        <div class="calc-bottom">
+          <div class="calc-bottom-text">Бесплатно. Без регистрации.</div>
+          <div class="calc-bottom-link">esepkz.vercel.app</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const containers = document.querySelectorAll('.poster-container');
+  const zoomRange = document.getElementById('zoomRange');
+  const zoomVal = document.getElementById('zoomVal');
+
+  function setZoom(pct) {
+    zoomRange.value = pct;
+    applyZoom(pct);
+  }
+
+  function applyZoom(pct) {
+    const scale = pct / 100;
+    zoomVal.textContent = pct + '%';
+    containers.forEach(c => {
+      const inner = c.children[0];
+      const w = inner.offsetWidth;
+      const h = inner.offsetHeight;
+      c.style.transform = `scale(${scale})`;
+      c.style.width = (w * scale) + 'px';
+      c.style.height = (h * scale) + 'px';
+    });
+  }
+
+  zoomRange.addEventListener('input', () => applyZoom(+zoomRange.value));
+
+  // Initial zoom
+  window.addEventListener('load', () => applyZoom(40));
+
+  // Download single poster as PNG (full 1080px resolution)
+  async function downloadPoster(id, filename) {
+    const el = document.getElementById(id).children[0];
+
+    // Temporarily reset scale for capture
+    const container = document.getElementById(id);
+    const prevTransform = container.style.transform;
+    const prevW = container.style.width;
+    const prevH = container.style.height;
+    container.style.transform = 'scale(1)';
+    container.style.width = 'auto';
+    container.style.height = 'auto';
+
+    try {
+      const canvas = await html2canvas(el, {
+        scale: 1,
+        useCORS: true,
+        backgroundColor: null,
+        width: el.offsetWidth,
+        height: el.offsetHeight,
+      });
+
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (e) {
+      alert('Ошибка: ' + e.message);
+    }
+
+    // Restore zoom
+    container.style.transform = prevTransform;
+    container.style.width = prevW;
+    container.style.height = prevH;
+  }
+
+  // Download all
+  async function downloadAll() {
+    await downloadPoster('poster1', 'esep-launch-feed.png');
+    await new Promise(r => setTimeout(r, 500));
+    await downloadPoster('poster2', 'esep-stories.png');
+    await new Promise(r => setTimeout(r, 500));
+    await downloadPoster('poster3', 'esep-calculator.png');
+  }
+</script>
+
+</body>
+</html>
