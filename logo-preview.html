@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Esep — Logo Preview v3</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0F172A; color: #F1F5F9; padding: 40px; }
+  h1 { font-size: 28px; margin-bottom: 8px; }
+  .sub { color: #64748B; font-size: 14px; margin-bottom: 40px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 32px; }
+  .card { background: #1E293B; border-radius: 20px; padding: 32px; border: 1px solid #334155; }
+  .card h3 { font-size: 16px; margin-bottom: 6px; color: #CBD5E1; }
+  .card p { font-size: 12px; color: #64748B; margin-bottom: 24px; }
+  .sizes { display: flex; gap: 16px; align-items: end; margin-bottom: 24px; }
+  .size-label { font-size: 10px; color: #475569; text-align: center; margin-top: 4px; }
+  .on-light { background: #F8FAFC; border-radius: 12px; padding: 20px; display: flex; align-items: center; gap: 16px; }
+  .on-light span { color: #0F172A; font-size: 20px; font-weight: 800; }
+  .on-dark { background: #0F2B46; border-radius: 12px; padding: 20px; display: flex; align-items: center; gap: 16px; margin-top: 12px; }
+  .on-dark span { color: #F1F5F9; font-size: 20px; font-weight: 800; }
+  .fav { text-align: center; margin-top: 40px; padding: 24px; background: #1E293B; border-radius: 16px; border: 1px solid #334155; }
+  .fav p { font-size: 13px; color: #94A3B8; }
+</style>
+</head>
+<body>
+
+<h1>Esep — финальные варианты</h1>
+<p class="sub">Возвращаемся к чистоте. Минимум деталей, максимум узнаваемости.</p>
+
+<div class="grid">
+
+<!-- A: Оригинал "Три линии" без изменений (для сравнения) -->
+<div class="card">
+  <h3>A — Три линии (оригинал)</h3>
+  <p>Абстрактная "E" из трёх баров. Средний короче и синий.</p>
+  <div class="sizes">
+    <div>
+      <svg width="96" height="96" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+        <rect x="128" y="128" width="256" height="44" rx="22" fill="#F1F5F9"/>
+        <rect x="128" y="234" width="192" height="44" rx="22" fill="#3B82F6" opacity="0.7"/>
+        <rect x="128" y="340" width="256" height="44" rx="22" fill="#F1F5F9"/>
+      </svg>
+      <div class="size-label">96px</div>
+    </div>
+    <div>
+      <svg width="48" height="48" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+        <rect x="128" y="128" width="256" height="44" rx="22" fill="#F1F5F9"/>
+        <rect x="128" y="234" width="192" height="44" rx="22" fill="#3B82F6" opacity="0.7"/>
+        <rect x="128" y="340" width="256" height="44" rx="22" fill="#F1F5F9"/>
+      </svg>
+      <div class="size-label">48px</div>
+    </div>
+    <div>
+      <svg width="32" height="32" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+        <rect x="128" y="128" width="256" height="44" rx="22" fill="#F1F5F9"/>
+        <rect x="128" y="234" width="192" height="44" rx="22" fill="#3B82F6" opacity="0.7"/>
+        <rect x="128" y="340" width="256" height="44" rx="22" fill="#F1F5F9"/>
+      </svg>
+      <div class="size-label">32px</div>
+    </div>
+  </div>
+  <div class="on-light">
+    <svg width="48" height="48" viewBox="0 0 512 512">
+      <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+      <rect x="128" y="128" width="256" height="44" rx="22" fill="#F1F5F9"/>
+      <rect x="128" y="234" width="192" height="44" rx="22" fill="#3B82F6" opacity="0.7"/>
+      <rect x="128" y="340" width="256" height="44" rx="22" fill="#F1F5F9"/>
+    </svg>
+    <span>Esep</span>
+  </div>
+  <div class="on-dark">
+    <svg width="48" height="48" viewBox="0 0 512 512">
+      <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+      <rect x="128" y="128" width="256" height="44" rx="22" fill="#F1F5F9"/>
+      <rect x="128" y="234" width="192" height="44" rx="22" fill="#3B82F6" opacity="0.7"/>
+      <rect x="128" y="340" width="256" height="44" rx="22" fill="#F1F5F9"/>
+    </svg>
+    <span>Esep</span>
+  </div>
+</div>
+
+<!-- B: Три линии — средняя тоже белая, но тоньше -->
+<div class="card">
+  <h3>B — Три линии (все белые)</h3>
+  <p>Чище: все три бара белые. Средний тоньше — ритм и воздух.</p>
+  <div class="sizes">
+    <div>
+      <svg width="96" height="96" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+        <rect x="128" y="132" width="256" height="44" rx="22" fill="#F1F5F9"/>
+        <rect x="128" y="234" width="176" height="36" rx="18" fill="#F1F5F9" opacity="0.55"/>
+        <rect x="128" y="336" width="256" height="44" rx="22" fill="#F1F5F9"/>
+      </svg>
+      <div class="size-label">96px</div>
+    </div>
+    <div>
+      <svg width="48" height="48" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+        <rect x="128" y="132" width="256" height="44" rx="22" fill="#F1F5F9"/>
+        <rect x="128" y="234" width="176" height="36" rx="18" fill="#F1F5F9" opacity="0.55"/>
+        <rect x="128" y="336" width="256" height="44" rx="22" fill="#F1F5F9"/>
+      </svg>
+      <div class="size-label">48px</div>
+    </div>
+    <div>
+      <svg width="32" height="32" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+        <rect x="128" y="132" width="256" height="44" rx="22" fill="#F1F5F9"/>
+        <rect x="128" y="234" width="176" height="36" rx="18" fill="#F1F5F9" opacity="0.55"/>
+        <rect x="128" y="336" width="256" height="44" rx="22" fill="#F1F5F9"/>
+      </svg>
+      <div class="size-label">32px</div>
+    </div>
+  </div>
+  <div class="on-light">
+    <svg width="48" height="48" viewBox="0 0 512 512">
+      <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+      <rect x="128" y="132" width="256" height="44" rx="22" fill="#F1F5F9"/>
+      <rect x="128" y="234" width="176" height="36" rx="18" fill="#F1F5F9" opacity="0.55"/>
+      <rect x="128" y="336" width="256" height="44" rx="22" fill="#F1F5F9"/>
+    </svg>
+    <span>Esep</span>
+  </div>
+  <div class="on-dark">
+    <svg width="48" height="48" viewBox="0 0 512 512">
+      <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+      <rect x="128" y="132" width="256" height="44" rx="22" fill="#F1F5F9"/>
+      <rect x="128" y="234" width="176" height="36" rx="18" fill="#F1F5F9" opacity="0.55"/>
+      <rect x="128" y="336" width="256" height="44" rx="22" fill="#F1F5F9"/>
+    </svg>
+    <span>Esep</span>
+  </div>
+</div>
+
+<!-- C: Три линии — средняя синяя ярче -->
+<div class="card">
+  <h3>C — Три линии (яркий акцент)</h3>
+  <p>Как оригинал, но средний бар ярче и чуть длиннее. Больше контраста.</p>
+  <div class="sizes">
+    <div>
+      <svg width="96" height="96" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+        <rect x="128" y="128" width="256" height="44" rx="22" fill="#F1F5F9"/>
+        <rect x="128" y="234" width="216" height="44" rx="22" fill="#3B82F6"/>
+        <rect x="128" y="340" width="256" height="44" rx="22" fill="#F1F5F9"/>
+      </svg>
+      <div class="size-label">96px</div>
+    </div>
+    <div>
+      <svg width="48" height="48" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+        <rect x="128" y="128" width="256" height="44" rx="22" fill="#F1F5F9"/>
+        <rect x="128" y="234" width="216" height="44" rx="22" fill="#3B82F6"/>
+        <rect x="128" y="340" width="256" height="44" rx="22" fill="#F1F5F9"/>
+      </svg>
+      <div class="size-label">48px</div>
+    </div>
+    <div>
+      <svg width="32" height="32" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+        <rect x="128" y="128" width="256" height="44" rx="22" fill="#F1F5F9"/>
+        <rect x="128" y="234" width="216" height="44" rx="22" fill="#3B82F6"/>
+        <rect x="128" y="340" width="256" height="44" rx="22" fill="#F1F5F9"/>
+      </svg>
+      <div class="size-label">32px</div>
+    </div>
+  </div>
+  <div class="on-light">
+    <svg width="48" height="48" viewBox="0 0 512 512">
+      <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+      <rect x="128" y="128" width="256" height="44" rx="22" fill="#F1F5F9"/>
+      <rect x="128" y="234" width="216" height="44" rx="22" fill="#3B82F6"/>
+      <rect x="128" y="340" width="256" height="44" rx="22" fill="#F1F5F9"/>
+    </svg>
+    <span>Esep</span>
+  </div>
+  <div class="on-dark">
+    <svg width="48" height="48" viewBox="0 0 512 512">
+      <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+      <rect x="128" y="128" width="256" height="44" rx="22" fill="#F1F5F9"/>
+      <rect x="128" y="234" width="216" height="44" rx="22" fill="#3B82F6"/>
+      <rect x="128" y="340" width="256" height="44" rx="22" fill="#F1F5F9"/>
+    </svg>
+    <span>Esep</span>
+  </div>
+</div>
+
+<!-- D: Рост — упрощённая чистая стрелка -->
+<div class="card">
+  <h3>D — Рост (чистый)</h3>
+  <p>Оригинальная стрелка вверх, но без двух плоскостей — одноцветная, чище.</p>
+  <div class="sizes">
+    <div>
+      <svg width="96" height="96" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+        <path d="M256 116 L388 284 L312 284 L312 396 L200 396 L200 284 L124 284 Z" fill="#F1F5F9"/>
+      </svg>
+      <div class="size-label">96px</div>
+    </div>
+    <div>
+      <svg width="48" height="48" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+        <path d="M256 116 L388 284 L312 284 L312 396 L200 396 L200 284 L124 284 Z" fill="#F1F5F9"/>
+      </svg>
+      <div class="size-label">48px</div>
+    </div>
+    <div>
+      <svg width="32" height="32" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+        <path d="M256 116 L388 284 L312 284 L312 396 L200 396 L200 284 L124 284 Z" fill="#F1F5F9"/>
+      </svg>
+      <div class="size-label">32px</div>
+    </div>
+  </div>
+  <div class="on-light">
+    <svg width="48" height="48" viewBox="0 0 512 512">
+      <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+      <path d="M256 116 L388 284 L312 284 L312 396 L200 396 L200 284 L124 284 Z" fill="#F1F5F9"/>
+    </svg>
+    <span>Esep</span>
+  </div>
+  <div class="on-dark">
+    <svg width="48" height="48" viewBox="0 0 512 512">
+      <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+      <path d="M256 116 L388 284 L312 284 L312 396 L200 396 L200 284 L124 284 Z" fill="#F1F5F9"/>
+    </svg>
+    <span>Esep</span>
+  </div>
+</div>
+
+<!-- E: Рост — скруглённый chevron -->
+<div class="card">
+  <h3>E — Шеврон вверх</h3>
+  <p>Мягкий шеврон (^) — рост без агрессии. Максимально простой символ.</p>
+  <div class="sizes">
+    <div>
+      <svg width="96" height="96" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+        <polyline points="140 320 256 168 372 320" fill="none" stroke="#F1F5F9" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="size-label">96px</div>
+    </div>
+    <div>
+      <svg width="48" height="48" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+        <polyline points="140 320 256 168 372 320" fill="none" stroke="#F1F5F9" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="size-label">48px</div>
+    </div>
+    <div>
+      <svg width="32" height="32" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+        <polyline points="140 320 256 168 372 320" fill="none" stroke="#F1F5F9" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="size-label">32px</div>
+    </div>
+  </div>
+  <div class="on-light">
+    <svg width="48" height="48" viewBox="0 0 512 512">
+      <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+      <polyline points="140 320 256 168 372 320" fill="none" stroke="#F1F5F9" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>Esep</span>
+  </div>
+  <div class="on-dark">
+    <svg width="48" height="48" viewBox="0 0 512 512">
+      <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+      <polyline points="140 320 256 168 372 320" fill="none" stroke="#F1F5F9" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>Esep</span>
+  </div>
+</div>
+
+<!-- F: Три линии + маленькая стрелка -->
+<div class="card">
+  <h3>F — Линии + стрелка</h3>
+  <p>Три бара "E" + маленькая стрелка вверх справа. Учёт + рост в одном символе.</p>
+  <div class="sizes">
+    <div>
+      <svg width="96" height="96" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+        <rect x="120" y="140" width="220" height="40" rx="20" fill="#F1F5F9"/>
+        <rect x="120" y="236" width="168" height="40" rx="20" fill="#F1F5F9" opacity="0.6"/>
+        <rect x="120" y="332" width="220" height="40" rx="20" fill="#F1F5F9"/>
+        <!-- маленькая стрелка -->
+        <polyline points="360 320 360 180 360 180" fill="none" stroke="#3B82F6" stroke-width="36" stroke-linecap="round"/>
+        <polyline points="320 220 360 172 400 220" fill="none" stroke="#3B82F6" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="size-label">96px</div>
+    </div>
+    <div>
+      <svg width="48" height="48" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+        <rect x="120" y="140" width="220" height="40" rx="20" fill="#F1F5F9"/>
+        <rect x="120" y="236" width="168" height="40" rx="20" fill="#F1F5F9" opacity="0.6"/>
+        <rect x="120" y="332" width="220" height="40" rx="20" fill="#F1F5F9"/>
+        <polyline points="360 320 360 180 360 180" fill="none" stroke="#3B82F6" stroke-width="36" stroke-linecap="round"/>
+        <polyline points="320 220 360 172 400 220" fill="none" stroke="#3B82F6" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="size-label">48px</div>
+    </div>
+    <div>
+      <svg width="32" height="32" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+        <rect x="120" y="140" width="220" height="40" rx="20" fill="#F1F5F9"/>
+        <rect x="120" y="236" width="168" height="40" rx="20" fill="#F1F5F9" opacity="0.6"/>
+        <rect x="120" y="332" width="220" height="40" rx="20" fill="#F1F5F9"/>
+        <polyline points="360 320 360 180 360 180" fill="none" stroke="#3B82F6" stroke-width="36" stroke-linecap="round"/>
+        <polyline points="320 220 360 172 400 220" fill="none" stroke="#3B82F6" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="size-label">32px</div>
+    </div>
+  </div>
+  <div class="on-light">
+    <svg width="48" height="48" viewBox="0 0 512 512">
+      <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+      <rect x="120" y="140" width="220" height="40" rx="20" fill="#F1F5F9"/>
+      <rect x="120" y="236" width="168" height="40" rx="20" fill="#F1F5F9" opacity="0.6"/>
+      <rect x="120" y="332" width="220" height="40" rx="20" fill="#F1F5F9"/>
+      <polyline points="360 320 360 180 360 180" fill="none" stroke="#3B82F6" stroke-width="36" stroke-linecap="round"/>
+      <polyline points="320 220 360 172 400 220" fill="none" stroke="#3B82F6" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>Esep</span>
+  </div>
+  <div class="on-dark">
+    <svg width="48" height="48" viewBox="0 0 512 512">
+      <rect width="512" height="512" rx="112" fill="#0F2B46"/>
+      <rect x="120" y="140" width="220" height="40" rx="20" fill="#F1F5F9"/>
+      <rect x="120" y="236" width="168" height="40" rx="20" fill="#F1F5F9" opacity="0.6"/>
+      <rect x="120" y="332" width="220" height="40" rx="20" fill="#F1F5F9"/>
+      <polyline points="360 320 360 180 360 180" fill="none" stroke="#3B82F6" stroke-width="36" stroke-linecap="round"/>
+      <polyline points="320 220 360 172 400 220" fill="none" stroke="#3B82F6" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>Esep</span>
+  </div>
+</div>
+
+</div>
+
+<div class="fav">
+  <p>
+    <span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:#0F2B46;vertical-align:middle;margin-right:4px;"></span> Основной: <strong>#0F2B46</strong>
+    &nbsp;&nbsp;
+    <span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:#3B82F6;vertical-align:middle;margin-right:4px;"></span> Акцент: <strong>#3B82F6</strong>
+    &nbsp;&nbsp;
+    <span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:#F1F5F9;vertical-align:middle;margin-right:4px;"></span> Белый: <strong>#F1F5F9</strong>
+  </p>
+</div>
+
+</body>
+</html>
