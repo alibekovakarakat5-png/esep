@@ -1,7 +1,6 @@
 const router = require('express').Router();
 const db     = require('../db');
-
-const TIERS = ['free', 'ip', 'accountant', 'corporate'];
+const { TIERS, normalizeTier } = require('../tiers');
 
 // BUG 7: XSS prevention helper
 function escapeHtml(str) {
@@ -15,6 +14,13 @@ function escapeHtml(str) {
 }
 
 // ── Simple password middleware ────────────────────────────────────────────────
+function getCookie(req, name) {
+  const raw = req.headers.cookie ?? '';
+  const parts = raw.split(';').map(p => p.trim());
+  const found = parts.find(p => p.startsWith(`${name}=`));
+  return found ? decodeURIComponent(found.slice(name.length + 1)) : '';
+}
+
 function adminAuth(req, res, next) {
   const pass = process.env.ADMIN_PASSWORD;
   if (!pass) return res.status(500).send('ADMIN_PASSWORD not set');
@@ -23,11 +29,64 @@ function adminAuth(req, res, next) {
   // Basic auth: Authorization: Bearer <password>
   if (auth === `Bearer ${pass}`) return next();
 
-  // Also allow ?pass=... for browser convenience (case-insensitive)
-  if (req.query.pass && req.query.pass.toLowerCase() === pass.toLowerCase()) return next();
+  if (getCookie(req, 'esep_admin') === pass) return next();
+
+  const wantsHtmlPage = req.method === 'GET' &&
+    (req.headers.accept ?? '').includes('text/html');
+  if (wantsHtmlPage) return res.redirect('/api/admin/login');
 
   res.status(401).json({ error: 'Unauthorized' });
 }
+
+router.get('/login', (_req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Esep Admin Login</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8faff;color:#1a1a2e;min-height:100vh;display:grid;place-items:center;margin:0}
+    form{width:min(360px,calc(100vw - 32px));background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:24px;box-shadow:0 10px 30px rgba(15,23,42,.08)}
+    h1{font-size:22px;margin:0 0 6px}
+    p{font-size:13px;color:#6b7280;margin:0 0 18px}
+    input{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:10px;font-size:15px;box-sizing:border-box}
+    button{width:100%;margin-top:14px;padding:12px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer}
+    .err{display:none;margin-top:10px;color:#dc2626;font-size:13px}
+  </style>
+</head>
+<body>
+  <form id="login-form">
+    <h1>Esep Admin</h1>
+    <p>Введите ADMIN_PASSWORD для ручной активации тарифов.</p>
+    <input id="pass" type="password" placeholder="Пароль" autocomplete="current-password" autofocus>
+    <button type="submit">Войти</button>
+    <div id="err" class="err">Неверный пароль</div>
+  </form>
+  <script>
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const r = await fetch('/api/admin/login', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({pass:document.getElementById('pass').value})
+      });
+      if (r.ok) location.href = '/api/admin';
+      else document.getElementById('err').style.display = 'block';
+    });
+  </script>
+</body>
+</html>`);
+});
+
+router.post('/login', (req, res) => {
+  const pass = process.env.ADMIN_PASSWORD;
+  if (!pass) return res.status(500).json({ error: 'ADMIN_PASSWORD not set' });
+  if (req.body?.pass !== pass) return res.status(401).json({ error: 'Unauthorized' });
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  res.setHeader('Set-Cookie', `esep_admin=${encodeURIComponent(pass)}; HttpOnly; SameSite=Lax; Path=/api; Max-Age=86400${secure}`);
+  res.json({ ok: true });
+});
 
 // ── GET /api/admin/users ──────────────────────────────────────────────────────
 router.get('/users', adminAuth, async (req, res) => {
@@ -49,7 +108,7 @@ router.get('/users', adminAuth, async (req, res) => {
 // ── PATCH /api/admin/users/:id/tier ──────────────────────────────────────────
 router.patch('/users/:id/tier', adminAuth, async (req, res) => {
   try {
-    const { tier } = req.body ?? {};
+    const tier = normalizeTier(req.body?.tier);
     if (!TIERS.includes(tier)) {
       return res.status(400).json({ error: `tier must be one of: ${TIERS.join(', ')}` });
     }
@@ -64,7 +123,8 @@ router.patch('/users/:id/tier', adminAuth, async (req, res) => {
 // ── POST /api/admin/payments — create payment & activate tier ────────────────
 router.post('/payments', adminAuth, async (req, res) => {
   try {
-    const { user_id, tier, period, amount, payment_method, kaspi_txn_id, note } = req.body ?? {};
+    const { user_id, period, amount, payment_method, kaspi_txn_id, note } = req.body ?? {};
+    const tier = normalizeTier(req.body?.tier);
     if (!user_id || !tier || !amount) {
       return res.status(400).json({ error: 'user_id, tier, amount required' });
     }
@@ -90,7 +150,13 @@ router.post('/payments', adminAuth, async (req, res) => {
       );
 
       // Upgrade user tier
-      await client.query('UPDATE users SET tier = $1 WHERE id = $2', [tier, user_id]);
+      await client.query(
+        `UPDATE users
+            SET tier = $1,
+                subscription_expires_at = $2
+          WHERE id = $3`,
+        [tier, expiresAt, user_id],
+      );
 
       await client.query('COMMIT');
       res.status(201).json(rows[0]);
@@ -133,7 +199,12 @@ router.patch('/payments/:id/expire', adminAuth, async (req, res) => {
     if (rows.length > 0) {
       // Check if user has other active payments
       const { rows: other } = await db.query(
-        `SELECT 1 FROM payments WHERE user_id = $1 AND status = 'paid' AND id != $2 LIMIT 1`,
+        `SELECT 1 FROM payments
+          WHERE user_id = $1
+            AND status = 'paid'
+            AND id != $2
+            AND expires_at > NOW()
+          LIMIT 1`,
         [rows[0].user_id, req.params.id],
       );
       const { rows: promos } = await db.query(
@@ -141,7 +212,10 @@ router.patch('/payments/:id/expire', adminAuth, async (req, res) => {
         [rows[0].user_id],
       );
       if (other.length === 0 && promos.length === 0) {
-        await db.query('UPDATE users SET tier = $1 WHERE id = $2', ['free', rows[0].user_id]);
+        await db.query(
+          'UPDATE users SET tier = $1, subscription_expires_at = NULL WHERE id = $2',
+          ['free', rows[0].user_id],
+        );
       }
     }
     res.json({ ok: true });
@@ -155,13 +229,20 @@ router.patch('/payments/:id/expire', adminAuth, async (req, res) => {
 router.patch('/payments/:id/extend', adminAuth, async (req, res) => {
   try {
     const months = parseInt(req.body?.months) || 1;
-    await db.query(
+    const { rows } = await db.query(
       `UPDATE payments
          SET expires_at = GREATEST(expires_at, NOW()) + ($1 || ' months')::INTERVAL,
              status = 'paid'
-       WHERE id = $2`,
+       WHERE id = $2
+       RETURNING user_id, tier, expires_at`,
       [months, req.params.id],
     );
+    if (rows.length > 0) {
+      await db.query(
+        `UPDATE users SET tier = $1, subscription_expires_at = $2 WHERE id = $3`,
+        [normalizeTier(rows[0].tier), rows[0].expires_at, rows[0].user_id],
+      );
+    }
     res.json({ ok: true });
   } catch (err) {
     console.error('PATCH /admin/payments/:id/extend error:', err);
@@ -202,7 +283,7 @@ router.get('/', adminAuth, async (_req, res) => {
     `);
     const payments = paymentData.rows;
 
-    const tierColor = { free: '#6b7280', ip: '#2563eb', accountant: '#7c3aed', corporate: '#d97706' };
+    const tierColor = { free: '#6b7280', solo: '#2563eb', accountant: '#7c3aed', accountant_pro: '#d97706' };
 
     // Pre-compute promos HTML
     const promoRows = promos.map((p) => {
@@ -277,7 +358,7 @@ router.get('/', adminAuth, async (_req, res) => {
         <td>${new Date(u.created_at).toLocaleDateString('ru-RU')}</td>
         <td>
           <select onchange="changeTier('${escapeHtml(u.id)}', this.value)">
-            ${['free','ip','accountant','corporate'].map((t) =>
+            ${TIERS.map((t) =>
               `<option value="${t}"${t === u.tier ? ' selected' : ''}>${t}</option>`
             ).join('')}
           </select>
@@ -370,9 +451,9 @@ router.get('/', adminAuth, async (_req, res) => {
     <div class="stats">
       <div class="stat"><div class="stat-val">${users.length}</div><div class="stat-label">Всего</div></div>
       <div class="stat"><div class="stat-val">${users.filter(u=>u.tier==='free').length}</div><div class="stat-label">Бесплатный</div></div>
-      <div class="stat"><div class="stat-val">${users.filter(u=>u.tier==='ip').length}</div><div class="stat-label">ИП</div></div>
+      <div class="stat"><div class="stat-val">${users.filter(u=>u.tier==='solo').length}</div><div class="stat-label">Solo</div></div>
       <div class="stat"><div class="stat-val">${users.filter(u=>u.tier==='accountant').length}</div><div class="stat-label">Бухгалтер</div></div>
-      <div class="stat"><div class="stat-val">${users.filter(u=>u.tier==='corporate').length}</div><div class="stat-label">Корпоративный</div></div>
+      <div class="stat"><div class="stat-val">${users.filter(u=>u.tier==='accountant_pro').length}</div><div class="stat-label">Бухгалтер Про</div></div>
     </div>
     <table>
       <thead><tr><th>Email</th><th>Имя</th><th>Тариф</th><th>Транзакции</th><th>Счета</th><th>Регистрация</th><th>Сменить</th></tr></thead>
@@ -390,9 +471,9 @@ router.get('/', adminAuth, async (_req, res) => {
         </div>
         <div class="field"><label>Тариф</label>
           <select id="pay-tier">
-            <option value="ip">IP (Solo) &mdash; 1 900</option>
+            <option value="solo">Solo &mdash; от 2 000</option>
             <option value="accountant">Бухгалтер &mdash; 4 900</option>
-            <option value="corporate">Корпоративный &mdash; 14 900</option>
+            <option value="accountant_pro">Бухгалтер Про &mdash; 14 900</option>
           </select>
         </div>
         <div class="field"><label>Период</label>
@@ -404,7 +485,7 @@ router.get('/', adminAuth, async (_req, res) => {
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px">
-        <div class="field"><label>Сумма (тенге)</label><input id="pay-amount" type="number" value="1900"></div>
+        <div class="field"><label>Сумма (тенге)</label><input id="pay-amount" type="number" value="2000"></div>
         <div class="field"><label>Kaspi TXN ID</label><input id="pay-txn" placeholder="Номер чека"></div>
         <div class="field"><label>Примечание</label><input id="pay-note" placeholder="Из WhatsApp / чек #..."></div>
       </div>
@@ -475,9 +556,9 @@ router.get('/', adminAuth, async (_req, res) => {
         <div class="field"><label>Код</label><input id="p-code" placeholder="REVIEW6" style="text-transform:uppercase"></div>
         <div class="field"><label>Тариф</label>
           <select id="p-tier">
-            <option value="ip">IP (Solo)</option>
+            <option value="solo">Solo</option>
             <option value="accountant">Бухгалтер</option>
-            <option value="corporate">Корпоративный</option>
+            <option value="accountant_pro">Бухгалтер Про</option>
           </select>
         </div>
         <div class="field"><label>Дней</label><input id="p-days" type="number" value="180" placeholder="180"></div>
@@ -495,8 +576,7 @@ router.get('/', adminAuth, async (_req, res) => {
 
   <div class="toast" id="toast"></div>
   <script>
-    const pass = new URLSearchParams(location.search).get('pass') || '';
-    const api  = (path, opts={}) => fetch(path + (path.includes('?') ? '&' : '?') + 'pass=' + pass, {
+    const api  = (path, opts={}) => fetch(path, {
       headers: {'Content-Type':'application/json'},
       ...opts,
     });

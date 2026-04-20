@@ -46,7 +46,10 @@ async function expirePayments() {
       if (otherActive.length === 0 && activePromo.length === 0) {
         // Downgrade to free
         await client.query(
-          `UPDATE users SET tier = 'free' WHERE id = $1`,
+          `UPDATE users
+              SET tier = 'free',
+                  subscription_expires_at = NULL
+            WHERE id = $1`,
           [p.user_id],
         );
       }

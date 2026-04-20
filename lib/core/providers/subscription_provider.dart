@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../services/auth_service.dart';
 import '../services/promo_service.dart';
 import '../theme/app_theme.dart';
 
@@ -12,6 +13,15 @@ import '../theme/app_theme.dart';
 enum SubscriptionTier { free, solo, accountant, accountantPro }
 
 extension SubscriptionTierExt on SubscriptionTier {
+  String get apiName {
+    switch (this) {
+      case SubscriptionTier.free: return 'free';
+      case SubscriptionTier.solo: return 'solo';
+      case SubscriptionTier.accountant: return 'accountant';
+      case SubscriptionTier.accountantPro: return 'accountant_pro';
+    }
+  }
+
   String get label {
     switch (this) {
       case SubscriptionTier.free: return 'Бесплатный';
@@ -25,7 +35,7 @@ extension SubscriptionTierExt on SubscriptionTier {
   int get monthlyPrice {
     switch (this) {
       case SubscriptionTier.free: return 0;
-      case SubscriptionTier.solo: return 1900;
+      case SubscriptionTier.solo: return 2000;
       case SubscriptionTier.accountant: return 4900;
       case SubscriptionTier.accountantPro: return 14900;
     }
@@ -35,7 +45,7 @@ extension SubscriptionTierExt on SubscriptionTier {
   int get yearlyPrice {
     switch (this) {
       case SubscriptionTier.free: return 0;
-      case SubscriptionTier.solo: return 18900;
+      case SubscriptionTier.solo: return 20000;
       case SubscriptionTier.accountant: return 48900;
       case SubscriptionTier.accountantPro: return 148900;
     }
@@ -99,13 +109,33 @@ extension SubscriptionTierExt on SubscriptionTier {
       case SubscriptionTier.free:
         return '10 операций/мес, 3 счёта без PDF';
       case SubscriptionTier.solo:
-        return 'Безлимит + PDF + импорт банка';
+        return 'От 2 000 ₸/мес: безлимит + PDF + импорт банка';
       case SubscriptionTier.accountant:
         return 'До 15 клиентов + ЛПР + дедлайны';
       case SubscriptionTier.accountantPro:
         return 'До 50 клиентов + приоритетная поддержка';
     }
   }
+}
+SubscriptionTier subscriptionTierFromApi(String? value) {
+  switch (value) {
+    case 'solo':
+    case 'ip':
+      return SubscriptionTier.solo;
+    case 'accountant':
+      return SubscriptionTier.accountant;
+    case 'accountant_pro':
+    case 'accountantPro':
+    case 'corporate':
+      return SubscriptionTier.accountantPro;
+    default:
+      return SubscriptionTier.free;
+  }
+}
+
+DateTime? _parseIsoDate(String? value) {
+  if (value == null || value.isEmpty) return null;
+  return DateTime.tryParse(value);
 }
 
 // ── Subscription state ──────────────────────────────────────────────────────
@@ -114,28 +144,35 @@ class SubscriptionState {
   final SubscriptionTier tier;
   final bool isYearly;
   final DateTime? trialStartedAt;
-  final bool trialExpired;
+  final DateTime? trialExpiresAt;
+  final DateTime? subscriptionExpiresAt;
   final int extraSlots; // overflow business slots purchased
 
   const SubscriptionState({
     this.tier = SubscriptionTier.free,
     this.isYearly = false,
     this.trialStartedAt,
-    this.trialExpired = false,
+    this.trialExpiresAt,
+    this.subscriptionExpiresAt,
     this.extraSlots = 0,
   });
 
   bool get isInTrial {
-    if (trialStartedAt == null || trialExpired) return false;
-    return DateTime.now().difference(trialStartedAt!).inDays < 3;
+    return trialExpiresAt != null && trialExpiresAt!.isAfter(DateTime.now());
   }
 
-  bool get hasFullAccess => tier != SubscriptionTier.free || isInTrial;
+  bool get isSubscriptionActive {
+    if (tier == SubscriptionTier.free) return false;
+    return subscriptionExpiresAt == null ||
+        subscriptionExpiresAt!.isAfter(DateTime.now());
+  }
+
+  bool get hasFullAccess => isSubscriptionActive || isInTrial;
 
   int get trialDaysLeft {
-    if (trialStartedAt == null) return 3;
-    final left = 3 - DateTime.now().difference(trialStartedAt!).inDays;
-    return left.clamp(0, 3);
+    if (trialExpiresAt == null) return 0;
+    final left = trialExpiresAt!.difference(DateTime.now()).inHours;
+    return (left / 24).ceil().clamp(0, 7).toInt();
   }
 
   int get totalBusinessSlots => tier.maxBusinessSlots + extraSlots;
@@ -158,13 +195,15 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
     final box = Hive.box(_boxName);
     final tierStr = box.get('sub_tier', defaultValue: 'free') as String;
     final trialStr = box.get('trial_started') as String?;
+    final trialExpiresStr = box.get('trial_expires') as String?;
+    final subscriptionExpiresStr = box.get('subscription_expires') as String?;
 
-    final tier = SubscriptionTier.values.firstWhere(
-      (t) => t.name == tierStr,
-      orElse: () => SubscriptionTier.free,
-    );
+    final tier = subscriptionTierFromApi(tierStr);
     final trialStarted = trialStr != null ? DateTime.tryParse(trialStr) : null;
-    final expired = box.get('trial_expired', defaultValue: false) as bool;
+    final trialExpires = trialExpiresStr != null ? DateTime.tryParse(trialExpiresStr) : null;
+    final subscriptionExpires = subscriptionExpiresStr != null
+        ? DateTime.tryParse(subscriptionExpiresStr)
+        : null;
     final yearly = box.get('sub_yearly', defaultValue: false) as bool;
     final extras = box.get('sub_extra_slots', defaultValue: 0) as int;
 
@@ -172,35 +211,82 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
       tier: tier,
       isYearly: yearly,
       trialStartedAt: trialStarted,
-      trialExpired: expired,
+      trialExpiresAt: trialExpires,
+      subscriptionExpiresAt: subscriptionExpires,
       extraSlots: extras,
     );
   }
 
-  /// Start 3-day trial (called on first registration)
+  /// Local fallback only. Server registration grants the canonical 7-day trial.
   void startTrial() {
     if (state.trialStartedAt != null) return;
     final now = DateTime.now();
-    Hive.box(_boxName).put('trial_started', now.toIso8601String());
+    final expires = now.add(const Duration(days: 7));
+    final box = Hive.box(_boxName);
+    box.put('trial_started', now.toIso8601String());
+    box.put('trial_expires', expires.toIso8601String());
     state = SubscriptionState(
       tier: state.tier,
       isYearly: state.isYearly,
       trialStartedAt: now,
-      trialExpired: false,
+      trialExpiresAt: expires,
+      subscriptionExpiresAt: state.subscriptionExpiresAt,
       extraSlots: state.extraSlots,
     );
   }
 
   /// Upgrade tier (after payment confirmation)
-  void setTier(SubscriptionTier tier, {bool yearly = false}) {
+  void setTier(
+    SubscriptionTier tier, {
+    bool yearly = false,
+    DateTime? subscriptionExpiresAt,
+  }) {
     final box = Hive.box(_boxName);
-    box.put('sub_tier', tier.name);
+    box.put('sub_tier', tier.apiName);
     box.put('sub_yearly', yearly);
+    if (subscriptionExpiresAt != null) {
+      box.put('subscription_expires', subscriptionExpiresAt.toIso8601String());
+    }
     state = SubscriptionState(
       tier: tier,
       isYearly: yearly,
       trialStartedAt: state.trialStartedAt,
-      trialExpired: state.trialExpired,
+      trialExpiresAt: state.trialExpiresAt,
+      subscriptionExpiresAt: subscriptionExpiresAt ?? state.subscriptionExpiresAt,
+      extraSlots: state.extraSlots,
+    );
+  }
+
+  void applyServerSnapshot(AuthSnapshot snapshot) {
+    final tier = subscriptionTierFromApi(snapshot.tier);
+    final trialStarted = _parseIsoDate(snapshot.trialStartedAt);
+    final trialExpires = _parseIsoDate(snapshot.trialExpiresAt);
+    final subscriptionExpires = _parseIsoDate(snapshot.subscriptionExpiresAt);
+    final box = Hive.box(_boxName);
+
+    box.put('sub_tier', tier.apiName);
+    if (trialStarted != null) {
+      box.put('trial_started', trialStarted.toIso8601String());
+    } else {
+      box.delete('trial_started');
+    }
+    if (trialExpires != null) {
+      box.put('trial_expires', trialExpires.toIso8601String());
+    } else {
+      box.delete('trial_expires');
+    }
+    if (subscriptionExpires != null) {
+      box.put('subscription_expires', subscriptionExpires.toIso8601String());
+    } else {
+      box.delete('subscription_expires');
+    }
+
+    state = SubscriptionState(
+      tier: tier,
+      isYearly: state.isYearly,
+      trialStartedAt: trialStarted,
+      trialExpiresAt: trialExpires,
+      subscriptionExpiresAt: subscriptionExpires,
       extraSlots: state.extraSlots,
     );
   }
@@ -213,21 +299,22 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
       tier: state.tier,
       isYearly: state.isYearly,
       trialStartedAt: state.trialStartedAt,
-      trialExpired: state.trialExpired,
+      trialExpiresAt: state.trialExpiresAt,
+      subscriptionExpiresAt: state.subscriptionExpiresAt,
       extraSlots: newExtras,
     );
   }
 
   /// Check and expire trial
   void checkTrial() {
-    if (state.trialStartedAt == null || state.trialExpired) return;
-    if (DateTime.now().difference(state.trialStartedAt!).inDays >= 3) {
-      Hive.box(_boxName).put('trial_expired', true);
+    if (state.trialExpiresAt == null || state.isInTrial) return;
+    if (state.tier == SubscriptionTier.free) {
       state = SubscriptionState(
         tier: state.tier,
         isYearly: state.isYearly,
         trialStartedAt: state.trialStartedAt,
-        trialExpired: true,
+        trialExpiresAt: state.trialExpiresAt,
+        subscriptionExpiresAt: state.subscriptionExpiresAt,
         extraSlots: state.extraSlots,
       );
     }
@@ -297,14 +384,24 @@ class _PaywallSheetState extends State<_PaywallSheet> {
     super.dispose();
   }
 
-  void _showReceiptDialog(BuildContext ctx, String tierLabel, int price, String period) {
-    showDialog(
-      context: ctx,
-      builder: (_) => _PostPaymentDialog(
-        tierLabel: tierLabel,
-        price: price,
-        period: period,
-      ),
+  Future<void> _requestPaymentLink() async {
+    final price = _yearly ? _selectedTier.yearlyPrice : _selectedTier.monthlyPrice;
+    final period = _yearly ? 'год' : 'месяц';
+    final userId = await AuthService.getUserId() ?? 'неизвестен';
+    final email = await AuthService.getEmail() ?? 'не указан';
+    final msg = Uri.encodeComponent(
+      'Здравствуйте! Хочу подключить тариф ${_selectedTier.label} '
+      'за ${_PlanCard._formatPrice(price)}/$period в Esep.\n'
+      'Email: $email\n'
+      'User ID: $userId\n'
+      'Пришлите, пожалуйста, ссылку Kaspi для оплаты.',
+    );
+
+    if (!mounted) return;
+    Navigator.pop(context);
+    await launchUrl(
+      Uri.parse('https://wa.me/77075884651?text=$msg'),
+      mode: LaunchMode.externalApplication,
     );
   }
 
@@ -327,14 +424,12 @@ class _PaywallSheetState extends State<_PaywallSheet> {
 
     if (result.success) {
       // Update local tier
-      final tier = SubscriptionTier.values.firstWhere(
-        (t) => t.name == result.tier,
-        orElse: () => SubscriptionTier.solo,
-      );
+      final tier = subscriptionTierFromApi(result.tier);
+      final expiresAt = _parseIsoDate(result.expiresAt);
       // ignore: use_build_context_synchronously
       ProviderScope.containerOf(context)
           .read(subscriptionProvider.notifier)
-          .setTier(tier);
+          .setTier(tier, subscriptionExpiresAt: expiresAt);
 
       // Close after short delay
       Future.delayed(const Duration(seconds: 2), () {
@@ -386,7 +481,7 @@ class _PaywallSheetState extends State<_PaywallSheet> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Безлимит операций, PDF-счета, импорт из банка,\nнапоминания о дедлайнах и многое другое.',
+            '7 дней бесплатно, дальше тарифы от 2 000 ₸/мес.\nБезлимит операций, PDF-счета и импорт из банка.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, color: EsepColors.textSecondary, height: 1.5),
           ),
@@ -537,38 +632,19 @@ class _PaywallSheetState extends State<_PaywallSheet> {
           ),
           const SizedBox(height: 12),
 
-          // CTA — Kaspi Pay
+          // CTA — manual WhatsApp payment link request
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              icon: const Icon(Iconsax.card, size: 18),
-              label: const Text('Оплатить через Kaspi Pay',
+              icon: const Icon(Iconsax.message, size: 18),
+              label: const Text('Получить ссылку на оплату',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                backgroundColor: const Color(0xFFDC2626), // Kaspi red
+                backgroundColor: const Color(0xFF25D366),
               ),
-              onPressed: () async {
-                final price = _yearly
-                    ? _selectedTier.yearlyPrice
-                    : _selectedTier.monthlyPrice;
-                final period = _yearly ? 'год' : 'мес';
-                final tierLabel = _selectedTier.label;
-
-                Navigator.pop(context);
-
-                // Open Kaspi Pay
-                const kaspiPayUrl = 'https://pay.kaspi.kz/pay/0mg3eonh';
-                await launchUrl(
-                  Uri.parse(kaspiPayUrl),
-                  mode: LaunchMode.externalApplication,
-                );
-
-                // Show post-payment dialog
-                if (!context.mounted) return;
-                _showReceiptDialog(context, tierLabel, price, period);
-              },
+              onPressed: _requestPaymentLink,
             ),
           ),
           const SizedBox(height: 8),
@@ -732,80 +808,5 @@ class _PlanCard extends StatelessWidget {
       return '$thousands ${remainder.toString().padLeft(3, '0')} ₸';
     }
     return '$price ₸';
-  }
-}
-
-// ── Post-payment receipt dialog ─────────────────────────────────────────────
-
-class _PostPaymentDialog extends StatelessWidget {
-  const _PostPaymentDialog({
-    required this.tierLabel,
-    required this.price,
-    required this.period,
-  });
-  final String tierLabel;
-  final int price;
-  final String period;
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 64, height: 64,
-            decoration: BoxDecoration(
-              color: const Color(0xFFDCFCE7),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(Iconsax.tick_circle, color: Color(0xFF16A34A), size: 32),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Оплатили?',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Отправьте скриншот чека в WhatsApp — мы активируем тариф в течение 5 минут!',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: EsepColors.textSecondary, height: 1.5),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              icon: const Icon(Iconsax.message, size: 18),
-              label: const Text('Отправить чек в WhatsApp',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                backgroundColor: const Color(0xFF25D366),
-              ),
-              onPressed: () {
-                Navigator.pop(context);
-                final msg = Uri.encodeComponent(
-                  'Оплатил(а) тариф $tierLabel ($price ₸/$period) в Esep. '
-                  'Прикрепляю скриншот чека.',
-                );
-                launchUrl(
-                  Uri.parse('https://wa.me/77075884651?text=$msg'),
-                  mode: LaunchMode.externalApplication,
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Позже', style: TextStyle(color: EsepColors.textSecondary)),
-          ),
-        ],
-      ),
-    );
   }
 }

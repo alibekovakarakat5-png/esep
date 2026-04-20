@@ -2,6 +2,7 @@ const router = require('express').Router();
 const db     = require('../db');
 const { adminAuth } = require('./admin');
 const authMiddleware = require('../middleware/auth');
+const { TIERS, normalizeTier } = require('../tiers');
 
 // ── POST /api/promos/validate — check promo code (authenticated) ────────────
 router.post('/validate', authMiddleware, async (req, res) => {
@@ -40,7 +41,7 @@ router.post('/validate', authMiddleware, async (req, res) => {
     res.json({
       valid: true,
       code: promo.code,
-      tier: promo.grant_tier,
+      tier: normalizeTier(promo.grant_tier),
       duration_days: promo.duration_days,
       description: promo.description,
     });
@@ -84,6 +85,7 @@ router.post('/activate', authMiddleware, async (req, res) => {
     }
 
     // Calculate expiration
+    const grantTier = normalizeTier(promo.grant_tier);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + promo.duration_days);
 
@@ -92,10 +94,13 @@ router.post('/activate', authMiddleware, async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      // Update user tier
+      // Update user tier and extend server-side access window.
       await client.query(
-        `UPDATE users SET tier = $1 WHERE id = $2`,
-        [promo.grant_tier, req.userId],
+        `UPDATE users
+            SET tier = $1,
+                subscription_expires_at = GREATEST(COALESCE(subscription_expires_at, NOW()), NOW()) + ($2 || ' days')::INTERVAL
+          WHERE id = $3`,
+        [grantTier, promo.duration_days, req.userId],
       );
 
       // Record usage
@@ -121,10 +126,10 @@ router.post('/activate', authMiddleware, async (req, res) => {
 
     res.json({
       ok: true,
-      tier: promo.grant_tier,
+      tier: grantTier,
       expires_at: expiresAt.toISOString(),
       duration_days: promo.duration_days,
-      message: `Тариф "${promo.grant_tier}" активирован на ${promo.duration_days} дней!`,
+      message: `Тариф "${grantTier}" активирован на ${promo.duration_days} дней!`,
     });
   } catch (err) {
     console.error('POST /promos/activate error:', err);
@@ -156,12 +161,16 @@ router.post('/', adminAuth, async (req, res) => {
     if (!code || !grant_tier || !duration_days) {
       return res.status(400).json({ error: 'code, grant_tier, duration_days are required' });
     }
+    const normalizedTier = normalizeTier(grant_tier);
+    if (!TIERS.includes(normalizedTier)) {
+      return res.status(400).json({ error: `grant_tier must be one of: ${TIERS.join(', ')}` });
+    }
 
     const { rows } = await db.query(
       `INSERT INTO promo_codes (code, grant_tier, duration_days, max_uses, description, expires_at)
        VALUES (UPPER($1), $2, $3, $4, $5, $6)
        RETURNING *`,
-      [code.trim(), grant_tier, duration_days, max_uses ?? 0, description ?? '', expires_at ?? null],
+      [code.trim(), normalizedTier, duration_days, max_uses ?? 0, description ?? '', expires_at ?? null],
     );
 
     res.status(201).json(rows[0]);
@@ -190,8 +199,8 @@ async function seedPromos() {
   await db.query(`
     INSERT INTO promo_codes (code, grant_tier, duration_days, max_uses, description)
     VALUES
-      ('REVIEW6', 'ip', 180, 100, 'Отзыв = 6 месяцев бесплатно (Solo)'),
-      ('LAUNCH2026', 'ip', 30, 500, 'Запуск Esep — 1 месяц бесплатно'),
+      ('REVIEW6', 'solo', 180, 100, 'Отзыв = 6 месяцев бесплатно (Solo)'),
+      ('LAUNCH2026', 'solo', 30, 500, 'Запуск Esep — 1 месяц бесплатно'),
       ('ACCOUNTANT', 'accountant', 90, 50, 'Бухгалтерам — 3 месяца бесплатно')
     ON CONFLICT (code) DO NOTHING
   `);

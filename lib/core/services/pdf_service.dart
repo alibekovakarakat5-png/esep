@@ -493,6 +493,7 @@ class PdfService {
   }
 
   static pw.Widget _reportTaxSection(TaxCalculation910 tax, SocialPayments social, double socialTotal, int months) {
+    final rateLabel = _percentLabel(KzTax.simplified910TotalRate);
     return pw.Container(
       padding: const pw.EdgeInsets.all(14),
       decoration: pw.BoxDecoration(
@@ -504,9 +505,9 @@ class PdfService {
         pw.Text('Налоги и соцплатежи (910 упрощёнка)',
             style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: _dark)),
         pw.SizedBox(height: 8),
-        _taxRow('ИПН (1.5%)', tax.ipn),
-        _taxRow('СН (1.5%)', tax.sn),
-        _taxRow('Итого налог (3%)', tax.totalTax, bold: true),
+        _taxRow('ИПН ($rateLabel)', tax.ipn),
+        _taxRow('СН (0%)', tax.sn),
+        _taxRow('Итого налог ($rateLabel)', tax.totalTax, bold: true),
         pw.Divider(color: _divider, height: 12),
         _taxRow('ОПВ (10% от МЗП × $months мес)', social.opv * months),
         _taxRow('ОПВР (3.5% от МЗП × $months мес)', social.opvr * months),
@@ -517,6 +518,13 @@ class PdfService {
         _taxRow('ВСЕГО К УПЛАТЕ', tax.totalTax + socialTotal, bold: true, color: _blue),
       ]),
     );
+  }
+
+  static String _percentLabel(double rate) {
+    final percent = rate * 100;
+    return percent == percent.roundToDouble()
+        ? '${percent.toStringAsFixed(0)}%'
+        : '${percent.toStringAsFixed(1)}%';
   }
 
   static pw.Widget _taxRow(String label, double amount, {bool bold = false, PdfColor? color}) {

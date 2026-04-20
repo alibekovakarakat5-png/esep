@@ -121,7 +121,7 @@ class _SalaryCalculatorScreenState extends State<SalaryCalculatorScreen> {
                   Padding(
                     padding: const EdgeInsets.only(left: 0, top: 2, bottom: 8),
                     child: Text(
-                      'База: ${_fmt.format(_salary)} - ${_fmt.format(opv)} (ОПВ) - ${_fmt.format(mrpDeduction)} (14 МРП) = ${_fmt.format(ipnTaxable)} ₸',
+                      'База: ${_fmt.format(_salary)} - ${_fmt.format(opv)} (ОПВ) - ${_fmt.format(mrpDeduction)} (30 МРП) = ${_fmt.format(ipnTaxable)} ₸',
                       style: const TextStyle(fontSize: 11, color: EsepColors.textSecondary),
                     ),
                   ),

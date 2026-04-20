@@ -146,7 +146,7 @@ class EmployeeSocialCalc {
   final Employee employee;
   final double opv;       // ОПВ — пенсионные (из з/п сотрудника, 10%)
   final double ipn;       // ИПН — подоходный (из з/п, ~10%)
-  final double opvr;      // ОПВР — пенсионные работодателя (1.5%)
+  final double opvr;      // ОПВР — пенсионные работодателя (3.5% в 2026)
   final double so;        // СО — соцотчисления работодателя (5%)
   final double vosms;     // ВОСМС работодателя (2%)
   final double vosmsSelf; // ВОСМС сотрудника (1%)

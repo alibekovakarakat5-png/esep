@@ -17,19 +17,31 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> _check() async {
     final logged = await AuthService.isLoggedIn();
-    state = logged ? AuthState.authenticated : AuthState.unauthenticated;
+    if (logged) {
+      try {
+        final snapshot = await AuthService.me();
+        _ref.read(subscriptionProvider.notifier).applyServerSnapshot(snapshot);
+        state = AuthState.authenticated;
+      } catch (_) {
+        await AuthService.logout();
+        state = AuthState.unauthenticated;
+      }
+    } else {
+      state = AuthState.unauthenticated;
+    }
   }
 
   Future<void> login(String email, String password) async {
-    await AuthService.login(email, password);
+    final snapshot = await AuthService.login(email, password);
     _ref.read(isDemoProvider.notifier).state = false;
+    _ref.read(subscriptionProvider.notifier).applyServerSnapshot(snapshot);
     state = AuthState.authenticated;
   }
 
   Future<void> register(String email, String password, String name) async {
-    await AuthService.register(email, password, name);
+    final snapshot = await AuthService.register(email, password, name);
     _ref.read(isDemoProvider.notifier).state = false;
-    _ref.read(subscriptionProvider.notifier).startTrial();
+    _ref.read(subscriptionProvider.notifier).applyServerSnapshot(snapshot);
     state = AuthState.authenticated;
   }
 

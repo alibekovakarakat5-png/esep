@@ -52,7 +52,9 @@ class KzTax {
   /// Суммарная ставка 910
   static double get simplified910TotalRate => ipnRate + snRate;
 
-  /// Региональные корректировки — маслихат ±50%
+  /// Региональные корректировки — маслихат может менять ставку 4% до 2-6%.
+  static const double regionalAdjustmentMin = -0.02;
+  static const double regionalAdjustmentMax = 0.02;
   static const double regionalDiscountMin = 0.0;
   static const double regionalDiscountMax = 0.02;
 
@@ -255,8 +257,13 @@ class KzTax {
 
   /// Рассчитать налоги по упрощёнке (910) за полугодие (Новый НК РК 2026)
   /// Ставка 4% — 100% ИПН, СН = 0%. Маслихат может скорректировать ±50%.
-  static TaxCalculation910 calculate910(double income, {double regionalDiscount = 0.0}) {
-    final effectiveRate = (simplified910TotalRate - regionalDiscount).clamp(0.0, 1.0);
+  static TaxCalculation910 calculate910(
+    double income, {
+    double regionalAdjustment = 0.0,
+    double regionalDiscount = 0.0,
+  }) {
+    final adjustment = regionalAdjustment != 0 ? regionalAdjustment : -regionalDiscount;
+    final effectiveRate = (simplified910TotalRate + adjustment).clamp(0.0, 1.0);
     final ipn = income * effectiveRate;
 
     return TaxCalculation910(
@@ -287,10 +294,15 @@ class KzTax {
   /// Полный расчёт: налоги 910 + соцплатежи за 6 месяцев
   static FullTaxSummary calculateFull910(
     double halfYearIncome, {
+    double regionalAdjustment = 0.0,
     double regionalDiscount = 0.0,
     bool bornBefore1975 = false,
   }) {
-    final tax         = calculate910(halfYearIncome, regionalDiscount: regionalDiscount);
+    final tax         = calculate910(
+      halfYearIncome,
+      regionalAdjustment: regionalAdjustment,
+      regionalDiscount: regionalDiscount,
+    );
     final social      = calculateMonthlySocial(bornBefore1975: bornBefore1975);
     final socialHalfYear = social.total * 6;
     return FullTaxSummary(

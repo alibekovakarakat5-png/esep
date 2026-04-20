@@ -26,8 +26,8 @@ class Form910Data {
   final double calculatedTax;           // 910.00.005 = income * 4%
   final double taxAdjustment;           // 910.00.006
   final double netTax;                  // 910.00.007 = 005 - 006
-  final double ipn;                     // 910.00.008 = 007 * 0.5
-  final double socialTax;               // 910.00.009 = 007 * 0.5 - СО
+  final double ipn;                     // 910.00.008 = 007 (100% ИПН)
+  final double socialTax;               // 910.00.009 = 0% для СНР с 2026
 
   // Section 2: Social contributions (за ИП "за себя")
   final double soIncome;                // 910.00.010
@@ -106,26 +106,18 @@ class Form910Service {
     // Tax calculation (Новый НК РК 2026, ставка 4%)
     final calculatedTax = income * KzTax.simplified910TotalRate; // 4%
 
-    // Tax adjustment for employees (1.5% per employee if avg wage >= 23 МРП)
-    double taxAdjustment = 0;
-    if (employeeCount > 0 && totalPayroll > 0) {
-      final avgWage = totalPayroll / employeeCount;
-      if (avgWage >= KzTax.currentMrp * 23) {
-        taxAdjustment = calculatedTax * employeeCount * 0.015;
-        if (taxAdjustment > calculatedTax) taxAdjustment = calculatedTax;
-      }
-    }
+    // Regional 2-6% adjustments are handled by the configured 910 rate.
+    const taxAdjustment = 0.0;
 
     final netTax = calculatedTax - taxAdjustment;
-    final ipn = netTax * 0.5;
+    final ipn = netTax;
 
     // Social contributions for the half-year (6 months)
     final social = KzTax.calculateMonthlySocial(bornBefore1975: bornBefore1975);
     final soTotal = social.so * 6;
 
-    // Social tax = 50% of net tax minus SO
-    var socialTax = netTax * 0.5 - soTotal;
-    if (socialTax < 0) socialTax = 0;
+    // Social tax is 0% for special tax regimes under the 2026 config.
+    const socialTax = 0.0;
 
     return Form910Data(
       iin: company.iin,
@@ -154,11 +146,12 @@ class Form910Service {
   static String generateXml(Form910Data data) {
     final now = DateTime.now();
     final fmt = NumberFormat('0.00');
+    final ratePercent = (KzTax.simplified910TotalRate * 100).toStringAsFixed(0);
 
     return '''<?xml version="1.0" encoding="UTF-8"?>
 <declaration>
   <formCode>910.00</formCode>
-  <formVersion>2025</formVersion>
+  <formVersion>2026</formVersion>
   <generatedBy>Esep</generatedBy>
   <generatedAt>${_dateFmt.format(now)}</generatedAt>
 
@@ -180,7 +173,7 @@ class Form910Service {
     <field code="910.00.002" name="Корректировка трансфертного ценообразования">${fmt.format(data.transferPricing)}</field>
     <field code="910.00.003" name="Среднесписочная численность работников">${fmt.format(data.avgEmployees)}</field>
     <field code="910.00.004" name="Среднемесячная з/п на работника">${fmt.format(data.avgMonthlyWage)}</field>
-    <field code="910.00.005" name="Исчисленные налоги (4%)">${fmt.format(data.calculatedTax)}</field>
+    <field code="910.00.005" name="Исчисленные налоги ($ratePercent%)">${fmt.format(data.calculatedTax)}</field>
     <field code="910.00.006" name="Корректировка налогов">${fmt.format(data.taxAdjustment)}</field>
     <field code="910.00.007" name="Итого налогов">${fmt.format(data.netTax)}</field>
     <field code="910.00.008" name="ИПН">${fmt.format(data.ipn)}</field>

@@ -177,7 +177,6 @@ ClientDeadline? nearestDeadline(AccountingClient client) {
 
 EmployeeSocialCalc calcEmployeeSocial(Employee emp) {
   final salary = emp.salary;
-  final mrp = KzTax.currentMrp;
   final mzp = KzTax.currentMzp;
 
   // ОПВ: 10% от зарплаты, max база = 50 МЗП (ст. 25 Закона о пенсионном обеспечении)
@@ -188,8 +187,8 @@ EmployeeSocialCalc calcEmployeeSocial(Employee emp) {
   final vosmsSelfBase = salary.clamp(0, KzTax.employeeVosmsMaxBase);
   final vosmsSelf = vosmsSelfBase * KzTax.employeeVosmsRate;
 
-  // ИПН: 10% от (зарплата - ОПВ - 14 МРП стандартный вычет) (ст. 353 НК РК)
-  final standardDeduction = mrp * 14;
+  // ИПН: 10% от (зарплата - ОПВ - 30 МРП стандартный вычет) (НК РК 2026)
+  final standardDeduction = KzTax.ipnMonthlyDeduction;
   final ipnBase = (salary - opv - standardDeduction).clamp(0, double.infinity);
   final ipn = ipnBase * 0.10;
 

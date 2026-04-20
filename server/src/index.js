@@ -43,11 +43,19 @@ async function migrate() {
       name          TEXT        NOT NULL DEFAULT '',
       password_hash TEXT        NOT NULL,
       tier          TEXT        NOT NULL DEFAULT 'free',
+      trial_started_at TIMESTAMPTZ,
+      trial_expires_at TIMESTAMPTZ,
+      subscription_expires_at TIMESTAMPTZ,
       created_at    TIMESTAMPTZ DEFAULT NOW()
     );
 
     -- Add tier column if upgrading from existing DB
     ALTER TABLE users ADD COLUMN IF NOT EXISTS tier TEXT NOT NULL DEFAULT 'free';
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMPTZ;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_expires_at TIMESTAMPTZ;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMPTZ;
+    UPDATE users SET tier = 'solo' WHERE tier = 'ip';
+    UPDATE users SET tier = 'accountant_pro' WHERE tier IN ('corporate', 'accountantPro');
 
     CREATE TABLE IF NOT EXISTS transactions (
       id          TEXT          PRIMARY KEY,
@@ -140,7 +148,7 @@ async function migrate() {
     CREATE TABLE IF NOT EXISTS promo_codes (
       id            SERIAL      PRIMARY KEY,
       code          TEXT        UNIQUE NOT NULL,
-      grant_tier    TEXT        NOT NULL DEFAULT 'ip',
+      grant_tier    TEXT        NOT NULL DEFAULT 'solo',
       duration_days INT         NOT NULL DEFAULT 30,
       max_uses      INT         NOT NULL DEFAULT 0,  -- 0 = unlimited
       used_count    INT         NOT NULL DEFAULT 0,
@@ -160,6 +168,8 @@ async function migrate() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_promo_usages_user ON promo_usages(user_id);
+    UPDATE promo_codes SET grant_tier = 'solo' WHERE grant_tier = 'ip';
+    UPDATE promo_codes SET grant_tier = 'accountant_pro' WHERE grant_tier IN ('corporate', 'accountantPro');
 
     CREATE TABLE IF NOT EXISTS bot_users (
       chat_id         TEXT        PRIMARY KEY,
@@ -263,7 +273,7 @@ app.use('/api/promos',       promoRoutes);
 app.use('/api/articles',     articleRoutes);
 app.use('/api/bin',          binLookupRoutes);
 app.use('/api/lpr',          authMiddleware, lprRoutes);
-app.use('/api/ai-chat',      aiChatRoutes);
+app.use('/api/ai-chat',      authMiddleware, aiChatRoutes);
 
 // ── Telegram bot webhook ──────────────────────────────────────────────────────
 const tg = require('./bot/telegram');

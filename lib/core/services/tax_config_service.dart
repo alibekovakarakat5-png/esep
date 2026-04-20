@@ -39,7 +39,7 @@ class TaxConfigService {
   /// Не блокирует UI — если ошибка, используются Hive-кэш или хардкод.
   static Future<void> fetch() async {
     try {
-      final data = await ApiClient.get('/api/config/tax');
+      final data = await ApiClient.get('/config/tax');
       if (data is Map) {
         final newCache = <String, String>{};
         for (final entry in data.entries) {

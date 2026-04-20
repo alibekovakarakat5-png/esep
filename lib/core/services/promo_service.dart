@@ -7,7 +7,7 @@ class PromoService {
       final data = await ApiClient.post('/promos/validate', {'code': code}) as Map;
       return PromoResult(
         valid: true,
-        tier: data['tier'] as String? ?? 'ip',
+        tier: data['tier'] as String? ?? 'solo',
         durationDays: data['duration_days'] as int? ?? 30,
         description: data['description'] as String? ?? '',
       );
@@ -22,7 +22,7 @@ class PromoService {
       final data = await ApiClient.post('/promos/activate', {'code': code}) as Map;
       return PromoActivation(
         success: true,
-        tier: data['tier'] as String? ?? 'ip',
+        tier: data['tier'] as String? ?? 'solo',
         durationDays: data['duration_days'] as int? ?? 30,
         expiresAt: data['expires_at'] as String? ?? '',
         message: data['message'] as String? ?? 'Промокод активирован!',

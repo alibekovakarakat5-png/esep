@@ -152,7 +152,7 @@ class _ReformBanner extends StatelessWidget {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Ставки 2026: упрощёнка 3%, соцстрахование 5%, пенсия работодателя 3.5%, медстрахование 5%. Самозанятые — 4%.',
+                  'Ставки 2026: упрощёнка 4% (маслихат может менять до 2-6%), соцстрахование 5%, пенсия работодателя 3.5%, медстрахование 5%. Самозанятые — 4%.',
                   style: TextStyle(fontSize: 12, color: EsepColors.info),
                 ),
               ),
@@ -212,7 +212,7 @@ class _SimplifiedCard extends StatelessWidget {
           const Row(children: [
             Icon(Iconsax.calculator, color: EsepColors.primary, size: 20),
             SizedBox(width: 8),
-            Text('Упрощёнка (910) — 3%', style: TextStyle(fontWeight: FontWeight.w600)),
+            Text('Упрощёнка (910) — 4%', style: TextStyle(fontWeight: FontWeight.w600)),
           ]),
           const Divider(height: 24),
           _TaxRow('Доход за полугодие', fmt.format(tax.income), EsepColors.textPrimary),

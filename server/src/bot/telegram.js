@@ -70,24 +70,31 @@ async function postToChannel(text, extra = {}) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function getTaxConfig() {
+  const defaults = {
+    mrp: 4325, mzp: 85000,
+    ipn_rate_910: 0.04, sn_rate_910: 0,
+    opv_rate: 0.10, opvr_rate: 0.035, so_rate: 0.05,
+    vosms_rate_self: 0.05, vosms_base_mult: 1.4,
+    esp_mrp_city_mult: 1, esp_mrp_rural_mult: 0.5,
+    esp_year_mrp_limit: 1175,
+    self_emp_rate: 0.04, self_emp_year_limit: 3600,
+    vat_rate: 0.16, vat_threshold_mrp: 10000,
+    '910_year_mrp': 600000,
+  };
   try {
     const { rows } = await db.query('SELECT key, value FROM tax_config');
     const cfg = {};
     for (const r of rows) cfg[r.key] = parseFloat(r.value) || r.value;
-    return cfg;
+    return { ...defaults, ...cfg };
   } catch {
     // Fallback if DB not ready
-    return {
-      mrp: 4325, mzp: 85000,
-      ipn_rate_910: 0.015, sn_rate_910: 0.015,
-      opv_rate: 0.10, opvr_rate: 0.035, so_rate: 0.05,
-      vosms_rate_self: 0.05, vosms_base_mult: 1.4,
-      esp_mrp_city_mult: 1, esp_mrp_rural_mult: 0.5,
-      esp_year_mrp_limit: 1175,
-      self_emp_rate: 0.04, self_emp_year_limit: 3528,
-      '910_half_year_mrp': 24038,
-    };
+    return defaults;
   }
+}
+
+function formatRate(rate) {
+  const pct = Number(rate) * 100;
+  return Number.isInteger(pct) ? `${pct}%` : `${pct.toFixed(1)}%`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -203,11 +210,12 @@ async function handleCalc(chatId, args) {
   }
 
   const c = await getTaxConfig();
-  const limit = c.mrp * c['910_half_year_mrp'];
+  const halfYearLimitMrp = (c['910_year_mrp'] ?? 600000) / 2;
+  const limit = c.mrp * halfYearLimitMrp;
   const ipn  = income * c.ipn_rate_910;
   const sn   = income * c.sn_rate_910;
   const total = ipn + sn;
-  const rate  = (c.ipn_rate_910 + c.sn_rate_910) * 100;
+  const rate  = formatRate(c.ipn_rate_910 + c.sn_rate_910);
 
   const opv   = c.mzp * c.opv_rate;
   const opvr  = c.mzp * c.opvr_rate;
@@ -225,9 +233,9 @@ async function handleCalc(chatId, args) {
   send(chatId,
     `🧮 <b>Расчёт по упрощёнке (910)</b>\n` +
     `Доход за полугодие: <b>${fmt(income)} ₸</b>\n\n` +
-    `<b>Налоги (${rate}%):</b>\n` +
-    `  ИПН (1.5%): ${fmt(ipn)} ₸\n` +
-    `  СН (1.5%): ${fmt(sn)} ₸\n` +
+    `<b>Налоги (${rate}):</b>\n` +
+    `  ИПН (${formatRate(c.ipn_rate_910)}): ${fmt(ipn)} ₸\n` +
+    `  СН (${formatRate(c.sn_rate_910)}): ${fmt(sn)} ₸\n` +
     `  <b>Итого налоги: ${fmt(total)} ₸</b>\n\n` +
     `<b>Соцплатежи за 6 мес:</b>\n` +
     `  ОПВ 10%: ${fmt(opv)} ₸/мес\n` +
@@ -292,22 +300,23 @@ async function handleSocial(chatId) {
 async function handleRates(chatId) {
   const c = await getTaxConfig();
   const fmt = (n) => typeof n === 'number' ? n.toLocaleString('ru-RU') : n;
+  const halfYearLimitMrp = (c['910_year_mrp'] ?? 600000) / 2;
 
   send(chatId,
     `📊 <b>Актуальные ставки 2026</b>\n\n` +
     `🔹 МРП: <b>${fmt(c.mrp)} ₸</b>\n` +
     `🔹 МЗП: <b>${fmt(c.mzp)} ₸</b>\n\n` +
     `<b>Упрощёнка (910):</b>\n` +
-    `  ИПН: ${c.ipn_rate_910 * 100}% | СН: ${c.sn_rate_910 * 100}%\n` +
-    `  Итого: ${(c.ipn_rate_910 + c.sn_rate_910) * 100}%\n` +
-    `  Лимит: ${fmt(c['910_half_year_mrp'])} МРП = ${fmt(Math.round(c.mrp * c['910_half_year_mrp']))} ₸/полугодие\n\n` +
+    `  ИПН: ${formatRate(c.ipn_rate_910)} | СН: ${formatRate(c.sn_rate_910)}\n` +
+    `  Итого: ${formatRate(c.ipn_rate_910 + c.sn_rate_910)}\n` +
+    `  Лимит: ${fmt(halfYearLimitMrp)} МРП = ${fmt(Math.round(c.mrp * halfYearLimitMrp))} ₸/полугодие\n\n` +
     `<b>Соцплатежи "за себя":</b>\n` +
     `  ОПВ: ${c.opv_rate * 100}% | ОПВР: ${c.opvr_rate * 100}%\n` +
     `  СО: ${c.so_rate * 100}% | ВОСМС: ${c.vosms_rate_self * 100}%×${c.vosms_base_mult}МЗП\n\n` +
     `<b>Другие режимы:</b>\n` +
     `  ЕСП: ${fmt(c.esp_mrp_city_mult)} МРП/мес город, лимит ${fmt(c.esp_year_mrp_limit)} МРП/год\n` +
-    `  Самозанятый: ${c.self_emp_rate * 100}%, лимит ${fmt(c.self_emp_year_limit)} МРП/год\n` +
-    `  НДС: 12%, порог 20 000 МРП`,
+    `  Самозанятый: ${formatRate(c.self_emp_rate)}, лимит ${fmt(c.self_emp_year_limit)} МРП/год\n` +
+    `  НДС: ${formatRate(c.vat_rate)}, порог ${fmt(c.vat_threshold_mrp)} МРП`,
   );
 }
 
@@ -502,14 +511,14 @@ async function handleFreeText(chatId, text) {
   }
   if (lower.includes('самозаня')) {
     if (num) return handleSelf(chatId, String(num));
-    return send(chatId, 'Режим самозанятого: 4% от дохода, лимит 3 528 МРП/год.\nУкажите сумму: <code>/self 1000000</code>');
+    return send(chatId, 'Режим самозанятого: 4% от дохода, лимит 3 600 МРП/год.\nУкажите сумму: <code>/self 1000000</code>');
   }
   if (lower.includes('срок') || lower.includes('дедлайн') || lower.includes('когда сдавать')) {
     return handleDeadlines(chatId);
   }
   if (lower.includes('910') || lower.includes('упрощён') || lower.includes('упрощен')) {
     if (num) return handleCalc(chatId, String(num));
-    return send(chatId, 'Упрощёнка (910): 3% от дохода (1.5% ИПН + 1.5% СН).\nУкажите сумму: <code>/calc 5000000</code>');
+    return send(chatId, 'Упрощёнка (910): 4% от дохода (ИПН 4%, СН 0%).\nУкажите сумму: <code>/calc 5000000</code>');
   }
 
   // Default: не понял
@@ -771,8 +780,8 @@ async function handleCallbackQuery(cb) {
     return send(chatId,
       `📋 <b>Упрощёнка (форма 910)</b>\n\n` +
       `Самый популярный режим для ИП в Казахстане.\n\n` +
-      `<b>Ставка:</b> 3% от дохода (1.5% ИПН + 1.5% СН)\n` +
-      `<b>Лимит:</b> ~103.9 млн ₸ за полугодие\n` +
+      `<b>Ставка:</b> 4% от дохода (ИПН 4%, СН 0%)\n` +
+      `<b>Лимит:</b> 300 000 МРП за полугодие\n` +
       `<b>Отчётность:</b> 910.00 раз в полугодие\n` +
       `<b>+ Соцплатежи:</b> ~21 675 ₸/мес за себя\n\n` +
       `Попробуйте расчёт:`,
@@ -842,7 +851,7 @@ async function handleCallbackQuery(cb) {
       `🏢 <b>ОУР (Общеустановленный режим)</b>\n\n` +
       `Для крупного бизнеса или тех, кто превысил лимит 910.\n\n` +
       `<b>ИПН:</b> 10% от чистого дохода\n` +
-      `<b>НДС:</b> 12% (при обороте > 20 000 МРП)\n` +
+      `<b>НДС:</b> 16% (при обороте > 10 000 МРП)\n` +
       `<b>Отчётность:</b> ежеквартальная\n\n` +
       `Бот пока не считает ОУР — это сложный режим.\n` +
       `Рекомендуем обратиться к бухгалтеру.`,
@@ -866,7 +875,7 @@ async function handleCallbackQuery(cb) {
       `Кратко:\n\n` +
       `🏷 <b>ЕСП</b> — доход до ~5 млн/год, фикс. ~4 325 ₸/мес\n` +
       `👤 <b>Самозанятый</b> — до ~15 млн/год, 4%, без сотрудников\n` +
-      `📋 <b>Упрощёнка 910</b> — до ~104 млн/полугодие, 3%\n` +
+      `📋 <b>Упрощёнка 910</b> — до 300 000 МРП/полугодие, 4%\n` +
       `🏢 <b>ОУР</b> — без лимитов, 10% + НДС\n\n` +
       `Большинство ИП работают на <b>упрощёнке (910)</b>.\n` +
       `Попробуйте рассчитать:`,
@@ -897,10 +906,9 @@ async function handleCallbackQuery(cb) {
 // ADMIN NOTIFICATIONS — уведомления разработчику
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/** Generate a temporary admin link (password in query, valid only for admin private chat) */
+/** Generate an admin link. Login is handled by /api/admin/login cookie flow. */
 function adminLink(adminUrl, hash) {
-  const pass = process.env.ADMIN_PASSWORD ?? '';
-  return `${adminUrl}/api/admin?pass=${encodeURIComponent(pass)}#${hash}`;
+  return `${adminUrl}/api/admin#${hash}`;
 }
 
 function notifyNewUser({ email, name }) {
@@ -1009,7 +1017,7 @@ const TAX_TIPS = [
   },
   {
     title: 'Лимит по упрощёнке (910)',
-    body: 'Максимальный доход — 24 038 МРП за полугодие (около 103.9 млн тенге). Превышение = переход на другой режим.',
+    body: 'Максимальный доход — 600 000 МРП за год (300 000 МРП за полугодие). Превышение = переход на другой режим.',
   },
   {
     title: 'ОПВР — новый взнос',
@@ -1017,7 +1025,7 @@ const TAX_TIPS = [
   },
   {
     title: 'Сравнение режимов',
-    body: 'Упрощёнка (910): 3% от дохода + соцплатежи.\nЕСП: фиксированная сумма (1 МРП/мес), но лимит дохода ~5 млн/год.\nСамозанятый: 4%, но нет найма сотрудников.\n\nВыбирайте режим под свой масштаб!',
+    body: 'Упрощёнка (910): 4% от дохода + соцплатежи.\nЕСП: фиксированная сумма (1 МРП/мес), но лимит дохода ~5 млн/год.\nСамозанятый: 4%, но нет найма сотрудников.\n\nВыбирайте режим под свой масштаб!',
   },
   {
     title: 'Срок подачи 910.00',
@@ -1037,7 +1045,7 @@ const TAX_TIPS = [
   },
   {
     title: 'НДС — когда встаёте на учёт?',
-    body: 'Порог: оборот свыше 20 000 МРП за 12 мес = 86 500 000 тенге.\nПосле регистрации: +12% к цене, но можно зачитывать входящий НДС.',
+    body: 'Порог: оборот свыше 10 000 МРП за 12 мес = 43 250 000 тенге.\nПосле регистрации: +16% к цене, но можно зачитывать входящий НДС.',
   },
 ];
 
@@ -1125,7 +1133,7 @@ async function postLeadMagnet() {
   const messages = [
     '🧮 <b>Бесплатный калькулятор налогов ИП</b>\n\n' +
     'Не знаете сколько платить по упрощёнке? Напишите сумму дохода боту — мгновенный расчёт!\n\n' +
-    'ИПН + СН + все соцплатежи = точная сумма.',
+    'ИПН + все соцплатежи = точная сумма.',
 
     '📊 <b>Какой режим выгоднее?</b>\n\n' +
     'Упрощёнка, ЕСП или самозанятый? Зависит от дохода.\n' +
@@ -1133,7 +1141,7 @@ async function postLeadMagnet() {
     'Просто напишите: "сколько налогов с 3 млн?"',
 
     '💰 <b>Сколько реально платит ИП?</b>\n\n' +
-    'Налог 3% — это не всё. Есть ОПВ, ОПВР, СО, ВОСМС — ещё ~21 500 тенге/мес.\n' +
+    'Налог 4% — это не всё. Есть ОПВ, ОПВР, СО, ВОСМС — ещё ~21 500 тенге/мес.\n' +
     'Хотите точную сумму? Спросите бота @EsepKZ_bot.',
   ];
 
