@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
+import '../../../core/constants/legal_docs.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/providers/company_provider.dart';
@@ -368,6 +369,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             )),
           ],
 
+          // ── Документы ────────────────────────────────────────────────────
+          const SizedBox(height: 20),
+          const _SectionHeader(title: 'Документы'),
+          const SizedBox(height: 8),
+          Card(
+            child: Column(children: [
+              _LegalTile(
+                icon: Iconsax.document_text,
+                title: 'Условия использования',
+                onTap: () => context.push('/legal/${LegalDocType.terms.slug}'),
+              ),
+              const Divider(height: 1, indent: 56),
+              _LegalTile(
+                icon: Iconsax.shield_tick,
+                title: 'Политика конфиденциальности',
+                onTap: () => context.push('/legal/${LegalDocType.privacy.slug}'),
+              ),
+            ]),
+          ),
+
           // ── О приложении ──────────────────────────────────────────────────
           const SizedBox(height: 20),
           const _SectionHeader(title: 'О приложении'),
@@ -474,5 +495,28 @@ class _InfoTile extends StatelessWidget {
     title: Text(title, style: const TextStyle(fontSize: 13)),
     trailing: Text(value,
         style: const TextStyle(fontSize: 13, color: EsepColors.textSecondary)),
+  );
+}
+
+class _LegalTile extends StatelessWidget {
+  const _LegalTile({required this.icon, required this.title, required this.onTap});
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    leading: Container(
+      width: 36, height: 36,
+      decoration: BoxDecoration(
+        color: EsepColors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(icon, color: EsepColors.primary, size: 18),
+    ),
+    title: Text(title,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+    trailing: const Icon(Icons.chevron_right, color: EsepColors.textSecondary),
+    onTap: onTap,
   );
 }

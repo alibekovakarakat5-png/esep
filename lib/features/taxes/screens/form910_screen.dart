@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/models/employee.dart';
 import '../../../core/providers/transaction_provider.dart';
 import '../../../core/providers/company_provider.dart';
+import '../../../core/providers/employees_provider.dart';
+import '../../../core/providers/legal_consent_provider.dart';
 import '../../../core/services/form910_service.dart';
 
 class Form910Screen extends ConsumerStatefulWidget {
@@ -19,9 +23,15 @@ class Form910Screen extends ConsumerStatefulWidget {
 class _Form910ScreenState extends ConsumerState<Form910Screen> {
   late int _halfYear;
   late int _year;
-  int _employeeCount = 0;
-  double _totalPayroll = 0;
+
+  // Ручной override: если null — берём авто из сотрудников.
+  int? _manualEmployeeCount;
+  double? _manualAvgSalary;
   bool _bornBefore1975 = false;
+
+  final _employeeCountCtrl = TextEditingController();
+  final _avgSalaryCtrl = TextEditingController();
+
   Form910Data? _result;
 
   @override
@@ -29,7 +39,6 @@ class _Form910ScreenState extends ConsumerState<Form910Screen> {
     super.initState();
     final now = DateTime.now();
     _year = now.year;
-    // Default to previous half-year (most common use case)
     if (now.month <= 6) {
       _halfYear = 2;
       _year = now.year - 1;
@@ -38,27 +47,130 @@ class _Form910ScreenState extends ConsumerState<Form910Screen> {
     }
   }
 
+  @override
+  void dispose() {
+    _employeeCountCtrl.dispose();
+    _avgSalaryCtrl.dispose();
+    super.dispose();
+  }
+
   void _calculate() {
     final transactions = ref.read(transactionProvider);
     final company = ref.read(companyProvider);
+    final summary = ref.read(
+      payrollSummaryProvider((year: _year, halfYear: _halfYear)),
+    );
+
+    // Эффективные значения: ручной ввод либо авто из сотрудников
+    final headcount = _manualEmployeeCount ?? summary.avgHeadcount.round();
+    final avgSalary = _manualAvgSalary ?? summary.avgWagePerWorker;
+    // Form910Service делит totalPayroll на employeeCount, чтобы получить avgMonthlyWage.
+    // Передаём totalPayroll = avgSalary * headcount, чтобы деление вернуло среднюю ЗП.
+    final totalPayroll = avgSalary * headcount;
 
     final data = Form910Service.calculate(
       transactions: transactions,
       company: company,
       halfYear: _halfYear,
       year: _year,
-      employeeCount: _employeeCount,
-      totalPayroll: _totalPayroll,
+      employeeCount: headcount,
+      totalPayroll: totalPayroll,
       bornBefore1975: _bornBefore1975,
     );
 
     setState(() => _result = data);
   }
 
+  Future<void> _exportXml() async {
+    final result = _result;
+    if (result == null) return;
+
+    final consent = ref.read(legalConsentProvider);
+    if (!consent.exportDisclaimerDismissed) {
+      final ok = await _showPreExportDialog();
+      if (ok != true) return;
+    }
+    await Form910Service.shareXml(result);
+  }
+
+  Future<bool?> _showPreExportDialog() {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        bool dontShowAgain = false;
+        return StatefulBuilder(
+          builder: (ctx, setLocal) => AlertDialog(
+            title: const Row(children: [
+              Icon(Iconsax.shield_tick, color: EsepColors.primary, size: 22),
+              SizedBox(width: 10),
+              Expanded(child: Text('Перед подачей')),
+            ]),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Проверьте, что все доходы и сотрудники внесены за период. '
+                  'Расчёт основан только на введённых данных.',
+                  style: TextStyle(fontSize: 13, height: 1.5),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Подача и уплата налога — ваша ответственность '
+                  'по Налоговому кодексу РК.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: EsepColors.textSecondary,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: dontShowAgain,
+                  onChanged: (v) => setLocal(() => dontShowAgain = v ?? false),
+                  title: const Text(
+                    'Больше не показывать',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Отмена'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  if (dontShowAgain) {
+                    await ref
+                        .read(legalConsentProvider.notifier)
+                        .dismissExportDisclaimer();
+                  }
+                  if (ctx.mounted) Navigator.pop(ctx, true);
+                },
+                style:
+                    FilledButton.styleFrom(backgroundColor: EsepColors.primary),
+                child: const Text('Экспортировать'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final fmt = NumberFormat('#,##0', 'ru_RU');
     final company = ref.watch(companyProvider);
+    final summary = ref.watch(
+      payrollSummaryProvider((year: _year, halfYear: _halfYear)),
+    );
+    final employees = ref.watch(employeesProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -68,7 +180,7 @@ class _Form910ScreenState extends ConsumerState<Form910Screen> {
             IconButton(
               icon: const Icon(Iconsax.document_upload),
               tooltip: 'Экспорт XML',
-              onPressed: () => Form910Service.shareXml(_result!),
+              onPressed: _exportXml,
             ),
         ],
       ),
@@ -142,58 +254,40 @@ class _Form910ScreenState extends ConsumerState<Form910Screen> {
           ),
           const SizedBox(height: 12),
 
-          // Employee info
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Сотрудники', style: TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(
-                    child: TextField(
-                      decoration: const InputDecoration(
-                        labelText: 'Кол-во сотрудников',
-                        hintText: '0',
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (v) {
-                        _employeeCount = int.tryParse(v) ?? 0;
-                        _result = null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      decoration: const InputDecoration(
-                        labelText: 'Средняя з/п, ₸',
-                        hintText: '0',
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (v) {
-                        _totalPayroll = double.tryParse(v.replaceAll(' ', '')) ?? 0;
-                        _result = null;
-                      },
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 8),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  title: const Text('Родился до 1975 года', style: TextStyle(fontSize: 13)),
-                  value: _bornBefore1975,
-                  onChanged: (v) => setState(() {
-                    _bornBefore1975 = v;
-                    _result = null;
-                  }),
-                  activeTrackColor: EsepColors.primary,
-                ),
-              ]),
-            ),
+          // Employees — auto-filled card
+          _EmployeesCard(
+            summary: summary,
+            hasEmployees: employees.isNotEmpty,
+            manualEmployeeCount: _manualEmployeeCount,
+            manualAvgSalary: _manualAvgSalary,
+            employeeCountCtrl: _employeeCountCtrl,
+            avgSalaryCtrl: _avgSalaryCtrl,
+            bornBefore1975: _bornBefore1975,
+            fmt: fmt,
+            onManualEmployeeCountChanged: (v) {
+              _manualEmployeeCount = v;
+              _result = null;
+              setState(() {});
+            },
+            onManualSalaryChanged: (v) {
+              _manualAvgSalary = v;
+              _result = null;
+              setState(() {});
+            },
+            onUseAuto: () {
+              setState(() {
+                _manualEmployeeCount = null;
+                _manualAvgSalary = null;
+                _employeeCountCtrl.clear();
+                _avgSalaryCtrl.clear();
+                _result = null;
+              });
+            },
+            onBornChanged: (v) => setState(() {
+              _bornBefore1975 = v;
+              _result = null;
+            }),
+            onManageEmployees: () => context.push('/employees'),
           ),
           const SizedBox(height: 16),
 
@@ -225,7 +319,7 @@ class _Form910ScreenState extends ConsumerState<Form910Screen> {
             Row(children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => Form910Service.shareXml(_result!),
+                  onPressed: _exportXml,
                   icon: const Icon(Iconsax.document_code, size: 18),
                   label: const Text('XML'),
                 ),
@@ -284,6 +378,239 @@ class _Form910ScreenState extends ConsumerState<Form910Screen> {
     );
   }
 }
+
+// ─── Auto-filled Employees Card ─────────────────────────────────────────────
+
+class _EmployeesCard extends StatelessWidget {
+  const _EmployeesCard({
+    required this.summary,
+    required this.hasEmployees,
+    required this.manualEmployeeCount,
+    required this.manualAvgSalary,
+    required this.employeeCountCtrl,
+    required this.avgSalaryCtrl,
+    required this.bornBefore1975,
+    required this.fmt,
+    required this.onManualEmployeeCountChanged,
+    required this.onManualSalaryChanged,
+    required this.onUseAuto,
+    required this.onBornChanged,
+    required this.onManageEmployees,
+  });
+
+  final PayrollPeriodSummary summary;
+  final bool hasEmployees;
+  final int? manualEmployeeCount;
+  final double? manualAvgSalary;
+  final TextEditingController employeeCountCtrl;
+  final TextEditingController avgSalaryCtrl;
+  final bool bornBefore1975;
+  final NumberFormat fmt;
+  final ValueChanged<int?> onManualEmployeeCountChanged;
+  final ValueChanged<double?> onManualSalaryChanged;
+  final VoidCallback onUseAuto;
+  final ValueChanged<bool> onBornChanged;
+  final VoidCallback onManageEmployees;
+
+  @override
+  Widget build(BuildContext context) {
+    final isOverridden =
+        manualEmployeeCount != null || manualAvgSalary != null;
+    final autoAvailable = summary.hasData;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Iconsax.people, size: 18, color: EsepColors.primary),
+            const SizedBox(width: 8),
+            const Text('Сотрудники',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: onManageEmployees,
+              icon: const Icon(Iconsax.setting_2, size: 16),
+              label: const Text('Управление', style: TextStyle(fontSize: 12)),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          ]),
+          const SizedBox(height: 4),
+
+          // Статус: авто/ручной ввод/нет данных
+          if (autoAvailable && !isOverridden)
+            _AutoBadge(summary: summary, fmt: fmt)
+          else if (isOverridden)
+            _OverrideBadge(onReset: onUseAuto, hasAuto: autoAvailable)
+          else
+            _NoDataBadge(onAdd: onManageEmployees),
+
+          const SizedBox(height: 12),
+
+          Row(children: [
+            Expanded(
+              child: TextField(
+                controller: employeeCountCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Кол-во сотрудников',
+                  hintText: autoAvailable
+                      ? summary.avgHeadcount.toStringAsFixed(0)
+                      : '0',
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 8),
+                ),
+                keyboardType: TextInputType.number,
+                onChanged: (v) {
+                  final parsed = int.tryParse(v);
+                  onManualEmployeeCountChanged(parsed);
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: avgSalaryCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Средняя з/п, ₸',
+                  hintText: autoAvailable
+                      ? fmt.format(summary.avgWagePerWorker)
+                      : '0',
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 8),
+                ),
+                keyboardType: TextInputType.number,
+                onChanged: (v) {
+                  final cleaned = v.replaceAll(' ', '');
+                  final parsed = double.tryParse(cleaned);
+                  onManualSalaryChanged(parsed);
+                },
+              ),
+            ),
+          ]),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: const Text('Родился до 1975 года',
+                style: TextStyle(fontSize: 13)),
+            value: bornBefore1975,
+            onChanged: onBornChanged,
+            activeTrackColor: EsepColors.primary,
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+class _AutoBadge extends StatelessWidget {
+  const _AutoBadge({required this.summary, required this.fmt});
+  final PayrollPeriodSummary summary;
+  final NumberFormat fmt;
+
+  @override
+  Widget build(BuildContext context) {
+    final headcount = summary.avgHeadcount.toStringAsFixed(1);
+    final wage = fmt.format(summary.avgWagePerWorker);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: EsepColors.income.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(children: [
+        const Icon(Iconsax.magicpen, color: EsepColors.income, size: 16),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'Авто: $headcount чел. · $wage ₸ средняя',
+            style: const TextStyle(
+              fontSize: 12,
+              color: EsepColors.income,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+class _OverrideBadge extends StatelessWidget {
+  const _OverrideBadge({required this.onReset, required this.hasAuto});
+  final VoidCallback onReset;
+  final bool hasAuto;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: EsepColors.warning.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(children: [
+        const Icon(Iconsax.edit_2, color: EsepColors.warning, size: 16),
+        const SizedBox(width: 8),
+        const Expanded(
+          child: Text(
+            'Ручной ввод',
+            style: TextStyle(
+              fontSize: 12,
+              color: EsepColors.warning,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        if (hasAuto)
+          TextButton(
+            onPressed: onReset,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              visualDensity: VisualDensity.compact,
+            ),
+            child: const Text('Авто', style: TextStyle(fontSize: 12)),
+          ),
+      ]),
+    );
+  }
+}
+
+class _NoDataBadge extends StatelessWidget {
+  const _NoDataBadge({required this.onAdd});
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onAdd,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: EsepColors.info.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Row(children: [
+          Icon(Iconsax.info_circle, color: EsepColors.info, size: 16),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Добавьте сотрудников → поля заполнятся сами',
+              style: TextStyle(fontSize: 12, color: EsepColors.info),
+            ),
+          ),
+          Icon(Iconsax.arrow_right_3, color: EsepColors.info, size: 14),
+        ]),
+      ),
+    );
+  }
+}
+
+// ─── Result cards (без изменений) ───────────────────────────────────────────
 
 class _ResultCard extends StatelessWidget {
   const _ResultCard({required this.data, required this.fmt});
@@ -401,7 +728,6 @@ class _FormRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(children: [
-        // Field codes hidden for simplicity
         Expanded(
           child: Text(label,
               style: TextStyle(

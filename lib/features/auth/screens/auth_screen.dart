@@ -1,8 +1,11 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 
+import '../../../core/constants/legal_docs.dart';
+import '../../../core/providers/legal_consent_provider.dart';
 import '../../../core/services/api_client.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
@@ -22,6 +25,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   final _nameCtrl = TextEditingController();
   bool _loading = false;
   String? _error;
+  bool _consentAccepted = false;
 
   @override
   void initState() {
@@ -61,9 +65,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     final email = _emailCtrl.text.trim();
     final pass = _passCtrl.text;
     if (name.isEmpty || email.isEmpty || pass.isEmpty) return;
+    if (!_consentAccepted) {
+      setState(() => _error =
+          'Подтвердите согласие с условиями использования');
+      return;
+    }
     setState(() { _loading = true; _error = null; });
     try {
       await ref.read(authProvider.notifier).register(email, pass, name);
+      // Зафиксировать согласие с текущей версией документов
+      await ref.read(legalConsentProvider.notifier).accept();
       if (mounted) context.go('/dashboard');
     } on ApiException catch (e) {
       setState(() => _error = e.message);
@@ -134,7 +145,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                   controller: _tabs,
                   children: [
                     _LoginTab(emailCtrl: _emailCtrl, passCtrl: _passCtrl, loading: _loading, onLogin: _login),
-                    _RegisterTab(nameCtrl: _nameCtrl, emailCtrl: _emailCtrl, passCtrl: _passCtrl, loading: _loading, onRegister: _register),
+                    _RegisterTab(
+                      nameCtrl: _nameCtrl,
+                      emailCtrl: _emailCtrl,
+                      passCtrl: _passCtrl,
+                      loading: _loading,
+                      consentAccepted: _consentAccepted,
+                      onConsentChanged: (v) => setState(() => _consentAccepted = v),
+                      onRegister: _register,
+                    ),
                   ],
                 ),
               ),
@@ -200,30 +219,142 @@ class _LoginTab extends StatelessWidget {
 }
 
 class _RegisterTab extends StatelessWidget {
-  const _RegisterTab({required this.nameCtrl, required this.emailCtrl, required this.passCtrl, required this.loading, required this.onRegister});
+  const _RegisterTab({
+    required this.nameCtrl,
+    required this.emailCtrl,
+    required this.passCtrl,
+    required this.loading,
+    required this.consentAccepted,
+    required this.onConsentChanged,
+    required this.onRegister,
+  });
   final TextEditingController nameCtrl, emailCtrl, passCtrl;
   final bool loading;
+  final bool consentAccepted;
+  final ValueChanged<bool> onConsentChanged;
   final VoidCallback onRegister;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final canSubmit = consentAccepted && !loading;
+    return ListView(
+      padding: EdgeInsets.zero,
       children: [
         TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Имя / ИП Фамилия')),
         const SizedBox(height: 16),
         TextField(controller: emailCtrl, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email')),
         const SizedBox(height: 16),
         TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Пароль'),
-          onSubmitted: (_) => onRegister()),
-        const SizedBox(height: 24),
+          onSubmitted: (_) { if (canSubmit) onRegister(); }),
+        const SizedBox(height: 16),
+        _ConsentCheckbox(
+          accepted: consentAccepted,
+          onChanged: onConsentChanged,
+        ),
+        const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: loading ? null : onRegister,
-            child: loading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Создать аккаунт'),
+            onPressed: canSubmit ? onRegister : null,
+            child: loading
+                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Создать аккаунт'),
           ),
         ),
+        const SizedBox(height: 8),
       ],
+    );
+  }
+}
+
+/// Чекбокс с кликабельными ссылками на документы.
+class _ConsentCheckbox extends StatefulWidget {
+  const _ConsentCheckbox({required this.accepted, required this.onChanged});
+  final bool accepted;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  State<_ConsentCheckbox> createState() => _ConsentCheckboxState();
+}
+
+class _ConsentCheckboxState extends State<_ConsentCheckbox> {
+  late final TapGestureRecognizer _termsRecognizer;
+  late final TapGestureRecognizer _privacyRecognizer;
+
+  @override
+  void initState() {
+    super.initState();
+    _termsRecognizer = TapGestureRecognizer()
+      ..onTap = () => context.push('/legal/${LegalDocType.terms.slug}');
+    _privacyRecognizer = TapGestureRecognizer()
+      ..onTap = () => context.push('/legal/${LegalDocType.privacy.slug}');
+  }
+
+  @override
+  void dispose() {
+    _termsRecognizer.dispose();
+    _privacyRecognizer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => widget.onChanged(!widget.accepted),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Checkbox(
+              value: widget.accepted,
+              onChanged: (v) => widget.onChanged(v ?? false),
+              activeColor: EsepColors.primary,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Text.rich(
+                  TextSpan(
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: EsepColors.textSecondary,
+                      height: 1.4,
+                    ),
+                    children: [
+                      const TextSpan(text: 'Я ознакомлен(а) и согласен(а) с '),
+                      TextSpan(
+                        text: 'Условиями использования',
+                        style: const TextStyle(
+                          color: EsepColors.primary,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline,
+                        ),
+                        recognizer: _termsRecognizer,
+                      ),
+                      const TextSpan(text: ' и '),
+                      TextSpan(
+                        text: 'Политикой конфиденциальности',
+                        style: const TextStyle(
+                          color: EsepColors.primary,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline,
+                        ),
+                        recognizer: _privacyRecognizer,
+                      ),
+                      const TextSpan(text: '.'),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -47,6 +47,14 @@ class _TaxesScreenState extends State<TaxesScreen> {
                   width: buttonWidth,
                   child: _ToolButton(
                     icon: Iconsax.people,
+                    label: 'Сотрудники',
+                    onTap: () => context.push('/employees'),
+                  ),
+                ),
+                SizedBox(
+                  width: buttonWidth,
+                  child: _ToolButton(
+                    icon: Iconsax.calculator,
                     label: 'Зарплатный калькулятор',
                     onTap: () => context.push('/salary-calculator'),
                   ),

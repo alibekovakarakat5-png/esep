@@ -19,6 +19,9 @@ import '../../features/mode_select/screens/mode_select_screen.dart';
 import '../../features/taxes/screens/salary_calculator_screen.dart';
 import '../../features/taxes/screens/too_calculator_screen.dart';
 import '../../features/taxes/screens/form910_screen.dart';
+import '../../features/taxes/screens/employees_screen.dart';
+import '../../features/legal/screens/legal_doc_screen.dart';
+import '../constants/legal_docs.dart';
 import '../../features/transactions/screens/receipt_scanner_screen.dart';
 import '../../features/tools/screens/bin_lookup_screen.dart';
 import '../../features/tools/screens/regime_guide_screen.dart';
@@ -62,11 +65,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/onboarding';
       }
 
-      // Not logged in → go to auth
+      // Not logged in → go to auth (юридические доки доступны без входа)
       if (seenOnboarding &&
           authState == AuthState.unauthenticated &&
           location != '/auth' &&
-          location != '/onboarding') {
+          location != '/onboarding' &&
+          !location.startsWith('/legal/')) {
         return '/auth';
       }
 
@@ -104,6 +108,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/mode-select',
         builder: (_, __) => const ModeSelectScreen(),
+      ),
+
+      // ── Юридические документы (доступны и до входа) ──────────────────────
+      GoRoute(
+        path: '/legal/:slug',
+        builder: (_, state) {
+          final type = LegalDocType.fromSlug(state.pathParameters['slug'] ?? '')
+              ?? LegalDocType.terms;
+          return LegalDocScreen(type: type);
+        },
       ),
 
       // ── Main shell (with bottom nav) ─────────────────────────────────────
@@ -155,6 +169,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/form-910',
             builder: (_, __) => const Form910Screen(),
+          ),
+          GoRoute(
+            path: '/employees',
+            builder: (_, __) => const EmployeesScreen(),
           ),
           GoRoute(
             path: '/receipt-scanner',
