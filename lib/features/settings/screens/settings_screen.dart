@@ -195,6 +195,56 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 20),
 
+          // ── Бухгалтерские инструменты (только для ТОО и Бухгалтера) ─────
+          if (mode == UserMode.too || mode == UserMode.accountant) ...[
+            const _SectionHeader(title: 'Бухгалтерские инструменты'),
+            const SizedBox(height: 8),
+            Card(
+              child: Column(children: [
+                ListTile(
+                  leading: Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(
+                      color: EsepColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Iconsax.document_filter,
+                        color: EsepColors.primary, size: 20),
+                  ),
+                  title: const Text('Сверка ЭСФ',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  subtitle: const Text(
+                    'Сравним реестр ЭСФ с зачётом по форме 300 — найдём расхождения',
+                    style: TextStyle(fontSize: 12, color: EsepColors.textSecondary),
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/esf-recon'),
+                ),
+                const Divider(height: 0),
+                ListTile(
+                  leading: Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(
+                      color: EsepColors.warning.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Iconsax.wallet_check,
+                        color: EsepColors.warning, size: 20),
+                  ),
+                  title: const Text('Лицевой счёт — контроль платежей',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  subtitle: const Text(
+                    'Отслеживаем разноску КПН и других налогов в кабинете salyk',
+                    style: TextStyle(fontSize: 12, color: EsepColors.textSecondary),
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/account-monitor'),
+                ),
+              ]),
+            ),
+            const SizedBox(height: 20),
+          ],
+
           // ── Данные компании ──────────────────────────────────────────────
           const _SectionHeader(title: 'Моя компания / ИП'),
           const SizedBox(height: 8),

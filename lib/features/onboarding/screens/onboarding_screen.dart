@@ -75,88 +75,122 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Skip button
-            Align(
-              alignment: Alignment.topRight,
-              child: TextButton(
-                onPressed: _finish,
-                child: const Text('Пропустить',
-                    style: TextStyle(color: EsepColors.textSecondary, fontSize: 14)),
-              ),
-            ),
+    final width = MediaQuery.sizeOf(context).width;
+    final isWide = width >= 720;
 
-            // Pages
-            Expanded(
-              child: PageView.builder(
-                controller: _controller,
-                itemCount: _pages.length,
-                onPageChanged: (i) => setState(() => _page = i),
-                itemBuilder: (_, i) => _OnboardingPage(data: _pages[i]),
-              ),
+    final content = Column(
+      children: [
+        // Skip button
+        Padding(
+          padding: const EdgeInsets.only(top: 8, right: 12),
+          child: Align(
+            alignment: Alignment.topRight,
+            child: TextButton(
+              onPressed: _finish,
+              child: const Text('Пропустить',
+                  style: TextStyle(color: EsepColors.textSecondary, fontSize: 14)),
             ),
+          ),
+        ),
 
-            // Dots
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(_pages.length, (i) => AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: i == _page ? 24 : 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: i == _page ? EsepColors.primary : EsepColors.divider,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                )),
+        // Pages
+        Expanded(
+          child: PageView.builder(
+            controller: _controller,
+            itemCount: _pages.length,
+            onPageChanged: (i) => setState(() => _page = i),
+            itemBuilder: (_, i) => _OnboardingPage(data: _pages[i]),
+          ),
+        ),
+
+        // Dots
+        Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(_pages.length, (i) => AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: i == _page ? 24 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: i == _page ? EsepColors.primary : EsepColors.divider,
+                borderRadius: BorderRadius.circular(4),
               ),
-            ),
+            )),
+          ),
+        ),
 
-            // Buttons
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-              child: Column(children: [
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _next,
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                    child: Text(
-                      _page < _pages.length - 1 ? 'Далее' : 'Начать',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                    ),
-                  ),
+        // Buttons
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+          child: Column(children: [
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _next,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
-                if (_page == _pages.length - 1) ...[
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Iconsax.eye, size: 18),
-                      label: const Text('Посмотреть без входа'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        side: BorderSide(color: EsepColors.primary.withValues(alpha: 0.3)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      onPressed: () {
-                        _markOnboardingDone(ref);
-                        ref.read(authProvider.notifier).enterDemo();
-                      },
-                    ),
-                  ),
-                ],
-              ]),
+                child: Text(
+                  _page < _pages.length - 1 ? 'Далее' : 'Начать',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ),
             ),
-          ],
+            if (_page == _pages.length - 1) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Iconsax.eye, size: 18),
+                  label: const Text('Посмотреть без входа'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(color: EsepColors.primary.withValues(alpha: 0.3)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: () {
+                    _markOnboardingDone(ref);
+                    ref.read(authProvider.notifier).enterDemo();
+                  },
+                ),
+              ),
+            ],
+          ]),
+        ),
+      ],
+    );
+
+    return Scaffold(
+      backgroundColor: isWide ? const Color(0xFFF5F6FA) : null,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: isWide ? 480 : double.infinity,
+              maxHeight: isWide ? 720 : double.infinity,
+            ),
+            child: isWide
+                ? Container(
+                    margin: const EdgeInsets.symmetric(vertical: 24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 32,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: content,
+                  )
+                : content,
+          ),
         ),
       ),
     );

@@ -1,3 +1,7 @@
+# Local dev overrides
+docker-compose.override.yml
+_video_promt_extracted.txt
+
 # Miscellaneous
 *.class
 *.log
