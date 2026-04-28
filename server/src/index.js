@@ -19,6 +19,11 @@ const { startMonitor }                    = require('./jobs/taxMonitor');
 const { startLeadMonitor }                = require('./jobs/leadMonitor');
 const { startPaymentMonitor }             = require('./jobs/paymentMonitor');
 const { seedMarketingContent }            = require('./bot/marketing');
+const { migrateKnowledge }                = require('./services/knowledge_db');
+const { seedEsepPlatformKnowledge }       = require('./jobs/seedPlatformKnowledge');
+const { migrateEsfAndAccount }            = require('./services/esf_db');
+const esfReconRoutes                      = require('./routes/esf-recon');
+const accountRoutes                       = require('./routes/account-monitor');
 
 // ── Env validation ───────────────────────────────────────────────────────────
 const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET'];
@@ -224,6 +229,22 @@ async function migrate() {
   await seedPromos();
   await seedMarketingContent();
   console.log('✅  DB migrated');
+
+  // RAG / Knowledge DB
+  try {
+    await migrateKnowledge();
+    await seedEsepPlatformKnowledge();
+  } catch (err) {
+    console.error('[knowledge] migration failed:', err.message);
+    // Не падаем — сервер должен работать даже если RAG ещё не готов
+  }
+
+  // ЭСФ-сверщик + монитор лицевого счёта
+  try {
+    await migrateEsfAndAccount();
+  } catch (err) {
+    console.error('[esf+account] migration failed:', err.message);
+  }
 }
 
 // ── Middleware ────────────────────────────────────────────────────────────────
@@ -274,6 +295,8 @@ app.use('/api/articles',     articleRoutes);
 app.use('/api/bin',          binLookupRoutes);
 app.use('/api/lpr',          authMiddleware, lprRoutes);
 app.use('/api/ai-chat',      authMiddleware, aiChatRoutes);
+app.use('/api/esf-recon',    authMiddleware, esfReconRoutes);
+app.use('/api/account',      authMiddleware, accountRoutes);
 
 // ── Telegram bot webhook ──────────────────────────────────────────────────────
 const tg = require('./bot/telegram');

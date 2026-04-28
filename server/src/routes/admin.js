@@ -715,4 +715,52 @@ router.get('/', adminAuth, async (_req, res) => {
   }
 });
 
+// ── Knowledge base management ────────────────────────────────────────────────
+
+router.get('/api/admin/knowledge/stats', adminAuth, async (_req, res) => {
+  try {
+    const sources = await db.query(
+      `SELECT source_type, COUNT(*) AS docs,
+              COUNT(*) FILTER (WHERE is_active) AS active
+         FROM knowledge_source
+         GROUP BY source_type
+         ORDER BY source_type`
+    );
+    const chunks = await db.query(
+      `SELECT COUNT(*) AS total,
+              COUNT(*) FILTER (WHERE embedding IS NOT NULL) AS with_embedding
+         FROM knowledge_chunk`
+    );
+    res.json({
+      sources: sources.rows,
+      chunks: chunks.rows[0],
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/api/admin/knowledge/ingest/nk', adminAuth, async (_req, res) => {
+  try {
+    const { ingestNkRk } = require('../jobs/ingestNkRk');
+    // Запускаем в фоне (может занять несколько минут)
+    ingestNkRk()
+      .then(r => console.log('[admin] NK ingest done:', r))
+      .catch(e => console.error('[admin] NK ingest failed:', e));
+    res.json({ status: 'started', message: 'НК ингестия запущена в фоне. Следите в логах.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/api/admin/knowledge/reindex/platform', adminAuth, async (_req, res) => {
+  try {
+    const { seedEsepPlatformKnowledge } = require('../jobs/seedPlatformKnowledge');
+    await seedEsepPlatformKnowledge();
+    res.json({ status: 'done' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = { router, adminAuth };

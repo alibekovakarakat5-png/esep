@@ -35,9 +35,38 @@ class ApiClient {
     return _parse(res);
   }
 
+  static Future<dynamic> patch(String path, Object body) async {
+    final res = await http.patch(
+      _uri(path),
+      headers: await _headers(),
+      body: jsonEncode(body),
+    );
+    return _parse(res);
+  }
+
   static Future<void> delete(String path) async {
     final res = await http.delete(_uri(path), headers: await _headers());
     _parse(res);
+  }
+
+  /// Загрузка файла как multipart/form-data.
+  /// [field] — имя поля (на бэке `req.file`), [filename] — имя файла, [bytes] — содержимое.
+  static Future<dynamic> postMultipart(
+    String path, {
+    required String field,
+    required String filename,
+    required List<int> bytes,
+    String? mimeType,
+  }) async {
+    final token = await AuthService.getToken();
+    final req = http.MultipartRequest('POST', _uri(path));
+    if (token != null) req.headers['Authorization'] = 'Bearer $token';
+    req.files.add(
+      http.MultipartFile.fromBytes(field, bytes, filename: filename),
+    );
+    final streamed = await req.send();
+    final res = await http.Response.fromStream(streamed);
+    return _parse(res);
   }
 
   // ── Private ───────────────────────────────────────────────────────────────

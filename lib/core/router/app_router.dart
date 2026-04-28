@@ -27,6 +27,9 @@ import '../../features/tools/screens/bin_lookup_screen.dart';
 import '../../features/tools/screens/regime_guide_screen.dart';
 import '../../features/transactions/screens/bank_connect_screen.dart';
 import '../../features/ai_chat/screens/ai_chat_screen.dart';
+import '../../features/esf_recon/screens/esf_recon_screen.dart';
+import '../../features/esf_recon/screens/esf_recon_detail_screen.dart';
+import '../../features/account_monitor/screens/account_monitor_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
 import '../providers/auth_provider.dart';
 import '../providers/user_mode_provider.dart';
@@ -193,6 +196,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/ai-chat',
             builder: (_, __) => const AiChatScreen(),
+          ),
+
+          // ─ ЭСФ-сверщик (для ТОО / Бухгалтера) ─────────────────────────────
+          GoRoute(
+            path: '/esf-recon',
+            builder: (_, __) => const EsfReconScreen(),
+            routes: [
+              GoRoute(
+                path: ':id',
+                builder: (_, state) => EsfReconDetailScreen(
+                  sessionId: state.pathParameters['id']!,
+                ),
+              ),
+            ],
+          ),
+
+          // ─ Лицевой счёт ───────────────────────────────────────────────────
+          GoRoute(
+            path: '/account-monitor',
+            builder: (_, __) => const AccountMonitorScreen(),
           ),
 
           // ─ Бухгалтер routes ───────────────────────────────────────────────

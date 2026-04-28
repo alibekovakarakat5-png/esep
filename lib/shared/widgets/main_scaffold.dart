@@ -21,7 +21,7 @@ class MainScaffold extends ConsumerWidget {
     _TabItem(path: '/dashboard',    icon: Iconsax.home_2,          label: 'Главная'),
     _TabItem(path: '/invoices',     icon: Iconsax.receipt_2,       label: 'Счета'),
     _TabItem(path: '/transactions', icon: Iconsax.wallet_2,        label: 'Деньги'),
-    _TabItem(path: '/ai-chat',      icon: Iconsax.message_question, label: 'AI'),
+    _TabItem(path: '/ai-chat',      icon: Iconsax.message_question, label: 'Консультант'),
     _TabItem(path: '/taxes',        icon: Iconsax.calculator,      label: 'Налоги'),
     _TabItem(path: '/settings',     icon: Iconsax.setting_2,       label: 'Ещё'),
   ];
@@ -31,7 +31,7 @@ class MainScaffold extends ConsumerWidget {
     _TabItem(path: '/dashboard',    icon: Iconsax.home_2,          label: 'Главная'),
     _TabItem(path: '/invoices',     icon: Iconsax.receipt_2,       label: 'Счета'),
     _TabItem(path: '/transactions', icon: Iconsax.wallet_2,        label: 'Учёт'),
-    _TabItem(path: '/ai-chat',      icon: Iconsax.message_question, label: 'AI'),
+    _TabItem(path: '/ai-chat',      icon: Iconsax.message_question, label: 'Консультант'),
     _TabItem(path: '/taxes',        icon: Iconsax.calculator,      label: 'Налоги'),
     _TabItem(path: '/settings',     icon: Iconsax.setting_2,       label: 'Ещё'),
   ];
@@ -40,7 +40,7 @@ class MainScaffold extends ConsumerWidget {
   static const _accountantTabs = [
     _TabItem(path: '/accountant',          icon: Iconsax.briefcase,        label: 'Клиенты'),
     _TabItem(path: '/accountant/calendar', icon: Iconsax.calendar_1,       label: 'Дедлайны'),
-    _TabItem(path: '/ai-chat',             icon: Iconsax.message_question, label: 'AI'),
+    _TabItem(path: '/ai-chat',             icon: Iconsax.message_question, label: 'Консультант'),
     _TabItem(path: '/taxes',               icon: Iconsax.calculator,       label: 'Расчёты'),
     _TabItem(path: '/settings',            icon: Iconsax.setting_2,        label: 'Настройки'),
   ];
