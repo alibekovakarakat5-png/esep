@@ -6,6 +6,7 @@ import 'package:iconsax/iconsax.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../shared/widgets/responsive_form_shell.dart';
 
 /// Has the user seen onboarding?
 final hasSeenOnboardingProvider = StateProvider<bool>((ref) {
@@ -75,9 +76,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final isWide = width >= 720;
-
     final content = Column(
       children: [
         // Skip button
@@ -164,35 +162,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
 
     return Scaffold(
-      backgroundColor: isWide ? const Color(0xFFF5F6FA) : null,
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: isWide ? 480 : double.infinity,
-              maxHeight: isWide ? 720 : double.infinity,
-            ),
-            child: isWide
-                ? Container(
-                    margin: const EdgeInsets.symmetric(vertical: 24),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.06),
-                          blurRadius: 32,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: content,
-                  )
-                : content,
-          ),
-        ),
-      ),
+      backgroundColor: responsivePageBg(context),
+      body: ResponsiveFormShell(child: content),
     );
   }
 }

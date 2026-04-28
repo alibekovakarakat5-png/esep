@@ -195,6 +195,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 20),
 
+          // ── Безопасность аккаунта ────────────────────────────────────────
+          const _SectionHeader(title: 'Безопасность'),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF229ED9).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Iconsax.send_2,
+                    color: Color(0xFF229ED9), size: 20),
+              ),
+              title: const Text('Telegram',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              subtitle: const Text(
+                'Для восстановления пароля и уведомлений безопасности',
+                style: TextStyle(fontSize: 12, color: EsepColors.textSecondary),
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/telegram-link'),
+            ),
+          ),
+          const SizedBox(height: 20),
+
           // ── Налоговый профиль (для всех) ────────────────────────────────
           const _SectionHeader(title: 'Налоговый профиль'),
           const SizedBox(height: 8),
