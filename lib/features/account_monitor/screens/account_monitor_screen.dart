@@ -3,7 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax/iconsax.dart';
 
+import '../../../core/models/tax_profile.dart';
+import '../../../core/providers/tax_profile_provider.dart';
 import '../../../core/services/api_client.dart';
+import '../../../core/services/kbk_service.dart';
 import '../../../core/theme/app_theme.dart';
 
 // ── Models ───────────────────────────────────────────────────────────────────
@@ -192,130 +195,394 @@ class AccountMonitorScreen extends ConsumerWidget {
   }
 
   Future<void> _addDialog(BuildContext context, WidgetRef ref) async {
-    final amountCtrl = TextEditingController();
-    final docCtrl    = TextEditingController();
-    final periodCtrl = TextEditingController(text: _currentPeriod());
-    String kbk = '101101'; // ИПН по 910 (по умолчанию)
-    DateTime paidAt = DateTime.now();
-
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
-        return AlertDialog(
-          title: const Text('Платёж в налоговую'),
-          content: SizedBox(
-            width: 380,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                DropdownButtonFormField<String>(
-                  value: kbk,
-                  decoration: const InputDecoration(
-                    labelText: 'КБК (вид налога)', border: OutlineInputBorder(),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: '101101', child: Text('101101 — ИПН по форме 910')),
-                    DropdownMenuItem(value: '101110', child: Text('101110 — КПН (крупный бизнес)')),
-                    DropdownMenuItem(value: '101111', child: Text('101111 — КПН (средний бизнес)')),
-                    DropdownMenuItem(value: '105101', child: Text('105101 — НДС')),
-                    DropdownMenuItem(value: '101201', child: Text('101201 — ИПН с зарплаты')),
-                    DropdownMenuItem(value: '103101', child: Text('103101 — Социальный налог')),
-                    DropdownMenuItem(value: '104301', child: Text('104301 — ОПВ')),
-                    DropdownMenuItem(value: '104302', child: Text('104302 — ОПВР')),
-                    DropdownMenuItem(value: '104101', child: Text('104101 — СО (соц.отчисления)')),
-                    DropdownMenuItem(value: '104406', child: Text('104406 — ВОСМС работника')),
-                    DropdownMenuItem(value: '104407', child: Text('104407 — ООСМС работодателя')),
-                  ],
-                  onChanged: (v) => setS(() => kbk = v ?? kbk),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: amountCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
-                  decoration: const InputDecoration(
-                    labelText: 'Сумма ₸', border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Row(children: [
-                  Expanded(child: GestureDetector(
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: ctx,
-                        firstDate: DateTime(2024),
-                        lastDate: DateTime.now().add(const Duration(days: 1)),
-                        initialDate: paidAt,
-                      );
-                      if (picked != null) setS(() => paidAt = picked);
-                    },
-                    child: AbsorbPointer(
-                      child: TextField(
-                        controller: TextEditingController(text: _fmt(paidAt)),
-                        decoration: const InputDecoration(
-                          labelText: 'Дата оплаты', border: OutlineInputBorder(),
-                          suffixIcon: Icon(Iconsax.calendar_1, size: 16),
-                        ),
-                      ),
-                    ),
-                  )),
-                  const SizedBox(width: 8),
-                  Expanded(child: TextField(
-                    controller: periodCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Период (2026-H1)', border: OutlineInputBorder(),
-                    ),
-                  )),
-                ]),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: docCtrl,
-                  decoration: const InputDecoration(
-                    labelText: '№ платёжки (опционально)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ]),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Отмена')),
-            FilledButton(
-              onPressed: amountCtrl.text.trim().isEmpty
-                  ? null
-                  : () => Navigator.pop(ctx, true),
-              child: const Text('Сохранить'),
-            ),
-          ],
-        );
-      }),
+      builder: (ctx) => const _AddPaymentDialog(),
     );
-
     if (ok == true) {
-      try {
-        final amount = double.tryParse(
-          amountCtrl.text.trim().replaceAll(' ', '').replaceAll(',', '.'),
-        ) ?? 0;
-        if (amount <= 0) throw Exception('Сумма должна быть > 0');
-        await ApiClient.post('/account/payments', {
-          'kbk': kbk,
-          'kbk_label': _kbkLabel(kbk),
-          'paid_amount': amount,
-          'paid_at': _fmt(paidAt),
-          'tax_period': periodCtrl.text.trim().isEmpty ? null : periodCtrl.text.trim(),
-          'payment_doc': docCtrl.text.trim().isEmpty ? null : docCtrl.text.trim(),
-        });
-        ref.invalidate(_paymentsProvider);
-        ref.invalidate(_alertsProvider);
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.toString())),
-          );
-        }
-      }
+      ref.invalidate(_paymentsProvider);
+      ref.invalidate(_alertsProvider);
     }
   }
+}
+
+// ── Add Payment Dialog with KBK recommender ──────────────────────────────────
+
+class _AddPaymentDialog extends ConsumerStatefulWidget {
+  const _AddPaymentDialog();
+  @override
+  ConsumerState<_AddPaymentDialog> createState() => _AddPaymentDialogState();
+}
+
+class _AddPaymentDialogState extends ConsumerState<_AddPaymentDialog> {
+  final _amountCtrl = TextEditingController();
+  final _docCtrl    = TextEditingController();
+  final _periodCtrl = TextEditingController(text: _currentPeriod());
+
+  PaymentTypeOption? _paymentType;
+  String? _selectedKbk;
+  KbkItem? _selectedKbkItem;
+  KbkRecommendation? _recommendation;
+  KbkValidation? _validation;
+  DateTime _paidAt = DateTime.now();
+  bool _saving = false;
+
+  // Топ-9 типов платежей в порядке частоты
+  static const _topTypes = [
+    'income_tax',
+    'social_tax',
+    'social_self',
+    'pension_self',
+    'medical_self',
+    'income_tax_employees',
+    'pension_employees',
+    'medical_employees',
+    'vat',
+  ];
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    _docCtrl.dispose();
+    _periodCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _onPaymentTypeChanged(PaymentTypeOption? t, TaxProfile profile) async {
+    setState(() {
+      _paymentType = t;
+      _recommendation = null;
+      _validation = null;
+    });
+    if (t == null) return;
+    try {
+      final rec = await KbkService.recommend(profile: profile, paymentType: t.id);
+      setState(() {
+        _recommendation = rec;
+        if (rec.recommended != null) {
+          _selectedKbk = rec.recommended!.code;
+          _selectedKbkItem = rec.recommended;
+        }
+      });
+    } catch (_) {/* silent */}
+  }
+
+  Future<void> _validate(TaxProfile profile) async {
+    if (_selectedKbk == null) return;
+    try {
+      final v = await KbkService.validate(
+        profile: profile,
+        code: _selectedKbk!,
+        paymentType: _paymentType?.id,
+      );
+      setState(() => _validation = v);
+    } catch (_) {/* silent */}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final asyncProfile = ref.watch(taxProfileProvider);
+
+    return AlertDialog(
+      title: const Text('Платёж в налоговую'),
+      content: SizedBox(
+        width: 420,
+        child: asyncProfile.when(
+          loading: () => const SizedBox(
+            height: 100, child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (e, _) => _NoProfileBlock(message: e.toString()),
+          data: (profile) => _form(profile),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context, false),
+          child: const Text('Отмена'),
+        ),
+        FilledButton.icon(
+          icon: _saving
+              ? const SizedBox(width: 14, height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Icon(Iconsax.tick_circle, size: 16),
+          label: const Text('Сохранить'),
+          onPressed: (_saving || _selectedKbk == null || _amountCtrl.text.trim().isEmpty)
+              ? null
+              : _save,
+        ),
+      ],
+    );
+  }
+
+  Widget _form(TaxProfile profile) {
+    return SingleChildScrollView(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        // Тип платежа (вместо КБК-выпадайки)
+        FutureBuilder<List<PaymentTypeOption>>(
+          future: KbkService.listPaymentTypes(),
+          builder: (_, snap) {
+            if (!snap.hasData) return const LinearProgressIndicator();
+            // Сортируем — топ платежей наверху
+            final all = snap.data!;
+            final top = _topTypes
+                .map((id) => all.firstWhere((o) => o.id == id,
+                    orElse: () => const PaymentTypeOption('', '')))
+                .where((o) => o.id.isNotEmpty)
+                .toList();
+            final rest = all.where((o) => !_topTypes.contains(o.id)).toList();
+            final ordered = [...top, ...rest];
+            return DropdownButtonFormField<PaymentTypeOption>(
+              value: _paymentType,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Тип платежа',
+                border: OutlineInputBorder(),
+                hintText: 'Что вы оплачиваете?',
+              ),
+              items: ordered.map((o) => DropdownMenuItem(
+                value: o,
+                child: Text(o.label, overflow: TextOverflow.ellipsis),
+              )).toList(),
+              onChanged: (v) => _onPaymentTypeChanged(v, profile),
+            );
+          },
+        ),
+        const SizedBox(height: 10),
+
+        // КБК с рекомендацией
+        FutureBuilder<List<KbkItem>>(
+          future: KbkService.listAll(),
+          builder: (_, snap) {
+            if (!snap.hasData) return const SizedBox.shrink();
+            final all = snap.data!;
+            // Если есть рекомендация — поднимаем рекомендованный наверх,
+            // потом alternatives, потом всё остальное.
+            final ordered = <KbkItem>[];
+            final added = <String>{};
+            void add(KbkItem k) {
+              if (added.add(k.code)) ordered.add(k);
+            }
+            if (_recommendation?.recommended != null) {
+              add(_recommendation!.recommended!);
+            }
+            for (final k in _recommendation?.alternatives ?? <KbkItem>[]) { add(k); }
+            for (final k in all) { add(k); }
+
+            return DropdownButtonFormField<String>(
+              value: _selectedKbk,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: 'КБК',
+                border: const OutlineInputBorder(),
+                helperText: _selectedKbkItem?.note,
+                helperMaxLines: 2,
+              ),
+              items: ordered.map((k) {
+                final isRec = _recommendation?.recommended?.code == k.code;
+                return DropdownMenuItem(
+                  value: k.code,
+                  child: Row(children: [
+                    if (isRec) ...[
+                      const Icon(Iconsax.tick_circle, size: 14, color: EsepColors.primary),
+                      const SizedBox(width: 4),
+                    ],
+                    Expanded(child: Text(
+                      '${k.code} — ${k.label}',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: isRec ? FontWeight.w700 : FontWeight.normal,
+                      ),
+                    )),
+                  ]),
+                );
+              }).toList(),
+              onChanged: (v) {
+                setState(() {
+                  _selectedKbk = v;
+                  _selectedKbkItem = all.firstWhere(
+                    (k) => k.code == v,
+                    orElse: () => all.first,
+                  );
+                });
+                _validate(profile);
+              },
+            );
+          },
+        ),
+
+        // Подсказка-плашка
+        if (_recommendation?.recommended != null && _selectedKbk == _recommendation!.recommended!.code)
+          _HintBanner(
+            level: 'ok',
+            text: _recommendation!.reason,
+          )
+        else if (_validation != null && !_validation!.ok)
+          _HintBanner(
+            level: _validation!.level,
+            text: _validation!.message,
+            actionLabel: _validation!.expected != null ? 'Использовать рекомендованный' : null,
+            onAction: _validation!.expected != null ? () {
+              setState(() {
+                _selectedKbk = _validation!.expected!.code;
+                _selectedKbkItem = _validation!.expected;
+                _validation = null;
+              });
+            } : null,
+          ),
+
+        const SizedBox(height: 10),
+        TextField(
+          controller: _amountCtrl,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+          decoration: const InputDecoration(
+            labelText: 'Сумма ₸', border: OutlineInputBorder(),
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(child: GestureDetector(
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                firstDate: DateTime(2024),
+                lastDate: DateTime.now().add(const Duration(days: 1)),
+                initialDate: _paidAt,
+              );
+              if (picked != null) setState(() => _paidAt = picked);
+            },
+            child: AbsorbPointer(
+              child: TextField(
+                controller: TextEditingController(text: _fmt(_paidAt)),
+                decoration: const InputDecoration(
+                  labelText: 'Дата оплаты', border: OutlineInputBorder(),
+                  suffixIcon: Icon(Iconsax.calendar_1, size: 16),
+                ),
+              ),
+            ),
+          )),
+          const SizedBox(width: 8),
+          Expanded(child: TextField(
+            controller: _periodCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Период (2026-H1)', border: OutlineInputBorder(),
+            ),
+          )),
+        ]),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _docCtrl,
+          decoration: const InputDecoration(
+            labelText: '№ платёжки (опционально)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      final amount = double.tryParse(
+        _amountCtrl.text.trim().replaceAll(' ', '').replaceAll(',', '.'),
+      ) ?? 0;
+      if (amount <= 0) throw Exception('Сумма должна быть > 0');
+      await ApiClient.post('/account/payments', {
+        'kbk': _selectedKbk,
+        'kbk_label': _selectedKbkItem?.label,
+        'paid_amount': amount,
+        'paid_at': _fmt(_paidAt),
+        'tax_period': _periodCtrl.text.trim().isEmpty ? null : _periodCtrl.text.trim(),
+        'payment_doc': _docCtrl.text.trim().isEmpty ? null : _docCtrl.text.trim(),
+      });
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: EsepColors.expense),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+}
+
+class _HintBanner extends StatelessWidget {
+  const _HintBanner({
+    required this.level, required this.text,
+    this.actionLabel, this.onAction,
+  });
+  final String level;
+  final String text;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = level == 'ok'
+        ? const Color(0xFF1F7A3F)
+        : level == 'red'
+            ? EsepColors.expense
+            : EsepColors.warning;
+    final icon = level == 'ok' ? Iconsax.tick_circle : Iconsax.warning_2;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: color, size: 16),
+              const SizedBox(width: 8),
+              Expanded(child: Text(
+                text,
+                style: TextStyle(fontSize: 12, color: color, height: 1.4),
+              )),
+            ],
+          ),
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: onAction,
+                style: TextButton.styleFrom(
+                  foregroundColor: color,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                child: Text(actionLabel!),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _NoProfileBlock extends StatelessWidget {
+  const _NoProfileBlock({required this.message});
+  final String message;
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.all(8),
+        child: Text(
+          'Не удалось загрузить ваш профиль: $message.\n'
+          'Зайдите в Настройки → Налоговый профиль и заполните его.',
+          style: const TextStyle(fontSize: 12, color: EsepColors.textSecondary),
+        ),
+      );
 }
 
 String _fmt(DateTime d) =>
@@ -325,20 +592,6 @@ String _currentPeriod() {
   final h = n.month <= 6 ? 'H1' : 'H2';
   return '${n.year}-$h';
 }
-String _kbkLabel(String kbk) => switch (kbk) {
-      '101101' => 'ИПН по 910',
-      '101110' => 'КПН (крупный)',
-      '101111' => 'КПН (средний)',
-      '105101' => 'НДС',
-      '101201' => 'ИПН с з/п',
-      '103101' => 'Соц. налог',
-      '104301' => 'ОПВ',
-      '104302' => 'ОПВР',
-      '104101' => 'СО',
-      '104406' => 'ВОСМС',
-      '104407' => 'ООСМС',
-      _        => kbk,
-    };
 
 // ── UI parts ─────────────────────────────────────────────────────────────────
 

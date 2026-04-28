@@ -30,6 +30,7 @@ import '../../features/ai_chat/screens/ai_chat_screen.dart';
 import '../../features/esf_recon/screens/esf_recon_screen.dart';
 import '../../features/esf_recon/screens/esf_recon_detail_screen.dart';
 import '../../features/account_monitor/screens/account_monitor_screen.dart';
+import '../../features/settings/screens/tax_profile_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
 import '../providers/auth_provider.dart';
 import '../providers/user_mode_provider.dart';
@@ -216,6 +217,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/account-monitor',
             builder: (_, __) => const AccountMonitorScreen(),
+          ),
+
+          // ─ Налоговый профиль ──────────────────────────────────────────────
+          GoRoute(
+            path: '/tax-profile',
+            builder: (_, __) => const TaxProfileScreen(),
           ),
 
           // ─ Бухгалтер routes ───────────────────────────────────────────────

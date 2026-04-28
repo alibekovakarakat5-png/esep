@@ -24,6 +24,9 @@ const { seedEsepPlatformKnowledge }       = require('./jobs/seedPlatformKnowledg
 const { migrateEsfAndAccount }            = require('./services/esf_db');
 const esfReconRoutes                      = require('./routes/esf-recon');
 const accountRoutes                       = require('./routes/account-monitor');
+const { migrateTaxProfile }               = require('./services/tax_profile_db');
+const taxProfileRoutes                    = require('./routes/tax-profile');
+const kbkRoutes                           = require('./routes/kbk');
 
 // ── Env validation ───────────────────────────────────────────────────────────
 const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET'];
@@ -245,6 +248,13 @@ async function migrate() {
   } catch (err) {
     console.error('[esf+account] migration failed:', err.message);
   }
+
+  // Налоговый профиль компании
+  try {
+    await migrateTaxProfile();
+  } catch (err) {
+    console.error('[tax-profile] migration failed:', err.message);
+  }
 }
 
 // ── Middleware ────────────────────────────────────────────────────────────────
@@ -297,6 +307,8 @@ app.use('/api/lpr',          authMiddleware, lprRoutes);
 app.use('/api/ai-chat',      authMiddleware, aiChatRoutes);
 app.use('/api/esf-recon',    authMiddleware, esfReconRoutes);
 app.use('/api/account',      authMiddleware, accountRoutes);
+app.use('/api/tax-profile',  authMiddleware, taxProfileRoutes);
+app.use('/api/kbk',          authMiddleware, kbkRoutes);
 
 // ── Telegram bot webhook ──────────────────────────────────────────────────────
 const tg = require('./bot/telegram');

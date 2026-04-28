@@ -195,6 +195,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 20),
 
+          // ── Налоговый профиль (для всех) ────────────────────────────────
+          const _SectionHeader(title: 'Налоговый профиль'),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(
+                  color: EsepColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Iconsax.profile_2user,
+                    color: EsepColors.primary, size: 20),
+              ),
+              title: const Text('Тип, режим, размер бизнеса',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              subtitle: const Text(
+                'Нужно для правильных подсказок по КБК и расчётов налогов',
+                style: TextStyle(fontSize: 12, color: EsepColors.textSecondary),
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/tax-profile'),
+            ),
+          ),
+          const SizedBox(height: 20),
+
           // ── Бухгалтерские инструменты (только для ТОО и Бухгалтера) ─────
           if (mode == UserMode.too || mode == UserMode.accountant) ...[
             const _SectionHeader(title: 'Бухгалтерские инструменты'),
