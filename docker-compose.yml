@@ -33,6 +33,8 @@ services:
       JWT_SECRET:   ${JWT_SECRET:-change-in-production}
       PORT:         3001
       NODE_ENV:     production
+      TELEGRAM_BOT_TOKEN:    ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-esep_bot}
     ports:
       - "3001:3001"   # убрать в проде (backend только через nginx)
 

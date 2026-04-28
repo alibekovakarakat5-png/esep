@@ -27,6 +27,8 @@ const accountRoutes                       = require('./routes/account-monitor');
 const { migrateTaxProfile }               = require('./services/tax_profile_db');
 const taxProfileRoutes                    = require('./routes/tax-profile');
 const kbkRoutes                           = require('./routes/kbk');
+const { migrateAuthRecovery }             = require('./services/auth_recovery_db');
+const authRecoveryRoutes                  = require('./routes/auth-recovery');
 
 // ── Env validation ───────────────────────────────────────────────────────────
 const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET'];
@@ -255,6 +257,13 @@ async function migrate() {
   } catch (err) {
     console.error('[tax-profile] migration failed:', err.message);
   }
+
+  // Auth recovery (Telegram-привязка + сброс пароля)
+  try {
+    await migrateAuthRecovery();
+  } catch (err) {
+    console.error('[auth-recovery] migration failed:', err.message);
+  }
 }
 
 // ── Middleware ────────────────────────────────────────────────────────────────
@@ -309,6 +318,15 @@ app.use('/api/esf-recon',    authMiddleware, esfReconRoutes);
 app.use('/api/account',      authMiddleware, accountRoutes);
 app.use('/api/tax-profile',  authMiddleware, taxProfileRoutes);
 app.use('/api/kbk',          authMiddleware, kbkRoutes);
+
+// Auth recovery: смешанный роутер.
+// telegram/* требуют авторизации (привязка/отвязка только из своего акка).
+// forgot-password/verify-reset-code/reset-password — без авторизации.
+app.use('/api/auth', (req, res, next) => {
+  const needsAuth = req.path.startsWith('/telegram');
+  if (needsAuth) return authMiddleware(req, res, () => authRecoveryRoutes(req, res, next));
+  return authRecoveryRoutes(req, res, next);
+});
 
 // ── Telegram bot webhook ──────────────────────────────────────────────────────
 const tg = require('./bot/telegram');

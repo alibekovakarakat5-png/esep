@@ -156,6 +156,14 @@ async function handleStart(chatId, from, payload) {
   // Deep links: /start calc_5000000 → instant calculation
   if (payload) {
     const p = payload.toLowerCase();
+
+    // ── Привязка аккаунта (bind_TOKEN) ────────────────────────────────────
+    // Раздельная проверка: "bind_" с case-sensitive токеном.
+    if (payload.startsWith('bind_')) {
+      const token = payload.slice(5).trim();
+      return handleBindRequest(chatId, from, token);
+    }
+
     if (p.startsWith('calc_')) {
       const amount = p.replace('calc_', '');
       return handleCalc(chatId, amount);
@@ -451,6 +459,206 @@ function handleHelp(chatId) {
   );
 }
 
+// ── Безопасная привязка через одноразовый токен ────────────────────────────
+//
+// Флоу:
+//   1. Пользователь на сайте жмёт "Привязать Telegram", получает t.me-ссылку
+//      с одноразовым токеном.
+//   2. Открывает её в Telegram, бот видит /start bind_TOKEN.
+//   3. Бот находит токен в БД, показывает email пользователя и кнопки
+//      "Это я / Это не я".
+//   4. Только при нажатии "Это я" фактическая привязка выполняется,
+//      и пользователь получает уведомление.
+//
+// Защита:
+//   - Токен одноразовый и валиден 10 минут.
+//   - Бот показывает email — пользователь видит чьё именно имя он привязывает.
+//     Если кто-то скинул ему ссылку — он отклонит.
+//   - При повторной привязке к существующему аккаунту — заменяем chat_id.
+//   - Audit log в auth_security_log.
+
+async function handleBindRequest(chatId, from, token) {
+  if (!token) {
+    return send(chatId, '❌ Токен привязки не передан.');
+  }
+  try {
+    const r = await db.query(
+      `SELECT t.user_id, t.expires_at, t.consumed_at,
+              u.email, u.name
+         FROM telegram_bind_token t
+         JOIN users u ON u.id = t.user_id
+        WHERE t.token = $1`,
+      [token]
+    );
+    if (r.rows.length === 0) {
+      return send(chatId,
+        '❌ Ссылка привязки недействительна или уже использована.\n' +
+        'Откройте Esep и запросите новую ссылку привязки.'
+      );
+    }
+    const row = r.rows[0];
+    if (row.consumed_at) {
+      return send(chatId, '❌ Эта ссылка уже была использована.');
+    }
+    if (new Date(row.expires_at) < new Date()) {
+      return send(chatId, '❌ Срок действия ссылки истёк (10 минут). Запросите новую в Esep.');
+    }
+
+    const safeEmail = String(row.email || '').replace(/</g, '&lt;');
+    const safeName  = String(row.name || '').replace(/</g, '&lt;');
+
+    return send(chatId,
+      `🔐 <b>Привязка Telegram к Esep</b>\n\n` +
+      `Кто-то запросил привязать <b>этот Telegram</b> к аккаунту:\n\n` +
+      `📧 ${safeEmail}\n` +
+      (safeName ? `👤 ${safeName}\n` : '') +
+      `\n<b>Это вы?</b>\n\n` +
+      `Если этот аккаунт ваш — нажмите "Это я". Если нет — нажмите "Это не я", ` +
+      `и мы ничего не привяжем.\n\n` +
+      `<i>После подтверждения вы сможете восстанавливать пароль через этот Telegram.</i>`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '✅ Это я, привязать', callback_data: `bind_yes:${token}` }],
+            [{ text: '❌ Это не я', callback_data: `bind_no:${token}` }],
+          ],
+        },
+      }
+    );
+  } catch (err) {
+    console.error('[bot/bind] failed:', err);
+    return send(chatId, '❌ Ошибка привязки. Попробуйте снова.');
+  }
+}
+
+async function handleBindConfirm(cb, token) {
+  const chatId = cb.from.id;
+  try {
+    const r = await db.query(
+      `SELECT t.user_id, t.expires_at, t.consumed_at,
+              u.email
+         FROM telegram_bind_token t
+         JOIN users u ON u.id = t.user_id
+        WHERE t.token = $1`,
+      [token]
+    );
+    if (r.rows.length === 0) {
+      botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: '❌ Токен не найден' });
+      return;
+    }
+    const row = r.rows[0];
+    if (row.consumed_at) {
+      botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: 'Уже использовано' });
+      return send(chatId, '❌ Эта ссылка уже была использована.');
+    }
+    if (new Date(row.expires_at) < new Date()) {
+      botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: 'Просрочено' });
+      return send(chatId, '❌ Срок ссылки истёк.');
+    }
+
+    const username = cb.from.username || null;
+
+    // Если у этого chat_id уже привязан другой user — отвяжем (chat_id уникален)
+    await db.query(
+      `UPDATE users SET telegram_chat_id = NULL,
+                        telegram_username = NULL,
+                        telegram_linked_at = NULL
+        WHERE telegram_chat_id = $1`,
+      [String(chatId)]
+    );
+
+    // Привязываем
+    await db.query(
+      `UPDATE users
+          SET telegram_chat_id = $1,
+              telegram_username = $2,
+              telegram_linked_at = NOW()
+        WHERE id = $3`,
+      [String(chatId), username, row.user_id]
+    );
+
+    // bot_users — сохраняем для совместимости с существующим ботом
+    await db.query(
+      `INSERT INTO bot_users (chat_id, linked_user_id)
+       VALUES ($1, $2)
+       ON CONFLICT (chat_id) DO UPDATE SET linked_user_id = EXCLUDED.linked_user_id`,
+      [String(chatId), row.user_id]
+    );
+
+    // Помечаем токен использованным
+    await db.query(
+      `UPDATE telegram_bind_token
+          SET consumed_at = NOW(),
+              consumed_chat_id = $1,
+              consumed_username = $2
+        WHERE token = $3`,
+      [String(chatId), username, token]
+    );
+
+    await db.query(
+      `INSERT INTO auth_security_log (user_id, event, meta)
+       VALUES ($1, 'tg_bind_confirmed', $2::jsonb)`,
+      [row.user_id, JSON.stringify({ chat_id: String(chatId), username })]
+    );
+
+    botRequest('answerCallbackQuery',
+      { callback_query_id: cb.id, text: '✅ Привязано!' });
+
+    return send(chatId,
+      `✅ <b>Telegram привязан к аккаунту Esep</b>\n\n` +
+      `📧 ${String(row.email).replace(/</g, '&lt;')}\n\n` +
+      `Теперь вы можете восстановить пароль через этот Telegram, если забудете его.\n\n` +
+      `<i>Если вы не привязывали аккаунт — отвяжите Telegram через настройки в приложении.</i>`
+    );
+  } catch (err) {
+    console.error('[bot/bind-confirm] failed:', err);
+    botRequest('answerCallbackQuery',
+      { callback_query_id: cb.id, text: '❌ Ошибка' });
+  }
+}
+
+async function handleBindReject(cb, token) {
+  const chatId = cb.from.id;
+  try {
+    const r = await db.query(
+      `SELECT user_id FROM telegram_bind_token WHERE token = $1`,
+      [token]
+    );
+    const userId = r.rows[0]?.user_id || null;
+
+    // Помечаем токен недействительным
+    await db.query(
+      `UPDATE telegram_bind_token
+          SET expires_at = NOW(),
+              consumed_at = NOW(),
+              consumed_chat_id = $1
+        WHERE token = $2`,
+      [String(chatId), token]
+    );
+
+    if (userId) {
+      await db.query(
+        `INSERT INTO auth_security_log (user_id, event, meta)
+         VALUES ($1, 'tg_bind_rejected', $2::jsonb)`,
+        [userId, JSON.stringify({ chat_id: String(chatId) })]
+      );
+    }
+
+    botRequest('answerCallbackQuery',
+      { callback_query_id: cb.id, text: '🛡 Отклонено' });
+    return send(chatId,
+      `🛡 <b>Привязка отклонена.</b>\n\n` +
+      `Никаких аккаунтов мы к вашему Telegram не привязали.\n\n` +
+      `Если кто-то прислал вам эту ссылку — будьте осторожны, возможно это ` +
+      `попытка получить доступ к чужому аккаунту.`
+    );
+  } catch (err) {
+    console.error('[bot/bind-reject] failed:', err);
+    botRequest('answerCallbackQuery',
+      { callback_query_id: cb.id, text: '❌ Ошибка' });
+  }
+}
+
 async function handleLink(chatId, args) {
   const email = args.trim().toLowerCase();
   if (!email || !email.includes('@')) {
@@ -624,6 +832,14 @@ async function handleUpdate(update) {
 // ── Callback queries ────────────────────────────────────────────────────────
 async function handleCallbackQuery(cb) {
   const data = cb.data || '';
+
+  // Привязка Telegram (одноразовый токен с сайта)
+  if (data.startsWith('bind_yes:')) {
+    return handleBindConfirm(cb, data.slice('bind_yes:'.length));
+  }
+  if (data.startsWith('bind_no:')) {
+    return handleBindReject(cb, data.slice('bind_no:'.length));
+  }
 
   if (data === 'tax_ok') {
     return botRequest('answerCallbackQuery', {

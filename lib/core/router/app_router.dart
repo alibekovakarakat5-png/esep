@@ -31,6 +31,8 @@ import '../../features/esf_recon/screens/esf_recon_screen.dart';
 import '../../features/esf_recon/screens/esf_recon_detail_screen.dart';
 import '../../features/account_monitor/screens/account_monitor_screen.dart';
 import '../../features/settings/screens/tax_profile_screen.dart';
+import '../../features/auth/screens/forgot_password_screen.dart';
+import '../../features/settings/screens/telegram_link_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
 import '../providers/auth_provider.dart';
 import '../providers/user_mode_provider.dart';
@@ -69,11 +71,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/onboarding';
       }
 
-      // Not logged in → go to auth (юридические доки доступны без входа)
+      // Not logged in → go to auth (юридические доки + forgot-password доступны без входа)
       if (seenOnboarding &&
           authState == AuthState.unauthenticated &&
           location != '/auth' &&
           location != '/onboarding' &&
+          location != '/forgot-password' &&
           !location.startsWith('/legal/')) {
         return '/auth';
       }
@@ -106,6 +109,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/auth',
         builder: (_, __) => const AuthScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (_, __) => const ForgotPasswordScreen(),
       ),
 
       // ── Mode select (outside of shell = no bottom nav) ───────────────────
@@ -223,6 +230,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/tax-profile',
             builder: (_, __) => const TaxProfileScreen(),
+          ),
+
+          // ─ Привязка Telegram ──────────────────────────────────────────────
+          GoRoute(
+            path: '/telegram-link',
+            builder: (_, __) => const TelegramLinkScreen(),
           ),
 
           // ─ Бухгалтер routes ───────────────────────────────────────────────

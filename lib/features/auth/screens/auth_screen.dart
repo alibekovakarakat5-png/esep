@@ -9,6 +9,7 @@ import '../../../core/providers/legal_consent_provider.dart';
 import '../../../core/services/api_client.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/responsive_form_shell.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -88,103 +89,106 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 32),
-              // Logo + title
-              Row(children: [
-                Container(
-                  width: 48, height: 48,
-                  decoration: BoxDecoration(
-                    color: EsepColors.primary,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Center(
-                    child: Text('E', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700)),
-                  ),
+      backgroundColor: responsivePageBg(context),
+      body: ResponsiveFormShell(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Logo + title
+            Row(children: [
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  color: EsepColors.primary,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 12),
-                const Text('Esep', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700)),
-              ]),
-              const SizedBox(height: 8),
-              const Text(
-                'Учёт для вашего бизнеса',
-                style: TextStyle(color: EsepColors.textSecondary, fontSize: 14),
-              ),
-              const SizedBox(height: 40),
-              TabBar(
-                controller: _tabs,
-                labelColor: EsepColors.primary,
-                unselectedLabelColor: EsepColors.textSecondary,
-                indicatorColor: EsepColors.primary,
-                indicatorSize: TabBarIndicatorSize.label,
-                tabs: const [Tab(text: 'Войти'), Tab(text: 'Регистрация')],
-              ),
-              const SizedBox(height: 24),
-              if (_error != null) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: EsepColors.expense.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(children: [
-                    const Icon(Icons.error_outline, color: EsepColors.expense, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(_error!, style: const TextStyle(color: EsepColors.expense, fontSize: 13))),
-                  ]),
-                ),
-                const SizedBox(height: 16),
-              ],
-              Expanded(
-                child: TabBarView(
-                  controller: _tabs,
-                  children: [
-                    _LoginTab(emailCtrl: _emailCtrl, passCtrl: _passCtrl, loading: _loading, onLogin: _login),
-                    _RegisterTab(
-                      nameCtrl: _nameCtrl,
-                      emailCtrl: _emailCtrl,
-                      passCtrl: _passCtrl,
-                      loading: _loading,
-                      consentAccepted: _consentAccepted,
-                      onConsentChanged: (v) => setState(() => _consentAccepted = v),
-                      onRegister: _register,
-                    ),
-                  ],
+                child: const Center(
+                  child: Text('E',
+                      style: TextStyle(
+                        color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700,
+                      )),
                 ),
               ),
-
-              // ── Demo mode button ──────────────────────────────────────
-              const Divider(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  icon: const Icon(Iconsax.eye, size: 18),
-                  label: const Text('Посмотреть без входа'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    side: BorderSide(color: EsepColors.primary.withValues(alpha: 0.3)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () {
-                    ref.read(authProvider.notifier).enterDemo();
-                  },
+              const SizedBox(width: 12),
+              const Text('Esep',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+            ]),
+            const SizedBox(height: 6),
+            const Text(
+              'Учёт для вашего бизнеса',
+              style: TextStyle(color: EsepColors.textSecondary, fontSize: 13),
+            ),
+            const SizedBox(height: 28),
+            TabBar(
+              controller: _tabs,
+              labelColor: EsepColors.primary,
+              unselectedLabelColor: EsepColors.textSecondary,
+              indicatorColor: EsepColors.primary,
+              indicatorSize: TabBarIndicatorSize.label,
+              tabs: const [Tab(text: 'Войти'), Tab(text: 'Регистрация')],
+            ),
+            const SizedBox(height: 20),
+            if (_error != null) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: EsepColors.expense.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
+                child: Row(children: [
+                  const Icon(Icons.error_outline, color: EsepColors.expense, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(_error!,
+                      style: const TextStyle(color: EsepColors.expense, fontSize: 13))),
+                ]),
               ),
-              const SizedBox(height: 6),
-              const Center(
-                child: Text(
-                  'Демо-данные — без регистрации',
-                  style: TextStyle(fontSize: 12, color: EsepColors.textDisabled),
-                ),
-              ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
             ],
-          ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabs,
+                children: [
+                  _LoginTab(emailCtrl: _emailCtrl, passCtrl: _passCtrl,
+                      loading: _loading, onLogin: _login),
+                  _RegisterTab(
+                    nameCtrl: _nameCtrl,
+                    emailCtrl: _emailCtrl,
+                    passCtrl: _passCtrl,
+                    loading: _loading,
+                    consentAccepted: _consentAccepted,
+                    onConsentChanged: (v) => setState(() => _consentAccepted = v),
+                    onRegister: _register,
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Demo mode button ──────────────────────────────────────
+            const Divider(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Iconsax.eye, size: 18),
+                label: const Text('Посмотреть без входа'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  side: BorderSide(color: EsepColors.primary.withValues(alpha: 0.3)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  ref.read(authProvider.notifier).enterDemo();
+                },
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Center(
+              child: Text(
+                'Демо-данные — без регистрации',
+                style: TextStyle(fontSize: 12, color: EsepColors.textDisabled),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -199,18 +203,37 @@ class _LoginTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return ListView(
+      padding: EdgeInsets.zero,
       children: [
-        TextField(controller: emailCtrl, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email')),
+        TextField(
+          controller: emailCtrl,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(labelText: 'Email'),
+        ),
         const SizedBox(height: 16),
-        TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Пароль'),
-          onSubmitted: (_) => onLogin()),
-        const SizedBox(height: 24),
+        TextField(
+          controller: passCtrl,
+          obscureText: true,
+          decoration: const InputDecoration(labelText: 'Пароль'),
+          onSubmitted: (_) => onLogin(),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () => context.push('/forgot-password'),
+            child: const Text('Забыли пароль?'),
+          ),
+        ),
+        const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
             onPressed: loading ? null : onLogin,
-            child: loading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Войти'),
+            child: loading
+                ? const SizedBox(height: 20, width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Войти'),
           ),
         ),
       ],
