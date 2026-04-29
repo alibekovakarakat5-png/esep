@@ -176,6 +176,12 @@ async function handleStart(chatId, from, payload) {
       const amount = p.replace('self_', '');
       return handleSelf(chatId, amount);
     }
+
+    // Восстановление пароля: /start reset_<email> или /start reset
+    if (p === 'reset' || p.startsWith('reset_') || p.startsWith('reset ')) {
+      const email = payload.replace(/^reset[_\s]?/i, '').trim();
+      return handleReset(chatId, email);
+    }
   }
 
   // Welcome series: regime selection
@@ -444,7 +450,8 @@ function handleHelp(chatId) {
     `/self 1000000 — налог самозанятого\n` +
     `/deadlines — сроки сдачи\n` +
     `/status — ваш статус и лимиты\n` +
-    `/link email — привязать аккаунт Esep\n\n` +
+    `/link email — привязать аккаунт Esep\n` +
+    `/reset email — восстановить пароль\n\n` +
     `Или просто спросите: <i>"сколько налогов с 3 млн?"</i>`,
     {
       reply_markup: {
@@ -659,6 +666,58 @@ async function handleBindReject(cb, token) {
   }
 }
 
+// /reset email@example.com — генерит временный пароль и присылает в чат
+async function handleReset(chatId, args) {
+  const email = args.trim().toLowerCase();
+  if (!email || !email.includes('@')) {
+    return send(chatId,
+      `🔑 <b>Восстановление пароля</b>\n\n` +
+      `Напиши: <code>/reset your@email.com</code>\n\n` +
+      `Я сгенерирую временный пароль и пришлю сюда.\n` +
+      `После входа смени его в настройках.`,
+    );
+  }
+
+  const { rows } = await db.query(
+    'SELECT id, name FROM users WHERE email = $1',
+    [email],
+  );
+  if (!rows.length) {
+    return send(chatId,
+      `❌ Email <code>${email}</code> не найден.\n\n` +
+      `Проверь что не опечатался — или зарегистрируйся в приложении.`,
+    );
+  }
+
+  // Генерим временный пароль (легко набрать, но безопасный)
+  const bcrypt = require('bcryptjs');
+  const crypto = require('crypto');
+  const tempPass = crypto.randomBytes(6).toString('base64url').slice(0, 10);
+  const hash = await bcrypt.hash(tempPass, 12);
+
+  await db.query(
+    'UPDATE users SET password_hash = $1 WHERE id = $2',
+    [hash, rows[0].id],
+  );
+
+  send(chatId,
+    `✅ <b>Временный пароль готов</b>\n\n` +
+    `Email: <code>${email}</code>\n` +
+    `Пароль: <code>${tempPass}</code>\n\n` +
+    `Зайди в Esep → ${process.env.APP_URL || 'esepkz.vercel.app'}\n` +
+    `<i>После входа смени пароль в настройках!</i>`,
+    { disable_web_page_preview: true },
+  );
+
+  // Уведомляем админа о восстановлении
+  sendAdmin(
+    `🔑 <b>Восстановление пароля</b>\n\n` +
+    `Email: <code>${email}</code>\n` +
+    `Имя: ${rows[0].name || '—'}\n` +
+    `Чат TG: <code>${chatId}</code>`,
+  );
+}
+
 async function handleLink(chatId, args) {
   const email = args.trim().toLowerCase();
   if (!email || !email.includes('@')) {
@@ -820,6 +879,7 @@ async function handleUpdate(update) {
       case '/self':      return handleSelf(chatId, args);
       case '/deadlines': return handleDeadlines(chatId);
       case '/link':      return handleLink(chatId, args);
+      case '/reset':     return handleReset(chatId, args);
       default:
         // Free text
         return handleFreeText(chatId, text);
@@ -1127,10 +1187,24 @@ function adminLink(adminUrl, hash) {
   return `${adminUrl}/api/admin#${hash}`;
 }
 
-function notifyNewUser({ email, name }) {
-  sendAdmin(
-    `👤 <b>Регистрация в Esep</b>\n\nEmail: <code>${email}</code>\nИмя: ${name || '—'}`,
-  );
+function notifyNewUser({ email, name, phone }) {
+  // Распознаём ИП по префиксу в имени
+  const isIP = /^ИП\b|^IP\b/i.test((name || '').trim());
+  const role = isIP ? '🏢 ИП' : '👤 Физлицо';
+
+  let msg = `${role} <b>Новая регистрация в Esep</b>\n\n`;
+  msg += `📧 Email: <code>${email}</code>\n`;
+  msg += `👋 Имя: ${name || '—'}\n`;
+  if (phone) {
+    msg += `📞 Телефон: <code>${phone}</code>`;
+    // Для удобной связи через WhatsApp/Telegram добавим кликабельную ссылку
+    const waNum = phone.replace(/\D/g, '');
+    msg += `\n💬 <a href="https://wa.me/${waNum}">WhatsApp</a> · <a href="tg://resolve?phone=${waNum}">Telegram</a>`;
+  } else {
+    msg += `📞 Телефон: <i>не указан</i>`;
+  }
+
+  sendAdmin(msg, { parse_mode: 'HTML', disable_web_page_preview: true });
 }
 
 function notifyTaxCheck({ mentions, adminUrl }) {

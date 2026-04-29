@@ -12,9 +12,21 @@ const sign = (userId) =>
 // POST /api/auth/register
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Простая нормализация казахстанского телефона
+function normalizePhone(s) {
+  if (!s) return null;
+  const digits = String(s).replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.length === 11 && (digits.startsWith('7') || digits.startsWith('8'))) {
+    return '+7' + digits.slice(1);
+  }
+  if (digits.length === 10) return '+7' + digits;
+  return '+' + digits;
+}
+
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, name = '' } = req.body ?? {};
+    const { email, password, name = '', phone = null } = req.body ?? {};
 
     if (!email || !emailRegex.test(email.trim())) {
       return res.status(400).json({ error: 'Укажите корректный email' });
@@ -24,8 +36,8 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Пароль должен содержать минимум 6 символов' });
     }
 
-    // BUG 3: normalize email at the start and use everywhere
     const normalizedEmail = email.toLowerCase().trim();
+    const normalizedPhone = normalizePhone(phone);
 
     const exists = await db.query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
     if (exists.rows.length) {
@@ -34,13 +46,17 @@ router.post('/register', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 12);
     const { rows } = await db.query(
-      `INSERT INTO users (email, name, password_hash, trial_started_at, trial_expires_at)
-       VALUES ($1, $2, $3, NOW(), NOW() + INTERVAL '7 days')
+      `INSERT INTO users (email, name, password_hash, phone, trial_started_at, trial_expires_at)
+       VALUES ($1, $2, $3, $4, NOW(), NOW() + INTERVAL '7 days')
        RETURNING id, tier, trial_started_at, trial_expires_at, subscription_expires_at`,
-      [normalizedEmail, name.trim(), hash],
+      [normalizedEmail, name.trim(), hash, normalizedPhone],
     );
 
-    tg.notifyNewUser({ email: normalizedEmail, name });
+    tg.notifyNewUser({
+      email: normalizedEmail,
+      name,
+      phone: normalizedPhone,
+    });
     res.status(201).json({
       token: sign(rows[0].id),
       userId: rows[0].id,

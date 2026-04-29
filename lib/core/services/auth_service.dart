@@ -34,12 +34,18 @@ class AuthService {
   }
 
   static Future<AuthSnapshot> register(
-      String email, String password, String name) async {
-    final data = await ApiClient.post('/auth/register', {
+    String email, String password, String name, {
+    String? phone,
+  }) async {
+    final body = <String, dynamic>{
       'email': email.trim().toLowerCase(),
       'password': password,
       'name': name.trim(),
-    }) as Map;
+    };
+    if (phone != null && phone.trim().isNotEmpty) {
+      body['phone'] = phone.trim();
+    }
+    final data = await ApiClient.post('/auth/register', body) as Map;
     await _persist(data['token'] as String, data['userId'] as String, email.trim().toLowerCase());
     return AuthSnapshot.fromJson(data);
   }

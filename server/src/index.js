@@ -64,6 +64,8 @@ async function migrate() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMPTZ;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_expires_at TIMESTAMPTZ;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMPTZ;
+    -- Контакт для саппорта
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
     UPDATE users SET tier = 'solo' WHERE tier = 'ip';
     UPDATE users SET tier = 'accountant_pro' WHERE tier IN ('corporate', 'accountantPro');
 
@@ -319,14 +321,9 @@ app.use('/api/account',      authMiddleware, accountRoutes);
 app.use('/api/tax-profile',  authMiddleware, taxProfileRoutes);
 app.use('/api/kbk',          authMiddleware, kbkRoutes);
 
-// Auth recovery: смешанный роутер.
-// telegram/* требуют авторизации (привязка/отвязка только из своего акка).
-// forgot-password/verify-reset-code/reset-password — без авторизации.
-app.use('/api/auth', (req, res, next) => {
-  const needsAuth = req.path.startsWith('/telegram');
-  if (needsAuth) return authMiddleware(req, res, () => authRecoveryRoutes(req, res, next));
-  return authRecoveryRoutes(req, res, next);
-});
+// Auth recovery: только привязка Telegram (всё под авторизацией).
+// Восстановление пароля идёт через TG-бота (команда /reset email).
+app.use('/api/auth', authMiddleware, authRecoveryRoutes);
 
 // ── Telegram bot webhook ──────────────────────────────────────────────────────
 const tg = require('./bot/telegram');

@@ -38,8 +38,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = AuthState.authenticated;
   }
 
-  Future<void> register(String email, String password, String name) async {
-    final snapshot = await AuthService.register(email, password, name);
+  Future<void> register(
+    String email, String password, String name, {
+    String? phone,
+  }) async {
+    final snapshot = await AuthService.register(email, password, name, phone: phone);
     _ref.read(isDemoProvider.notifier).state = false;
     _ref.read(subscriptionProvider.notifier).applyServerSnapshot(snapshot);
     state = AuthState.authenticated;
