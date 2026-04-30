@@ -3,7 +3,7 @@ import 'dart:io' show Platform;
 String detectApiBase() {
   // На реальном устройстве/релизе → Railway production
   // На эмуляторе Android (10.0.2.2) или локальной отладке → localhost
-  const prod = 'https://esep-production.up.railway.app/api';
+  const prod = 'https://api.esepkz.com/api';
   const local = 'http://localhost:3001/api';
 
   // В release-сборке всегда production

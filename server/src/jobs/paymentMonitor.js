@@ -61,7 +61,7 @@ async function expirePayments() {
       );
       const user = userRows[0];
       if (user) {
-        const adminUrl = process.env.ADMIN_URL ?? 'https://esep-production.up.railway.app';
+        const adminUrl = process.env.ADMIN_URL ?? 'https://api.esepkz.com';
         tg.sendAdmin(
           `🔴 <b>Подписка истекла</b>\n\n` +
           `Клиент: ${user.email}\n` +
@@ -99,7 +99,7 @@ async function notifyExpiringSoon() {
 
     if (rows.length === 0) return;
 
-    const adminUrl = process.env.ADMIN_URL ?? 'https://esep-production.up.railway.app';
+    const adminUrl = process.env.ADMIN_URL ?? 'https://api.esepkz.com';
 
     let msg = `⚠️ <b>Подписки истекают в ближ. 3 дня</b>\n\n`;
     for (const r of rows) {

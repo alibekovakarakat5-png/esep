@@ -67,7 +67,7 @@ router.post('/', adminAuth, async (req, res) => {
 
     // Notify via Telegram if draft needs review
     if (status === 'draft') {
-      const adminUrl = process.env.ADMIN_URL ?? `https://esep-production.up.railway.app`;
+      const adminUrl = process.env.ADMIN_URL ?? `https://api.esepkz.com`;
       tg.notifyArticleDraft({ title, id: art.id, adminUrl });
     }
 

@@ -704,7 +704,7 @@ async function handleReset(chatId, args) {
     `✅ <b>Временный пароль готов</b>\n\n` +
     `Email: <code>${email}</code>\n` +
     `Пароль: <code>${tempPass}</code>\n\n` +
-    `Зайди в Esep → ${process.env.APP_URL || 'esepkz.vercel.app'}\n` +
+    `Зайди в Esep → ${process.env.APP_URL || 'app.esepkz.com'}\n` +
     `<i>После входа смени пароль в настройках!</i>`,
     { disable_web_page_preview: true },
   );
@@ -859,7 +859,7 @@ async function handleUpdate(update) {
         {
           reply_markup: {
             inline_keyboard: [
-              [{ text: '🌐 Открыть Esep', url: 'https://esepkz.vercel.app' }],
+              [{ text: '🌐 Открыть Esep', url: 'https://esepkz.com' }],
               [{ text: '💬 Консультация', url: 'https://t.me/alibekovakarakat' }],
             ],
           },
@@ -1285,7 +1285,7 @@ const CHANNEL_CTA_KEYBOARD = {
   reply_markup: {
     inline_keyboard: [
       [
-        { text: '🌐 Открыть Esep', url: 'https://esepkz.vercel.app' },
+        { text: '🌐 Открыть Esep', url: 'https://esepkz.com' },
         { text: '🧮 Калькулятор', url: 'https://t.me/EsepKZ_bot' },
       ],
       [

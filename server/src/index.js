@@ -270,13 +270,21 @@ async function migrate() {
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 const ALLOWED_ORIGINS = [
+  // Production — основные домены
+  'https://esepkz.com',
+  'https://www.esepkz.com',
+  'https://app.esepkz.com',
+  'https://api.esepkz.com',
+  // Старые URL (на переходный период — потом удалим)
   'https://esepkz.vercel.app',
   'https://alibekovakarakat5-png.github.io',
   'https://esep-production.up.railway.app',
+  // Local dev
   'http://localhost:5500',
   'http://localhost:8080',
   'http://localhost:3000',
   'http://localhost:3334',
+  'http://localhost:5173',
 ];
 app.use(cors({
   origin: (origin, cb) => {
@@ -384,6 +392,6 @@ app.listen(PORT, () => {
   startPaymentMonitor();
 
   // Auto-register Telegram webhook
-  const baseUrl = process.env.ADMIN_URL ?? `https://esep-production.up.railway.app`;
+  const baseUrl = process.env.ADMIN_URL ?? `https://api.esepkz.com`;
   tg.setupWebhook(baseUrl).catch(e => console.error('[bot] webhook setup error:', e.message));
 });

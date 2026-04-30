@@ -164,7 +164,7 @@ let lastAutoUpdate = null;
 
 // ── Основная проверка + авто-обновление ───────────────────────────────────────
 async function checkTaxSources() {
-  const adminUrl = process.env.ADMIN_URL ?? 'https://esep-production.up.railway.app';
+  const adminUrl = process.env.ADMIN_URL ?? 'https://api.esepkz.com';
   let totalNew = 0;
   const allExtracted = {};
   const proofSources = [];
@@ -272,7 +272,7 @@ async function revertLastAutoUpdate() {
 
 // ── Ежемесячные напоминания ───────────────────────────────────────────────────
 function checkMonthlyReminder() {
-  const adminUrl = process.env.ADMIN_URL ?? 'https://esep-production.up.railway.app';
+  const adminUrl = process.env.ADMIN_URL ?? 'https://api.esepkz.com';
   const now   = new Date();
   const day   = now.getDate();
   const month = now.getMonth() + 1;
