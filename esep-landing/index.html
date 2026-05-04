@@ -1594,9 +1594,9 @@
     if (!isOpen) item.classList.add('open');
   }
 
-  // ── B2B form
-  // TODO: замените YOUR_FORMSPREE_ID на реальный ID с formspree.io
-  const FORMSPREE_ID = 'YOUR_FORMSPREE_ID';
+  // ── B2B form: создаёт лид в Connect CRM + открывает WhatsApp с предзаполненным текстом.
+  // Лид появляется в твоём Connect dashboard на /app/leads с тегом source=esep-landing.
+  const CONNECT_LEADS_URL = 'https://connect.esepkz.com/leads/esep';
 
   async function submitForm(e) {
     e.preventDefault();
@@ -1607,16 +1607,24 @@
     const interest= document.getElementById('f-interest').value;
     const comment = document.getElementById('f-comment').value.trim();
 
-    // Сохраняем лид через Formspree (фоново)
-    if (FORMSPREE_ID !== 'YOUR_FORMSPREE_ID') {
-      fetch('https://formspree.io/f/' + FORMSPREE_ID, {
-        method: 'POST',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, company, phone, email, interest, comment }),
-      }).catch(() => {}); // не блокируем UX при ошибке
-    }
+    // 1) Создаём лида в Connect (фоново, не блокируем UX). Карточка появится в твоём дашборде.
+    fetch(CONNECT_LEADS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: name || 'Без имени',
+        company: company || null,
+        phone: phone.replace(/\D+/g, ''),
+        whatsapp: phone.replace(/\D+/g, ''),
+        email: email || null,
+        notes: [`Esep · ${interest}`, comment].filter(Boolean).join(' · '),
+        source: 'esep-landing',
+        sourceUrl: window.location.href,
+        status: 'new',
+      }),
+    }).catch(() => {}); // не блокируем UX при ошибке
 
-    // Открываем WhatsApp с данными заявки
+    // 2) Открываем WhatsApp клиента с предзаполненным сообщением — мгновенный контакт.
     const msg = [
       '📋 *Новая заявка с Esep.kz*',
       '',
