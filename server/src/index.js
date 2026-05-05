@@ -18,6 +18,7 @@ const aiChatRoutes                       = require('./routes/ai-chat');
 const { startMonitor }                    = require('./jobs/taxMonitor');
 const { startLeadMonitor }                = require('./jobs/leadMonitor');
 const { startPaymentMonitor }             = require('./jobs/paymentMonitor');
+const { startTrialMonitor }               = require('./jobs/trialMonitor');
 const { seedMarketingContent }            = require('./bot/marketing');
 const { migrateKnowledge }                = require('./services/knowledge_db');
 const { seedEsepPlatformKnowledge }       = require('./jobs/seedPlatformKnowledge');
@@ -390,6 +391,7 @@ app.listen(PORT, () => {
   startMonitor();
   startLeadMonitor();
   startPaymentMonitor();
+  startTrialMonitor().catch(err => console.error('[trialMonitor] failed to start:', err.message));
 
   // Auto-register Telegram webhook
   const baseUrl = process.env.ADMIN_URL ?? `https://api.esepkz.com`;

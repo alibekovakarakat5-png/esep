@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../../shared/widgets/adaptive_sheet.dart';
+import '../../../shared/widgets/trial_banner.dart';
 import '../../../core/services/file_saver.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -70,6 +71,9 @@ class DashboardScreen extends ConsumerWidget {
         return ListView(
         padding: EdgeInsets.all(wide ? 24 : 16),
         children: [
+
+          // ── Trial countdown / paywall banner ───────────────────────
+          const TrialBanner(),
 
           // ── Demo banner ────────────────────────────────────────────
           if (ref.watch(isDemoProvider)) ...[
@@ -137,19 +141,28 @@ class DashboardScreen extends ConsumerWidget {
                 icon: Iconsax.arrow_circle_up,
                 label: '+ Доход',
                 color: EsepColors.income,
-                onTap: () => _showQuickAdd(context, ref, isIncome: true),
+                onTap: () {
+                  if (!ensureSubscriptionOrPaywall(context, ref, feature: 'добавление операций')) return;
+                  _showQuickAdd(context, ref, isIncome: true);
+                },
               )),
               SizedBox(width: wide ? null : (constraints.maxWidth - 42) / 2, child: _ActionButton(
                 icon: Iconsax.arrow_circle_down,
                 label: '+ Расход',
                 color: EsepColors.expense,
-                onTap: () => _showQuickAdd(context, ref, isIncome: false),
+                onTap: () {
+                  if (!ensureSubscriptionOrPaywall(context, ref, feature: 'добавление операций')) return;
+                  _showQuickAdd(context, ref, isIncome: false);
+                },
               )),
               SizedBox(width: wide ? null : (constraints.maxWidth - 42) / 2, child: _ActionButton(
                 icon: Iconsax.receipt_add,
                 label: 'Счёт',
                 color: EsepColors.primary,
-                onTap: () => context.go('/invoices'),
+                onTap: () {
+                  if (!ensureSubscriptionOrPaywall(context, ref, feature: 'счёт-фактуры')) return;
+                  context.go('/invoices');
+                },
               )),
               SizedBox(width: wide ? null : (constraints.maxWidth - 42) / 2, child: _ActionButton(
                 icon: Iconsax.document_download,

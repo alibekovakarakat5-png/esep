@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const db     = require('../db');
 const { limitsFor } = require('../tiers');
+const requireSubscription = require('../middleware/requireSubscription');
 
 // GET /api/invoices
 router.get('/', async (req, res) => {
@@ -48,8 +49,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/invoices
-router.post('/', async (req, res) => {
+// POST /api/invoices — gated by active subscription / trial
+router.post('/', requireSubscription, async (req, res) => {
   try {
     const { id, number, clientName, clientId, status = 'draft', notes, dueDate, items = [] } = req.body;
 
