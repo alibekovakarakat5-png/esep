@@ -87,7 +87,7 @@ class _BetaFeedbackButtonState extends State<BetaFeedbackButton> {
     if (widget.compact) {
       return IconButton(
         tooltip: 'Сообщить о баге (бета-тест)',
-        icon: const Icon(Iconsax.bug),
+        icon: const Icon(Icons.bug_report_outlined),
         onPressed: _open,
       );
     }
@@ -97,7 +97,7 @@ class _BetaFeedbackButtonState extends State<BetaFeedbackButton> {
       onPressed: _open,
       backgroundColor: cs.error.withValues(alpha: 0.9),
       foregroundColor: Colors.white,
-      icon: const Icon(Iconsax.bug, size: 18),
+      icon: const Icon(Icons.bug_report_outlined, size: 18),
       label: const Text(
         'Сообщить о баге',
         style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
@@ -153,7 +153,7 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
               color: cs.error.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Iconsax.bug, color: cs.error, size: 20),
+            child: Icon(Icons.bug_report_outlined, color: cs.error, size: 20),
           ),
           const SizedBox(width: 12),
           const Expanded(
