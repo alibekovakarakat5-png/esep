@@ -6,6 +6,7 @@ const authMiddleware                      = require('./middleware/auth');
 const authRoutes                          = require('./routes/auth');
 const txRoutes                            = require('./routes/transactions');
 const invoiceRoutes                       = require('./routes/invoices');
+const feedbackRoutes                      = require('./routes/feedback');
 const { router: adminRoutes }             = require('./routes/admin');
 const { router: taxConfigRoutes,
         seedTaxConfig }                   = require('./routes/tax-config');
@@ -67,8 +68,26 @@ async function migrate() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMPTZ;
     -- Контакт для саппорта
     ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
+    -- Роль "тестировщик": видна кнопка "Сообщить о баге" в приложении.
+    -- По умолчанию false — обычный пользователь. Меняется вручную в админке.
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS is_beta_tester BOOLEAN NOT NULL DEFAULT false;
     UPDATE users SET tier = 'solo' WHERE tier = 'ip';
     UPDATE users SET tier = 'accountant_pro' WHERE tier IN ('corporate', 'accountantPro');
+
+    -- Журнал отзывов от бета-тестировщиков (баги, идеи, ошибки в расчётах).
+    CREATE TABLE IF NOT EXISTS feedback (
+      id          BIGSERIAL    PRIMARY KEY,
+      user_id     UUID         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      screen      TEXT         NOT NULL DEFAULT 'unknown',
+      severity    TEXT         NOT NULL DEFAULT 'normal',
+      message     TEXT         NOT NULL,
+      device_info JSONB,
+      app_version TEXT,
+      status      TEXT         NOT NULL DEFAULT 'new',
+      created_at  TIMESTAMPTZ  DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS feedback_user_id_idx ON feedback(user_id);
+    CREATE INDEX IF NOT EXISTS feedback_status_idx  ON feedback(status);
 
     CREATE TABLE IF NOT EXISTS transactions (
       id          TEXT          PRIMARY KEY,
@@ -318,6 +337,7 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, ts: new Date() }));
 app.use('/api/auth',         authRoutes);
 app.use('/api/transactions', authMiddleware, txRoutes);
 app.use('/api/invoices',     authMiddleware, invoiceRoutes);
+app.use('/api/feedback',     feedbackRoutes); // auth внутри роутера, плюс is_beta_tester проверка
 app.use('/api/admin',        adminRoutes);
 app.use('/api/config/tax',   taxConfigRoutes);
 app.use('/api/promos',       promoRoutes);

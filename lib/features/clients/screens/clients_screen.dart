@@ -9,6 +9,7 @@ import '../../../core/providers/client_provider.dart';
 import '../../../core/providers/user_mode_provider.dart';
 import '../../../core/services/excel_export_service.dart';
 import '../../../shared/widgets/adaptive_sheet.dart';
+import '../../../shared/widgets/beta_feedback_button.dart';
 
 class ClientsScreen extends ConsumerStatefulWidget {
   const ClientsScreen({super.key});
@@ -78,6 +79,7 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
               }
             }),
           ),
+          const BetaFeedbackButton(screen: 'clients', compact: true),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(

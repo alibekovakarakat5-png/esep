@@ -1,0 +1,22 @@
+<!-- Google Ads: квадратный лого 1:1 (минимум 128x128, лучше 1200x1200).
+     Используется в Search-объявлениях, Discover, Gmail. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="1200" height="1200">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0EA5E9"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Скруглённый квадрат фона -->
+  <rect x="0" y="0" width="1200" height="1200" rx="260" ry="260" fill="url(#bg)"/>
+
+  <!-- Лёгкий блик сверху -->
+  <ellipse cx="600" cy="380" rx="520" ry="320" fill="rgba(255,255,255,0.08)"/>
+
+  <!-- Буква e (как на splash в приложении) -->
+  <text x="600" y="850" text-anchor="middle"
+        font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        font-size="800" font-weight="800"
+        fill="white" letter-spacing="-30">e</text>
+</svg>

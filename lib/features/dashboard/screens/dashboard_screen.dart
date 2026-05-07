@@ -23,6 +23,7 @@ import '../../../core/services/excel_export_service.dart';
 import '../../../core/providers/client_provider.dart';
 import '../../../core/providers/company_provider.dart';
 import '../../../core/providers/feature_tour_provider.dart';
+import '../../../shared/widgets/beta_feedback_button.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -62,6 +63,7 @@ class DashboardScreen extends ConsumerWidget {
               tooltip: 'Настройки',
               onPressed: () => context.go('/settings'),
             ),
+          const BetaFeedbackButton(screen: 'dashboard', compact: true),
           const SizedBox(width: 4),
         ],
       ),

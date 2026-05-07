@@ -1,0 +1,141 @@
+<!-- Google Ads: landscape-баннер 1.91:1 (1200x628).
+     Главное изображение для Search Discovery, Gmail Promotion и т.д.
+     Левая часть — продающий текст, правая — мокап телефона с экраном "Налоги". -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 628" width="1200" height="628">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="55%" stop-color="#0F1E35"/>
+      <stop offset="100%" stop-color="#0B1628"/>
+    </linearGradient>
+    <linearGradient id="phoneScreen" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0EA5E9"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#0EA5E9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Тёмный градиентный фон -->
+  <rect width="1200" height="628" fill="url(#bg)"/>
+
+  <!-- Декоративные пятна -->
+  <circle cx="950" cy="80" r="180" fill="#0EA5E9" opacity="0.10"/>
+  <circle cx="120" cy="540" r="140" fill="#38BDF8" opacity="0.08"/>
+
+  <!-- Маленький лого слева сверху -->
+  <g transform="translate(60,52)">
+    <rect width="60" height="60" rx="14" ry="14" fill="#0EA5E9"/>
+    <text x="30" y="46" text-anchor="middle"
+          font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif"
+          font-size="46" font-weight="800"
+          fill="white" letter-spacing="-2">e</text>
+    <text x="76" y="44"
+          font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif"
+          font-size="32" font-weight="800"
+          fill="#F1F5F9">esep</text>
+  </g>
+
+  <!-- Главный заголовок -->
+  <text x="60" y="240"
+        font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif"
+        font-size="68" font-weight="800"
+        fill="#F1F5F9" letter-spacing="-2">Налоги ИП —</text>
+  <text x="60" y="320"
+        font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif"
+        font-size="68" font-weight="800"
+        fill="url(#accent)" letter-spacing="-2">за 5 минут</text>
+
+  <!-- Подзаголовок -->
+  <text x="60" y="380"
+        font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif"
+        font-size="24" font-weight="500"
+        fill="#94A3B8">Форма 910, ОПВ, СО, ВОСМС по новому НК РК 2026</text>
+
+  <!-- CTA-кнопка -->
+  <g>
+    <rect x="60" y="430" width="280" height="64" rx="32" ry="32" fill="#0EA5E9"/>
+    <text x="200" y="471" text-anchor="middle"
+          font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif"
+          font-size="22" font-weight="700"
+          fill="white">Попробовать 7 дней</text>
+  </g>
+
+  <!-- Маркер бесплатно -->
+  <text x="60" y="540"
+        font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif"
+        font-size="16" font-weight="500"
+        fill="#7DD3FC">✓ Без карты   ✓ Без бухгалтера   ✓ В телефоне</text>
+
+  <!-- Мокап телефона справа -->
+  <g transform="translate(800, 80)">
+    <!-- Корпус -->
+    <rect x="0" y="0" width="320" height="540" rx="40" ry="40" fill="#0F172A" stroke="#334155" stroke-width="3"/>
+    <!-- Экран -->
+    <rect x="14" y="14" width="292" height="512" rx="28" ry="28" fill="url(#phoneScreen)"/>
+    <!-- Notch -->
+    <rect x="120" y="20" width="80" height="20" rx="10" ry="10" fill="#0F172A"/>
+
+    <!-- Контент экрана: карточки -->
+    <g transform="translate(28,60)">
+      <!-- Заголовок Налоги -->
+      <text x="0" y="40"
+            font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif"
+            font-size="22" font-weight="800"
+            fill="white">Налоги</text>
+
+      <!-- Карточка Форма 910 -->
+      <rect x="0" y="60" width="264" height="80" rx="16" ry="16" fill="rgba(255,255,255,0.16)"/>
+      <text x="20" y="92"
+            font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif"
+            font-size="14" font-weight="700"
+            fill="white">Форма 910</text>
+      <text x="20" y="118"
+            font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif"
+            font-size="12" font-weight="500"
+            fill="rgba(255,255,255,0.75)">К доплате: 124 800 ₸</text>
+
+      <!-- Карточка ОПВ -->
+      <rect x="0" y="156" width="264" height="60" rx="14" ry="14" fill="rgba(255,255,255,0.10)"/>
+      <text x="20" y="184"
+            font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif"
+            font-size="13" font-weight="600"
+            fill="white">ОПВ за себя</text>
+      <text x="20" y="204"
+            font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif"
+            font-size="11" font-weight="500"
+            fill="rgba(255,255,255,0.7)">8 500 ₸ / мес</text>
+
+      <!-- Карточка СО -->
+      <rect x="0" y="232" width="264" height="60" rx="14" ry="14" fill="rgba(255,255,255,0.10)"/>
+      <text x="20" y="260"
+            font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif"
+            font-size="13" font-weight="600"
+            fill="white">СО за себя</text>
+      <text x="20" y="280"
+            font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif"
+            font-size="11" font-weight="500"
+            fill="rgba(255,255,255,0.7)">4 250 ₸ / мес</text>
+
+      <!-- Карточка ВОСМС -->
+      <rect x="0" y="308" width="264" height="60" rx="14" ry="14" fill="rgba(255,255,255,0.10)"/>
+      <text x="20" y="336"
+            font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif"
+            font-size="13" font-weight="600"
+            fill="white">ВОСМС</text>
+      <text x="20" y="356"
+            font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif"
+            font-size="11" font-weight="500"
+            fill="rgba(255,255,255,0.7)">1 700 ₸ / мес</text>
+
+      <!-- Кнопка -->
+      <rect x="0" y="400" width="264" height="50" rx="14" ry="14" fill="white"/>
+      <text x="132" y="430" text-anchor="middle"
+            font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif"
+            font-size="14" font-weight="700"
+            fill="#0284C7">Сдать форму 910</text>
+    </g>
+  </g>
+</svg>

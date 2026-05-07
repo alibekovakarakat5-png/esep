@@ -9,6 +9,7 @@ import '../../../core/models/accounting_client.dart';
 import '../../../core/providers/accounting_provider.dart';
 import '../../../core/services/excel_export_service.dart';
 import 'add_accounting_client_screen.dart';
+import '../../../shared/widgets/beta_feedback_button.dart';
 
 // ── Filter enum ───────────────────────────────────────────────────────────────
 
@@ -80,6 +81,7 @@ class _AccountantDashboardScreenState
             tooltip: 'Добавить клиента',
             onPressed: () => _addClient(context),
           ),
+          const BetaFeedbackButton(screen: 'accountant_dashboard', compact: true),
           const SizedBox(width: 4),
         ],
       ),

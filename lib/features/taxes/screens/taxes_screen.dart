@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/kz_tax_constants.dart';
+import '../../../shared/widgets/page_guide_card.dart';
+import '../../../shared/widgets/beta_feedback_button.dart';
 
 class TaxesScreen extends StatefulWidget {
   const TaxesScreen({super.key});
@@ -23,10 +25,27 @@ class _TaxesScreenState extends State<TaxesScreen> {
     final fmt = NumberFormat('#,##0', 'ru_RU');
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Налоги')),
+      appBar: AppBar(
+        title: const Text('Налоги'),
+        actions: const [BetaFeedbackButton(screen: 'taxes', compact: true)],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          const PageGuideCard(
+            id: 'taxes',
+            icon: Iconsax.calculator,
+            title: 'Налоги ИП и ТОО — за что и сколько платить',
+            description: 'Все ваши обязательства по новому НК РК 2026 в одном месте: форма 910, ОПВ, СО, ВОСМС, ИПН, СН. Считает автоматически по актуальным ставкам.',
+            whatYouCanDo: [
+              'Заполнить форму 910 за 5 минут',
+              'Посчитать зарплату сотрудника со всеми налогами',
+              'Добавить сотрудников и видеть их налоги по месяцам',
+              'Проверить лимит 600 000 МРП по упрощёнке',
+              'Калькулятор для ТОО (СН 6%, ИПН прогрессивный)',
+            ],
+            outcome: 'Не пропустите ни один платёж и не переплатите бухгалтеру 30-50 тыс ₸ в месяц.',
+          ),
           // Быстрые инструменты
           LayoutBuilder(builder: (context, constraints) {
             final wide = constraints.maxWidth >= 600;

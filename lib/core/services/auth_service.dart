@@ -3,9 +3,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api_client.dart';
 
 class AuthService {
-  static const _kToken  = 'auth_token';
-  static const _kUserId = 'auth_user_id';
-  static const _kEmail  = 'auth_email';
+  static const _kToken       = 'auth_token';
+  static const _kUserId      = 'auth_user_id';
+  static const _kEmail       = 'auth_email';
+  // Признак «бета-тестировщик» — кешируется, чтобы кнопка появлялась
+  // мгновенно при запуске, без ожидания /auth/me запроса.
+  static const _kBetaTester  = 'auth_is_beta_tester';
 
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -24,13 +27,21 @@ class AuthService {
     return prefs.getString(_kEmail);
   }
 
+  /// Кешированный флаг бета-тестировщика. true только если /auth/me
+  /// последний раз вернул isBetaTester=true. Безопасное умолчание — false.
+  static Future<bool> isBetaTester() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_kBetaTester) ?? false;
+  }
+
   static Future<AuthSnapshot> login(String email, String password) async {
     final data = await ApiClient.post('/auth/login', {
       'email': email.trim().toLowerCase(),
       'password': password,
     }) as Map;
-    await _persist(data['token'] as String, data['userId'] as String, email.trim().toLowerCase());
-    return AuthSnapshot.fromJson(data);
+    final snap = AuthSnapshot.fromJson(data);
+    await _persist(data['token'] as String, data['userId'] as String, email.trim().toLowerCase(), snap.isBetaTester);
+    return snap;
   }
 
   static Future<AuthSnapshot> register(
@@ -46,13 +57,19 @@ class AuthService {
       body['phone'] = phone.trim();
     }
     final data = await ApiClient.post('/auth/register', body) as Map;
-    await _persist(data['token'] as String, data['userId'] as String, email.trim().toLowerCase());
-    return AuthSnapshot.fromJson(data);
+    final snap = AuthSnapshot.fromJson(data);
+    await _persist(data['token'] as String, data['userId'] as String, email.trim().toLowerCase(), snap.isBetaTester);
+    return snap;
   }
 
   static Future<AuthSnapshot> me() async {
     final data = await ApiClient.get('/auth/me') as Map;
-    return AuthSnapshot.fromJson(data);
+    final snap = AuthSnapshot.fromJson(data);
+    // Обновляем кеш при каждом /me — если админ переключил тумблер,
+    // флаг подтянется при следующем заходе в приложение.
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kBetaTester, snap.isBetaTester);
+    return snap;
   }
 
   static Future<void> logout() async {
@@ -60,13 +77,15 @@ class AuthService {
     await prefs.remove(_kToken);
     await prefs.remove(_kUserId);
     await prefs.remove(_kEmail);
+    await prefs.remove(_kBetaTester);
   }
 
-  static Future<void> _persist(String token, String userId, String email) async {
+  static Future<void> _persist(String token, String userId, String email, bool isBetaTester) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kToken, token);
     await prefs.setString(_kUserId, userId);
     await prefs.setString(_kEmail, email);
+    await prefs.setBool(_kBetaTester, isBetaTester);
   }
 }
 
@@ -75,12 +94,14 @@ class AuthSnapshot {
   final String? trialStartedAt;
   final String? trialExpiresAt;
   final String? subscriptionExpiresAt;
+  final bool isBetaTester;
 
   const AuthSnapshot({
     required this.tier,
     this.trialStartedAt,
     this.trialExpiresAt,
     this.subscriptionExpiresAt,
+    this.isBetaTester = false,
   });
 
   factory AuthSnapshot.fromJson(Map data) => AuthSnapshot(
@@ -88,5 +109,6 @@ class AuthSnapshot {
         trialStartedAt: data['trialStartedAt'] as String?,
         trialExpiresAt: data['trialExpiresAt'] as String?,
         subscriptionExpiresAt: data['subscriptionExpiresAt'] as String?,
+        isBetaTester: data['isBetaTester'] as bool? ?? false,
       );
 }

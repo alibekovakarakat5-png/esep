@@ -92,7 +92,7 @@ router.post('/login', (req, res) => {
 router.get('/users', adminAuth, async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT id, email, name, tier, created_at,
+      `SELECT id, email, name, tier, is_beta_tester, created_at,
               (SELECT COUNT(*) FROM transactions WHERE user_id = users.id) AS tx_total,
               (SELECT COUNT(*) FROM invoices   WHERE user_id = users.id) AS inv_total
        FROM users
@@ -101,6 +101,57 @@ router.get('/users', adminAuth, async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error('GET /admin/users error:', err);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// ── PATCH /api/admin/users/:id/beta-tester ───────────────────────────────────
+// Body: { is: true | false }
+// Toggles the "Сообщить о баге" button visibility for that user.
+router.patch('/users/:id/beta-tester', adminAuth, async (req, res) => {
+  try {
+    const is = !!req.body?.is;
+    await db.query('UPDATE users SET is_beta_tester = $1 WHERE id = $2', [is, req.params.id]);
+    res.json({ ok: true, isBetaTester: is });
+  } catch (err) {
+    console.error('PATCH /admin/users/:id/beta-tester error:', err);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// ── GET /api/admin/feedback ──────────────────────────────────────────────────
+// Return recent feedback entries from beta testers, newest first.
+router.get('/feedback', adminAuth, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
+    const { rows } = await db.query(
+      `SELECT f.id, f.user_id, u.email, u.name, f.screen, f.severity, f.message,
+              f.device_info, f.app_version, f.status, f.created_at
+       FROM feedback f
+       JOIN users u ON u.id = f.user_id
+       ORDER BY f.created_at DESC
+       LIMIT $1`,
+      [limit],
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /admin/feedback error:', err);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// ── PATCH /api/admin/feedback/:id/status ─────────────────────────────────────
+router.patch('/feedback/:id/status', adminAuth, async (req, res) => {
+  try {
+    const status = String(req.body?.status || '').trim();
+    const ALLOWED = ['new', 'in_progress', 'fixed', 'wontfix', 'duplicate'];
+    if (!ALLOWED.includes(status)) {
+      return res.status(400).json({ error: `status must be one of: ${ALLOWED.join(', ')}` });
+    }
+    await db.query('UPDATE feedback SET status = $1 WHERE id = $2', [status, req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('PATCH /admin/feedback/:id/status error:', err);
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
@@ -349,6 +400,7 @@ router.get('/', adminAuth, async (_req, res) => {
       const safeEmail = escapeHtml(u.email);
       const safeName = escapeHtml(u.name);
       const safeTier = escapeHtml(u.tier);
+      const isTester = !!u.is_beta_tester;
       return `
       <tr>
         <td>${safeEmail}</td>
@@ -362,6 +414,12 @@ router.get('/', adminAuth, async (_req, res) => {
               `<option value="${t}"${t === u.tier ? ' selected' : ''}>${t}</option>`
             ).join('')}
           </select>
+        </td>
+        <td style="text-align:center">
+          <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:${isTester ? '#16a34a' : '#9ca3af'};font-weight:600">
+            <input type="checkbox" ${isTester ? 'checked' : ''} onchange="toggleBetaTester('${escapeHtml(u.id)}', this.checked)" style="cursor:pointer">
+            ${isTester ? '🧪 тестер' : '—'}
+          </label>
         </td>
       </tr>`;
     }).join('');
@@ -456,7 +514,7 @@ router.get('/', adminAuth, async (_req, res) => {
       <div class="stat"><div class="stat-val">${users.filter(u=>u.tier==='accountant_pro').length}</div><div class="stat-label">Бухгалтер Про</div></div>
     </div>
     <table>
-      <thead><tr><th>Email</th><th>Имя</th><th>Тариф</th><th>Транзакции</th><th>Счета</th><th>Регистрация</th><th>Сменить</th></tr></thead>
+      <thead><tr><th>Email</th><th>Имя</th><th>Тариф</th><th>Транзакции</th><th>Счета</th><th>Регистрация</th><th>Сменить</th><th style="text-align:center">🧪 Тестер</th></tr></thead>
       <tbody>${userRows}</tbody>
     </table>
   </div>
@@ -609,6 +667,18 @@ router.get('/', adminAuth, async (_req, res) => {
         method:'PATCH', body:JSON.stringify({tier})
       });
       toast(r.ok ? 'Тариф обновлён' : 'Ошибка', r.ok);
+    }
+
+    async function toggleBetaTester(userId, checked) {
+      const r = await api('/api/admin/users/'+userId+'/beta-tester', {
+        method:'PATCH', body:JSON.stringify({is: checked})
+      });
+      if (r.ok) {
+        toast(checked ? '🧪 Включён режим тестировщика' : 'Режим тестировщика выключен', true);
+        setTimeout(() => location.reload(), 600);
+      } else {
+        toast('Ошибка', false);
+      }
     }
 
     async function saveTaxKey(key) {

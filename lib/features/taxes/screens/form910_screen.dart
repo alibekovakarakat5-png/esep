@@ -12,6 +12,8 @@ import '../../../core/providers/company_provider.dart';
 import '../../../core/providers/employees_provider.dart';
 import '../../../core/providers/legal_consent_provider.dart';
 import '../../../core/services/form910_service.dart';
+import '../../../shared/widgets/page_guide_card.dart';
+import '../../../shared/widgets/beta_feedback_button.dart';
 
 class Form910Screen extends ConsumerStatefulWidget {
   const Form910Screen({super.key});
@@ -182,11 +184,26 @@ class _Form910ScreenState extends ConsumerState<Form910Screen> {
               tooltip: 'Экспорт XML',
               onPressed: _exportXml,
             ),
+          const BetaFeedbackButton(screen: 'form910', compact: true),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          const PageGuideCard(
+            id: 'form910',
+            icon: Iconsax.document_text,
+            title: 'Форма 910 — упрощённая декларация ИП',
+            description: 'Заполняется раз в полгода. Ставка 4% (СН=0% по СНР, маслихат может ±50%). Лимит дохода — 600 000 МРП в год (~2.6 млрд ₸).',
+            whatYouCanDo: [
+              'Автозаполнение из ваших доходов и расходов',
+              'Расчёт ОПВ, СО, ВОСМС за себя',
+              'Учёт сотрудников с зарплатами',
+              'Экспорт PDF готовой формы для подачи',
+              'Проверка лимита 600 000 МРП — не выйдете ли за рамки СНР',
+            ],
+            outcome: 'Готовая форма 910 за 5 минут вместо похода к бухгалтеру за 30 000 ₸.',
+          ),
           // Company info warning
           if (!company.isComplete)
             Card(

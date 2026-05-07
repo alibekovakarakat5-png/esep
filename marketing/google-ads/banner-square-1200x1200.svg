@@ -1,0 +1,106 @@
+<!-- Google Ads: square-баннер 1:1 (1200x1200).
+     Для Discover, мобильных Search-объявлений. Вертикальная компоновка:
+     телефон сверху, текст под ним, CTA внизу. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="1200" height="1200">
+  <defs>
+    <linearGradient id="bg2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#0B1628"/>
+    </linearGradient>
+    <linearGradient id="screen2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0EA5E9"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+    <linearGradient id="acc2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#0EA5E9"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="1200" fill="url(#bg2)"/>
+
+  <!-- Декор -->
+  <circle cx="1080" cy="180" r="200" fill="#0EA5E9" opacity="0.10"/>
+  <circle cx="120" cy="1020" r="180" fill="#38BDF8" opacity="0.08"/>
+
+  <!-- Лого вверху -->
+  <g transform="translate(80, 80)">
+    <rect width="80" height="80" rx="18" ry="18" fill="#0EA5E9"/>
+    <text x="40" y="62" text-anchor="middle"
+          font-family="Inter, sans-serif" font-size="60" font-weight="800"
+          fill="white" letter-spacing="-2">e</text>
+    <text x="100" y="58"
+          font-family="Inter, sans-serif" font-size="44" font-weight="800"
+          fill="#F1F5F9">esep</text>
+  </g>
+
+  <!-- Мокап телефона по центру -->
+  <g transform="translate(380, 220)">
+    <rect x="0" y="0" width="440" height="740" rx="56" ry="56" fill="#0F172A" stroke="#334155" stroke-width="4"/>
+    <rect x="20" y="20" width="400" height="700" rx="40" ry="40" fill="url(#screen2)"/>
+    <rect x="170" y="30" width="100" height="24" rx="12" ry="12" fill="#0F172A"/>
+
+    <g transform="translate(40, 90)">
+      <text x="0" y="44"
+            font-family="Inter, sans-serif" font-size="28" font-weight="800"
+            fill="white">Налоги</text>
+
+      <rect x="0" y="64" width="360" height="100" rx="20" ry="20" fill="rgba(255,255,255,0.18)"/>
+      <text x="22" y="100"
+            font-family="Inter, sans-serif" font-size="18" font-weight="700"
+            fill="white">Форма 910</text>
+      <text x="22" y="130"
+            font-family="Inter, sans-serif" font-size="15" font-weight="500"
+            fill="rgba(255,255,255,0.8)">К доплате: 124 800 ₸</text>
+      <text x="22" y="152"
+            font-family="Inter, sans-serif" font-size="12" font-weight="500"
+            fill="rgba(255,255,255,0.6)">сдать до 15 августа</text>
+
+      <rect x="0" y="184" width="360" height="76" rx="18" ry="18" fill="rgba(255,255,255,0.10)"/>
+      <text x="22" y="220"
+            font-family="Inter, sans-serif" font-size="16" font-weight="600"
+            fill="white">ОПВ за себя</text>
+      <text x="22" y="244"
+            font-family="Inter, sans-serif" font-size="13" font-weight="500"
+            fill="rgba(255,255,255,0.7)">8 500 ₸ / мес</text>
+
+      <rect x="0" y="280" width="360" height="76" rx="18" ry="18" fill="rgba(255,255,255,0.10)"/>
+      <text x="22" y="316"
+            font-family="Inter, sans-serif" font-size="16" font-weight="600"
+            fill="white">СО за себя</text>
+      <text x="22" y="340"
+            font-family="Inter, sans-serif" font-size="13" font-weight="500"
+            fill="rgba(255,255,255,0.7)">4 250 ₸ / мес</text>
+
+      <rect x="0" y="376" width="360" height="76" rx="18" ry="18" fill="rgba(255,255,255,0.10)"/>
+      <text x="22" y="412"
+            font-family="Inter, sans-serif" font-size="16" font-weight="600"
+            fill="white">ВОСМС</text>
+      <text x="22" y="436"
+            font-family="Inter, sans-serif" font-size="13" font-weight="500"
+            fill="rgba(255,255,255,0.7)">1 700 ₸ / мес</text>
+
+      <rect x="0" y="490" width="360" height="64" rx="18" ry="18" fill="white"/>
+      <text x="180" y="530" text-anchor="middle"
+            font-family="Inter, sans-serif" font-size="18" font-weight="700"
+            fill="#0284C7">Сдать форму 910</text>
+    </g>
+  </g>
+
+  <!-- Текст под телефоном -->
+  <text x="600" y="1030" text-anchor="middle"
+        font-family="Inter, sans-serif" font-size="60" font-weight="800"
+        fill="#F1F5F9" letter-spacing="-2">Налоги ИП за 5 минут</text>
+
+  <text x="600" y="1085" text-anchor="middle"
+        font-family="Inter, sans-serif" font-size="24" font-weight="500"
+        fill="#94A3B8">Форма 910, ОПВ, СО, ВОСМС — по новому НК РК 2026</text>
+
+  <!-- CTA -->
+  <g>
+    <rect x="420" y="1120" width="360" height="60" rx="30" ry="30" fill="url(#acc2)"/>
+    <text x="600" y="1158" text-anchor="middle"
+          font-family="Inter, sans-serif" font-size="22" font-weight="700"
+          fill="white">7 дней бесплатно →</text>
+  </g>
+</svg>

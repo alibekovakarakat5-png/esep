@@ -9,6 +9,8 @@ import '../../../core/models/invoice.dart';
 import '../../../core/providers/invoice_provider.dart';
 import '../../../core/providers/client_provider.dart';
 import '../../../core/providers/subscription_provider.dart';
+import '../../../shared/widgets/page_guide_card.dart';
+import '../../../shared/widgets/beta_feedback_button.dart';
 import '../../../core/services/excel_export_service.dart';
 import '../../../shared/widgets/adaptive_sheet.dart';
 
@@ -73,6 +75,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                 color: _filter != null ? EsepColors.primary : null),
             onPressed: () => _showFilterSheet(context),
           ),
+          const BetaFeedbackButton(screen: 'invoices', compact: true),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -82,15 +85,34 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
         label: const Text('Новый счёт', style: TextStyle(color: Colors.white)),
       ),
       body: invoices.isEmpty
-          ? const Center(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Iconsax.receipt_2, color: EsepColors.textDisabled, size: 48),
-                SizedBox(height: 12),
-                Text('Нет счетов', style: TextStyle(color: EsepColors.textSecondary, fontSize: 16)),
-                SizedBox(height: 4),
-                Text('Создайте первый счёт для клиента',
-                    style: TextStyle(color: EsepColors.textDisabled, fontSize: 13)),
-              ]),
+          ? ListView(
+              padding: const EdgeInsets.all(16),
+              children: const [
+                PageGuideCard(
+                  id: 'invoices',
+                  icon: Iconsax.receipt_2,
+                  title: 'Счета (инвойсы) — выставляйте клиентам за минуту',
+                  description: 'Создайте счёт по клиенту, отправьте PDF в WhatsApp/email, отслеживайте оплату. Все цифры автоматически попадают в форму 910.',
+                  whatYouCanDo: [
+                    'Создать счёт по клиенту с НДС или без',
+                    'Сохранить PDF и отправить клиенту',
+                    'Видеть кто оплатил, а кто просрочил',
+                    'Автоматический учёт в доходах для 910 формы',
+                  ],
+                  outcome: 'Перестанете терять деньги на забытых счетах и вручную считать оборот.',
+                ),
+                SizedBox(height: 24),
+                Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Iconsax.receipt_2, color: EsepColors.textDisabled, size: 48),
+                    SizedBox(height: 12),
+                    Text('Нет счетов', style: TextStyle(color: EsepColors.textSecondary, fontSize: 16)),
+                    SizedBox(height: 4),
+                    Text('Создайте первый счёт для клиента',
+                        style: TextStyle(color: EsepColors.textDisabled, fontSize: 13)),
+                  ]),
+                ),
+              ],
             )
           : _buildBody(context, invoices, pending, overdue, paid, fmt),
     );

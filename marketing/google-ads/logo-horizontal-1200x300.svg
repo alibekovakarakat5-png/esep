@@ -1,0 +1,26 @@
+<!-- Google Ads: горизонтальный лого 4:1 (1200x300).
+     Используется в Display Network, GDN баннерах. Текст-марка "Esep". -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300">
+  <!-- Прозрачный фон — Гугл сам подложит под цвет шаблона. -->
+
+  <!-- Иконка слева: маленький квадрат с буквой e -->
+  <g>
+    <rect x="40" y="60" width="180" height="180" rx="40" ry="40" fill="#0EA5E9"/>
+    <text x="130" y="200" text-anchor="middle"
+          font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+          font-size="160" font-weight="800"
+          fill="white" letter-spacing="-6">e</text>
+  </g>
+
+  <!-- Текст справа -->
+  <text x="270" y="180"
+        font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        font-size="140" font-weight="800"
+        fill="#0F172A" letter-spacing="-4">esep</text>
+
+  <!-- Подпись помельче -->
+  <text x="270" y="240"
+        font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        font-size="36" font-weight="500"
+        fill="#64748B" letter-spacing="0">Учёт и налоги для ИП Казахстана</text>
+</svg>

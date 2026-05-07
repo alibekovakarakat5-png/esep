@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Esep — Google Ads assets экспорт в PNG</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: #F8FAFC; margin: 0; padding: 40px; color: #0F172A; }
+  h1 { font-size: 22px; margin: 0 0 8px; }
+  .lead { color: #64748B; margin-bottom: 28px; font-size: 14px; max-width: 700px; }
+  .item { background: #fff; padding: 20px; border-radius: 16px; margin-bottom: 18px;
+          border: 1px solid #E2E8F0; display: flex; gap: 20px; align-items: center; }
+  .preview { width: 200px; height: 120px; border: 1px solid #E2E8F0; border-radius: 10px;
+             display: flex; align-items: center; justify-content: center; overflow: hidden;
+             background: #F1F5F9; flex-shrink: 0; padding: 4px; }
+  .preview svg { max-width: 100%; max-height: 100%; }
+  .meta { flex: 1; }
+  .meta h3 { margin: 0 0 4px; font-size: 16px; }
+  .meta p { margin: 0; color: #64748B; font-size: 13px; }
+  .meta code { background: #F1F5F9; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+  button { background: #0EA5E9; color: white; border: 0; padding: 10px 20px;
+           border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 14px; }
+  button:hover { background: #0284C7; }
+  button.all { background: #22C55E; padding: 14px 28px; font-size: 16px; margin-bottom: 24px; }
+  button.all:hover { background: #16A34A; }
+  .ok { color: #22C55E; font-weight: 700; margin-left: 12px; opacity: 0; transition: opacity .3s; }
+  .ok.show { opacity: 1; }
+</style>
+</head>
+<body>
+<h1>Esep — Google Ads assets</h1>
+<p class="lead">
+  Жми <b>«Скачать все 4 PNG»</b> — все файлы упадут в папку Загрузки. Или
+  скачивай по одному кнопкой под каждым изображением.
+</p>
+
+<button class="all" id="downloadAll">⬇ Скачать все 4 PNG</button>
+
+<div id="items"></div>
+
+<script>
+// ---------- SVG исходники (вшиты прямо сюда, чтобы работало из file://) ----------
+
+const SVG_LOGO_SQUARE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="1200" height="1200">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0EA5E9"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1200" height="1200" rx="260" ry="260" fill="url(#bg)"/>
+  <ellipse cx="600" cy="380" rx="520" ry="320" fill="rgba(255,255,255,0.08)"/>
+  <text x="600" y="850" text-anchor="middle"
+        font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        font-size="800" font-weight="800"
+        fill="white" letter-spacing="-30">e</text>
+</svg>`;
+
+const SVG_LOGO_HORIZONTAL = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300">
+  <rect x="0" y="0" width="1200" height="300" fill="white"/>
+  <g>
+    <rect x="40" y="60" width="180" height="180" rx="40" ry="40" fill="#0EA5E9"/>
+    <text x="130" y="200" text-anchor="middle"
+          font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+          font-size="160" font-weight="800"
+          fill="white" letter-spacing="-6">e</text>
+  </g>
+  <text x="270" y="180"
+        font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        font-size="140" font-weight="800"
+        fill="#0F172A" letter-spacing="-4">esep</text>
+  <text x="270" y="240"
+        font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        font-size="36" font-weight="500"
+        fill="#64748B" letter-spacing="0">Учёт и налоги для ИП Казахстана</text>
+</svg>`;
+
+const SVG_BANNER_LANDSCAPE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 628" width="1200" height="628">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="55%" stop-color="#0F1E35"/>
+      <stop offset="100%" stop-color="#0B1628"/>
+    </linearGradient>
+    <linearGradient id="phoneScreen" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0EA5E9"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#0EA5E9"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="628" fill="url(#bg)"/>
+  <circle cx="950" cy="80" r="180" fill="#0EA5E9" opacity="0.10"/>
+  <circle cx="120" cy="540" r="140" fill="#38BDF8" opacity="0.08"/>
+  <g transform="translate(60,52)">
+    <rect width="60" height="60" rx="14" ry="14" fill="#0EA5E9"/>
+    <text x="30" y="46" text-anchor="middle" font-family="Inter, sans-serif" font-size="46" font-weight="800" fill="white" letter-spacing="-2">e</text>
+    <text x="76" y="44" font-family="Inter, sans-serif" font-size="32" font-weight="800" fill="#F1F5F9">esep</text>
+  </g>
+  <text x="60" y="240" font-family="Inter, sans-serif" font-size="68" font-weight="800" fill="#F1F5F9" letter-spacing="-2">Налоги ИП —</text>
+  <text x="60" y="320" font-family="Inter, sans-serif" font-size="68" font-weight="800" fill="url(#accent)" letter-spacing="-2">за 5 минут</text>
+  <text x="60" y="380" font-family="Inter, sans-serif" font-size="24" font-weight="500" fill="#94A3B8">Форма 910, ОПВ, СО, ВОСМС по новому НК РК 2026</text>
+  <g>
+    <rect x="60" y="430" width="280" height="64" rx="32" ry="32" fill="#0EA5E9"/>
+    <text x="200" y="471" text-anchor="middle" font-family="Inter, sans-serif" font-size="22" font-weight="700" fill="white">Попробовать 7 дней</text>
+  </g>
+  <text x="60" y="540" font-family="Inter, sans-serif" font-size="16" font-weight="500" fill="#7DD3FC">✓ Без карты   ✓ Без бухгалтера   ✓ В телефоне</text>
+  <g transform="translate(800, 80)">
+    <rect x="0" y="0" width="320" height="540" rx="40" ry="40" fill="#0F172A" stroke="#334155" stroke-width="3"/>
+    <rect x="14" y="14" width="292" height="512" rx="28" ry="28" fill="url(#phoneScreen)"/>
+    <rect x="120" y="20" width="80" height="20" rx="10" ry="10" fill="#0F172A"/>
+    <g transform="translate(28,60)">
+      <text x="0" y="40" font-family="Inter, sans-serif" font-size="22" font-weight="800" fill="white">Налоги</text>
+      <rect x="0" y="60" width="264" height="80" rx="16" ry="16" fill="rgba(255,255,255,0.16)"/>
+      <text x="20" y="92" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="white">Форма 910</text>
+      <text x="20" y="118" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="rgba(255,255,255,0.75)">К доплате: 124 800 ₸</text>
+      <rect x="0" y="156" width="264" height="60" rx="14" ry="14" fill="rgba(255,255,255,0.10)"/>
+      <text x="20" y="184" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="white">ОПВ за себя</text>
+      <text x="20" y="204" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="rgba(255,255,255,0.7)">8 500 ₸ / мес</text>
+      <rect x="0" y="232" width="264" height="60" rx="14" ry="14" fill="rgba(255,255,255,0.10)"/>
+      <text x="20" y="260" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="white">СО за себя</text>
+      <text x="20" y="280" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="rgba(255,255,255,0.7)">4 250 ₸ / мес</text>
+      <rect x="0" y="308" width="264" height="60" rx="14" ry="14" fill="rgba(255,255,255,0.10)"/>
+      <text x="20" y="336" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="white">ВОСМС</text>
+      <text x="20" y="356" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="rgba(255,255,255,0.7)">1 700 ₸ / мес</text>
+      <rect x="0" y="400" width="264" height="50" rx="14" ry="14" fill="white"/>
+      <text x="132" y="430" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#0284C7">Сдать форму 910</text>
+    </g>
+  </g>
+</svg>`;
+
+const SVG_BANNER_SQUARE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="1200" height="1200">
+  <defs>
+    <linearGradient id="bg2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#0B1628"/>
+    </linearGradient>
+    <linearGradient id="screen2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0EA5E9"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+    <linearGradient id="acc2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#0EA5E9"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="1200" fill="url(#bg2)"/>
+  <circle cx="1080" cy="180" r="200" fill="#0EA5E9" opacity="0.10"/>
+  <circle cx="120" cy="1020" r="180" fill="#38BDF8" opacity="0.08"/>
+  <g transform="translate(80, 80)">
+    <rect width="80" height="80" rx="18" ry="18" fill="#0EA5E9"/>
+    <text x="40" y="62" text-anchor="middle" font-family="Inter, sans-serif" font-size="60" font-weight="800" fill="white" letter-spacing="-2">e</text>
+    <text x="100" y="58" font-family="Inter, sans-serif" font-size="44" font-weight="800" fill="#F1F5F9">esep</text>
+  </g>
+  <g transform="translate(380, 220)">
+    <rect x="0" y="0" width="440" height="740" rx="56" ry="56" fill="#0F172A" stroke="#334155" stroke-width="4"/>
+    <rect x="20" y="20" width="400" height="700" rx="40" ry="40" fill="url(#screen2)"/>
+    <rect x="170" y="30" width="100" height="24" rx="12" ry="12" fill="#0F172A"/>
+    <g transform="translate(40, 90)">
+      <text x="0" y="44" font-family="Inter, sans-serif" font-size="28" font-weight="800" fill="white">Налоги</text>
+      <rect x="0" y="64" width="360" height="100" rx="20" ry="20" fill="rgba(255,255,255,0.18)"/>
+      <text x="22" y="100" font-family="Inter, sans-serif" font-size="18" font-weight="700" fill="white">Форма 910</text>
+      <text x="22" y="130" font-family="Inter, sans-serif" font-size="15" font-weight="500" fill="rgba(255,255,255,0.8)">К доплате: 124 800 ₸</text>
+      <text x="22" y="152" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="rgba(255,255,255,0.6)">сдать до 15 августа</text>
+      <rect x="0" y="184" width="360" height="76" rx="18" ry="18" fill="rgba(255,255,255,0.10)"/>
+      <text x="22" y="220" font-family="Inter, sans-serif" font-size="16" font-weight="600" fill="white">ОПВ за себя</text>
+      <text x="22" y="244" font-family="Inter, sans-serif" font-size="13" font-weight="500" fill="rgba(255,255,255,0.7)">8 500 ₸ / мес</text>
+      <rect x="0" y="280" width="360" height="76" rx="18" ry="18" fill="rgba(255,255,255,0.10)"/>
+      <text x="22" y="316" font-family="Inter, sans-serif" font-size="16" font-weight="600" fill="white">СО за себя</text>
+      <text x="22" y="340" font-family="Inter, sans-serif" font-size="13" font-weight="500" fill="rgba(255,255,255,0.7)">4 250 ₸ / мес</text>
+      <rect x="0" y="376" width="360" height="76" rx="18" ry="18" fill="rgba(255,255,255,0.10)"/>
+      <text x="22" y="412" font-family="Inter, sans-serif" font-size="16" font-weight="600" fill="white">ВОСМС</text>
+      <text x="22" y="436" font-family="Inter, sans-serif" font-size="13" font-weight="500" fill="rgba(255,255,255,0.7)">1 700 ₸ / мес</text>
+      <rect x="0" y="490" width="360" height="64" rx="18" ry="18" fill="white"/>
+      <text x="180" y="530" text-anchor="middle" font-family="Inter, sans-serif" font-size="18" font-weight="700" fill="#0284C7">Сдать форму 910</text>
+    </g>
+  </g>
+  <text x="600" y="1030" text-anchor="middle" font-family="Inter, sans-serif" font-size="60" font-weight="800" fill="#F1F5F9" letter-spacing="-2">Налоги ИП за 5 минут</text>
+  <text x="600" y="1085" text-anchor="middle" font-family="Inter, sans-serif" font-size="24" font-weight="500" fill="#94A3B8">Форма 910, ОПВ, СО, ВОСМС — по новому НК РК 2026</text>
+  <g>
+    <rect x="420" y="1120" width="360" height="60" rx="30" ry="30" fill="url(#acc2)"/>
+    <text x="600" y="1158" text-anchor="middle" font-family="Inter, sans-serif" font-size="22" font-weight="700" fill="white">7 дней бесплатно →</text>
+  </g>
+</svg>`;
+
+// ---------- Метаданные для UI и рендера ----------
+
+const items = [
+  { svg: SVG_LOGO_SQUARE,      out: 'esep-logo-square-1200x1200.png',    w: 1200, h: 1200,
+    title: 'Лого квадратный 1:1',
+    desc: 'Минимум 128×128. Search-объявления, Discover, Gmail.' },
+  { svg: SVG_LOGO_HORIZONTAL,  out: 'esep-logo-horizontal-1200x300.png', w: 1200, h: 300,
+    title: 'Лого горизонтальный 4:1',
+    desc: 'Баннеры Display Network.' },
+  { svg: SVG_BANNER_LANDSCAPE, out: 'esep-banner-landscape-1200x628.png', w: 1200, h: 628,
+    title: 'Баннер landscape 1.91:1',
+    desc: 'Главное изображение — Search Discovery, Gmail Promotion.' },
+  { svg: SVG_BANNER_SQUARE,    out: 'esep-banner-square-1200x1200.png',  w: 1200, h: 1200,
+    title: 'Баннер square 1:1',
+    desc: 'Discover-карточки, мобильные Search-объявления.' },
+];
+
+// ---------- Сборка карточек ----------
+
+const root = document.getElementById('items');
+items.forEach((it, idx) => {
+  const el = document.createElement('div');
+  el.className = 'item';
+  el.innerHTML = `
+    <div class="preview">${it.svg}</div>
+    <div class="meta">
+      <h3>${it.title}</h3>
+      <p>${it.desc}<br><code>${it.out}</code> — ${it.w}×${it.h} px</p>
+    </div>
+    <button>Скачать PNG</button>
+    <span class="ok">✓ скачано</span>
+  `;
+  el.querySelector('button').onclick = async () => {
+    await downloadPng(it);
+    const ok = el.querySelector('.ok');
+    ok.classList.add('show');
+    setTimeout(() => ok.classList.remove('show'), 3000);
+  };
+  root.appendChild(el);
+});
+
+document.getElementById('downloadAll').onclick = async () => {
+  for (const it of items) {
+    await downloadPng(it);
+    // небольшая пауза, чтобы Chrome не схлопнул несколько download'ов в один
+    await new Promise(r => setTimeout(r, 350));
+  }
+};
+
+// ---------- SVG → PNG ----------
+
+async function downloadPng(it) {
+  // Кодируем SVG в data URL: base64 — самый надёжный способ для file://
+  const svgBytes = new TextEncoder().encode(it.svg);
+  let binary = '';
+  svgBytes.forEach(b => binary += String.fromCharCode(b));
+  const dataUrl = 'data:image/svg+xml;base64,' + btoa(binary);
+
+  const img = new Image();
+  await new Promise((res, rej) => {
+    img.onload = res;
+    img.onerror = (e) => rej(new Error('Не удалось загрузить SVG: ' + (e?.message || e)));
+    img.src = dataUrl;
+  });
+
+  const canvas = document.createElement('canvas');
+  canvas.width = it.w;
+  canvas.height = it.h;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, it.w, it.h);
+  ctx.drawImage(img, 0, 0, it.w, it.h);
+
+  // Скачиваем как PNG
+  const pngUrl = canvas.toDataURL('image/png');
+  const a = document.createElement('a');
+  a.href = pngUrl;
+  a.download = it.out;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+</script>
+</body>
+</html>

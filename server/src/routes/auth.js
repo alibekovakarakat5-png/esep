@@ -48,7 +48,7 @@ router.post('/register', async (req, res) => {
     const { rows } = await db.query(
       `INSERT INTO users (email, name, password_hash, phone, trial_started_at, trial_expires_at)
        VALUES ($1, $2, $3, $4, NOW(), NOW() + INTERVAL '7 days')
-       RETURNING id, tier, trial_started_at, trial_expires_at, subscription_expires_at`,
+       RETURNING id, tier, trial_started_at, trial_expires_at, subscription_expires_at, is_beta_tester`,
       [normalizedEmail, name.trim(), hash, normalizedPhone],
     );
 
@@ -64,6 +64,7 @@ router.post('/register', async (req, res) => {
       trialStartedAt: rows[0].trial_started_at,
       trialExpiresAt: rows[0].trial_expires_at,
       subscriptionExpiresAt: rows[0].subscription_expires_at,
+      isBetaTester: !!rows[0].is_beta_tester,
     });
   } catch (err) {
     console.error('POST /auth/register error:', err);
@@ -88,7 +89,7 @@ router.post('/login', async (req, res) => {
     const normalizedEmail = email.toLowerCase().trim();
 
     const { rows } = await db.query(
-      `SELECT id, password_hash, tier, trial_started_at, trial_expires_at, subscription_expires_at
+      `SELECT id, password_hash, tier, trial_started_at, trial_expires_at, subscription_expires_at, is_beta_tester
        FROM users WHERE email = $1`,
       [normalizedEmail],
     );
@@ -106,6 +107,7 @@ router.post('/login', async (req, res) => {
       trialStartedAt: rows[0].trial_started_at,
       trialExpiresAt: rows[0].trial_expires_at,
       subscriptionExpiresAt: rows[0].subscription_expires_at,
+      isBetaTester: !!rows[0].is_beta_tester,
     });
   } catch (err) {
     console.error('POST /auth/login error:', err);
@@ -117,7 +119,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT id, email, name, tier, trial_started_at, trial_expires_at, subscription_expires_at
+      `SELECT id, email, name, tier, trial_started_at, trial_expires_at, subscription_expires_at, is_beta_tester
        FROM users WHERE id = $1`,
       [req.userId],
     );
@@ -133,6 +135,7 @@ router.get('/me', authMiddleware, async (req, res) => {
       subscriptionExpiresAt: user.subscription_expires_at,
       isTrialActive: user.trial_expires_at ? new Date(user.trial_expires_at) > new Date() : false,
       isSubscriptionActive: user.subscription_expires_at ? new Date(user.subscription_expires_at) > new Date() : false,
+      isBetaTester: !!user.is_beta_tester,
     });
   } catch (err) {
     console.error('GET /auth/me error:', err);
