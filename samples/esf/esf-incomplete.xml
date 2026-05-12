@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ЭСФ сгенерирован приложением Esep (esep.kz)
+  Для загрузки перейдите: https://esf.gov.kz
+  Дата генерации: 2026-05-12
+  Поставщик не является плательщиком НДС (СНР/упрощёнка)
+-->
+<ESF xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <!-- 1. Заголовок -->
+  <HEADER>
+    <INVOICE_NUM>ЭСФ-2026-001</INVOICE_NUM>
+    <INVOICE_DATE>2026-05-12</INVOICE_DATE>
+    <DELIVERY_DATE>2026-05-12</DELIVERY_DATE>
+    <TYPE>ORDINARY</TYPE>
+    <CORRECTION>false</CORRECTION>
+    <INPUT_TYPE>MANUAL</INPUT_TYPE>
+  </HEADER>
+
+  <!-- 2. Поставщик -->
+  <SELLER>
+    <IIN></IIN>
+    <NAME></NAME>
+    <ADDRESS></ADDRESS>
+    <IS_VAT_PAYER>false</IS_VAT_PAYER>
+    <!-- Банковские реквизиты не заполнены -->
+  </SELLER>
+
+  <!-- 3. Получатель -->
+  <BUYER>
+    <IIN_BIN>060540001234</IIN_BIN>
+    <NAME>ТОО АстанаТрейд</NAME>
+  </BUYER>
+
+  <!-- 4. Оборот -->
+  <TURNOVER>
+    <PRODUCT>
+      <NUM>1</NUM>
+      <DESCRIPTION>Консультация по форме 910</DESCRIPTION>
+      <UNIT_CODE>931</UNIT_CODE>
+      <UNIT_NAME>услуга</UNIT_NAME>
+      <COUNT>1.00</COUNT>
+      <PRICE>50000.00</PRICE>
+      <NET_TURNOVER>50000.00</NET_TURNOVER>
+      <NDS_RATE>WITHOUT_NDS</NDS_RATE>
+      <NDS_SUM>0.00</NDS_SUM>
+      <TURNOVER_WITH_NDS>50000.00</TURNOVER_WITH_NDS>
+    </PRODUCT>
+    <PRODUCT>
+      <NUM>2</NUM>
+      <DESCRIPTION>Настройка учёта</DESCRIPTION>
+      <UNIT_CODE>356</UNIT_CODE>
+      <UNIT_NAME>час</UNIT_NAME>
+      <COUNT>2.00</COUNT>
+      <PRICE>25000.00</PRICE>
+      <NET_TURNOVER>50000.00</NET_TURNOVER>
+      <NDS_RATE>WITHOUT_NDS</NDS_RATE>
+      <NDS_SUM>0.00</NDS_SUM>
+      <TURNOVER_WITH_NDS>50000.00</TURNOVER_WITH_NDS>
+    </PRODUCT>
+  </TURNOVER>
+
+  <!-- 5. Итого -->
+  <TOTAL>
+    <TOTAL_NET_TURNOVER>100000.00</TOTAL_NET_TURNOVER>
+    <TOTAL_NDS>0.00</TOTAL_NDS>
+    <TOTAL_TURNOVER_WITH_NDS>100000.00</TOTAL_TURNOVER_WITH_NDS>
+  </TOTAL>
+
+  <!--
+    ВАЖНО: Перед отправкой в ИС ЭСФ:
+    1. Убедитесь что ИИН/БИН покупателя заполнен (12 цифр)
+    2. Подпишите файл ЭЦП (НУЦ РК) в портале esf.gov.kz
+    3. Или загрузите XML вручную через импорт
+  -->
+
+</ESF>
