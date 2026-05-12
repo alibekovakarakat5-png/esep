@@ -74,66 +74,101 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final iikCtrl     = TextEditingController(text: company.iik ?? '');
     final bikCtrl     = TextEditingController(text: company.bik ?? '');
     final kbeCtrl     = TextEditingController(text: company.kbe ?? '19');
+    bool isVatPayer   = company.isVatPayer;
 
     showAdaptiveSheet(
       context,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(16, 24, 16, MediaQuery.of(ctx).viewInsets.bottom + 24),
-        child: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Text('Данные компании / ИП',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            const Text('Используются в ЭСФ и PDF-счетах',
-                style: TextStyle(fontSize: 12, color: EsepColors.textSecondary)),
-            const SizedBox(height: 20),
-            _field(nameCtrl,  'Название / ФИО ИП *', Iconsax.building),
-            const SizedBox(height: 10),
-            _field(iinCtrl,   'ИИН / БИН *', Iconsax.document,
-                type: TextInputType.number),
-            const SizedBox(height: 10),
-            _field(addrCtrl,  'Адрес', Iconsax.location),
-            const SizedBox(height: 10),
-            _field(phoneCtrl, 'Телефон', Iconsax.call,
-                type: TextInputType.phone),
-            const SizedBox(height: 10),
-            _field(emailCtrl, 'Email', Iconsax.sms,
-                type: TextInputType.emailAddress),
-            const Divider(height: 24),
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text('Банковские реквизиты (для ЭСФ)',
-                  style: TextStyle(fontSize: 12, color: EsepColors.textSecondary,
-                      fontWeight: FontWeight.w600)),
-            ),
-            const SizedBox(height: 10),
-            _field(bankCtrl, 'Банк (напр. Kaspi Bank)', Iconsax.bank),
-            const SizedBox(height: 10),
-            _field(iikCtrl,  'ИИК (IBAN)', Iconsax.card),
-            const SizedBox(height: 10),
-            _field(bikCtrl,  'БИК', Iconsax.code),
-            const SizedBox(height: 10),
-            _field(kbeCtrl,  'КБе (обычно 19 для ИП)', Iconsax.tag,
-                type: TextInputType.number),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () async {
-                await ref.read(companyProvider.notifier).save(
-                  name:     nameCtrl.text.trim(),
-                  iin:      iinCtrl.text.trim(),
-                  address:  addrCtrl.text.trim().isEmpty ? null : addrCtrl.text.trim(),
-                  phone:    phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
-                  email:    emailCtrl.text.trim().isEmpty ? null : emailCtrl.text.trim(),
-                  bankName: bankCtrl.text.trim().isEmpty ? null : bankCtrl.text.trim(),
-                  iik:      iikCtrl.text.trim().isEmpty ? null : iikCtrl.text.trim(),
-                  bik:      bikCtrl.text.trim().isEmpty ? null : bikCtrl.text.trim(),
-                  kbe:      kbeCtrl.text.trim().isEmpty ? null : kbeCtrl.text.trim(),
-                );
-                if (ctx.mounted) Navigator.pop(ctx);
-              },
-              child: const Text('Сохранить'),
-            ),
-          ]),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(16, 24, 16, MediaQuery.of(ctx).viewInsets.bottom + 24),
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Text('Данные компании / ИП',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              const Text('Используются в ЭСФ и PDF-счетах',
+                  style: TextStyle(fontSize: 12, color: EsepColors.textSecondary)),
+              const SizedBox(height: 20),
+              _field(nameCtrl,  'Название / ФИО ИП *', Iconsax.building),
+              const SizedBox(height: 10),
+              _field(iinCtrl,   'ИИН / БИН *', Iconsax.document,
+                  type: TextInputType.number),
+              const SizedBox(height: 10),
+              _field(addrCtrl,  'Адрес', Iconsax.location),
+              const SizedBox(height: 10),
+              _field(phoneCtrl, 'Телефон', Iconsax.call,
+                  type: TextInputType.phone),
+              const SizedBox(height: 10),
+              _field(emailCtrl, 'Email', Iconsax.sms,
+                  type: TextInputType.emailAddress),
+              const Divider(height: 24),
+              // ── НДС-статус ────────────────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isVatPayer
+                      ? EsepColors.primary.withValues(alpha: 0.08)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isVatPayer
+                        ? EsepColors.primary.withValues(alpha: 0.3)
+                        : EsepColors.textDisabled.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  title: const Text('Плательщик НДС',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  subtitle: Text(
+                    isVatPayer
+                        ? 'НДС 16% будет добавлен сверху в ЭСФ и PDF'
+                        : 'СНР/упрощёнка — НДС не начисляется',
+                    style: const TextStyle(fontSize: 11, color: EsepColors.textSecondary),
+                  ),
+                  value: isVatPayer,
+                  onChanged: (v) => setSheetState(() => isVatPayer = v),
+                  activeColor: EsepColors.primary,
+                ),
+              ),
+              const Divider(height: 24),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Банковские реквизиты (для ЭСФ)',
+                    style: TextStyle(fontSize: 12, color: EsepColors.textSecondary,
+                        fontWeight: FontWeight.w600)),
+              ),
+              const SizedBox(height: 10),
+              _field(bankCtrl, 'Банк (напр. Kaspi Bank)', Iconsax.bank),
+              const SizedBox(height: 10),
+              _field(iikCtrl,  'ИИК (IBAN)', Iconsax.card),
+              const SizedBox(height: 10),
+              _field(bikCtrl,  'БИК', Iconsax.code),
+              const SizedBox(height: 10),
+              _field(kbeCtrl,  'КБе (обычно 19 для ИП)', Iconsax.tag,
+                  type: TextInputType.number),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () async {
+                  await ref.read(companyProvider.notifier).save(
+                    name:     nameCtrl.text.trim(),
+                    iin:      iinCtrl.text.trim(),
+                    address:  addrCtrl.text.trim().isEmpty ? null : addrCtrl.text.trim(),
+                    phone:    phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
+                    email:    emailCtrl.text.trim().isEmpty ? null : emailCtrl.text.trim(),
+                    bankName: bankCtrl.text.trim().isEmpty ? null : bankCtrl.text.trim(),
+                    iik:      iikCtrl.text.trim().isEmpty ? null : iikCtrl.text.trim(),
+                    bik:      bikCtrl.text.trim().isEmpty ? null : bikCtrl.text.trim(),
+                    kbe:      kbeCtrl.text.trim().isEmpty ? null : kbeCtrl.text.trim(),
+                    isVatPayer: isVatPayer,
+                  );
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+                child: const Text('Сохранить'),
+              ),
+            ]),
+          ),
         ),
       ),
     );

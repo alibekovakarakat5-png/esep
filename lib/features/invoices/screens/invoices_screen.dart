@@ -307,53 +307,105 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
     }
     final clients = ref.read(clientProvider);
     final clientNameCtrl = TextEditingController();
+    final buyerIinCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     final amountCtrl = TextEditingController();
+    InvoiceUnit selectedUnit = InvoiceUnit.piece;
 
     showAdaptiveSheet(
       context,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(16, 24, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('Новый счёт', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 20),
-          if (clients.isNotEmpty)
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(labelText: 'Клиент', prefixIcon: Icon(Iconsax.user)),
-              items: clients.map((c) => DropdownMenuItem(value: c.name, child: Text(c.name))).toList(),
-              onChanged: (v) => clientNameCtrl.text = v ?? '',
-            )
-          else
-            TextField(
-              controller: clientNameCtrl,
-              decoration: const InputDecoration(labelText: 'Клиент', prefixIcon: Icon(Iconsax.user)),
-            ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: descCtrl,
-            decoration: const InputDecoration(labelText: 'Описание услуги', prefixIcon: Icon(Iconsax.document_text)),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(16, 24, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Text('Новый счёт', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 20),
+              if (clients.isNotEmpty)
+                DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(labelText: 'Клиент', prefixIcon: Icon(Iconsax.user)),
+                  items: clients.map((c) => DropdownMenuItem(value: c.name, child: Text(c.name))).toList(),
+                  onChanged: (v) {
+                    clientNameCtrl.text = v ?? '';
+                    // Подтянуть БИН/ИИН из карточки клиента, если есть
+                    final c = clients.where((x) => x.name == v).firstOrNull;
+                    if (c != null && c.bin != null && c.bin!.isNotEmpty) {
+                      buyerIinCtrl.text = c.bin!;
+                    }
+                  },
+                )
+              else
+                TextField(
+                  controller: clientNameCtrl,
+                  decoration: const InputDecoration(labelText: 'Клиент', prefixIcon: Icon(Iconsax.user)),
+                ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: buyerIinCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'ИИН/БИН покупателя (для ЭСФ)',
+                  prefixIcon: Icon(Iconsax.document),
+                  helperText: 'Опционально, 12 цифр. Нужен для отгрузки ИП/ТОО.',
+                ),
+                keyboardType: TextInputType.number,
+                maxLength: 12,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descCtrl,
+                decoration: const InputDecoration(labelText: 'Описание услуги', prefixIcon: Icon(Iconsax.document_text)),
+              ),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: amountCtrl,
+                    decoration: const InputDecoration(labelText: 'Сумма', prefixIcon: Icon(Iconsax.money_3), suffixText: '₸'),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 1,
+                  child: DropdownButtonFormField<InvoiceUnit>(
+                    initialValue: selectedUnit,
+                    decoration: const InputDecoration(labelText: 'Ед.'),
+                    items: InvoiceUnit.all
+                        .map((u) => DropdownMenuItem(value: u, child: Text(u.name, style: const TextStyle(fontSize: 13))))
+                        .toList(),
+                    onChanged: (u) {
+                      if (u != null) setSheetState(() => selectedUnit = u);
+                    },
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  final amount = double.tryParse(amountCtrl.text.replaceAll(' ', ''));
+                  if (clientNameCtrl.text.isEmpty || descCtrl.text.isEmpty || amount == null) return;
+                  final iin = buyerIinCtrl.text.trim();
+                  ref.read(invoiceProvider.notifier).add(
+                        clientId: '',
+                        clientName: clientNameCtrl.text.trim(),
+                        buyerIin: iin.isEmpty ? null : iin,
+                        items: [InvoiceItem(
+                          id: '',
+                          description: descCtrl.text.trim(),
+                          quantity: 1,
+                          unitPrice: amount,
+                          unitCode: selectedUnit.code,
+                          unitName: selectedUnit.name,
+                        )],
+                      );
+                  Navigator.pop(ctx);
+                },
+                child: const Text('Создать счёт'),
+              ),
+            ]),
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: amountCtrl,
-            decoration: const InputDecoration(labelText: 'Сумма', prefixIcon: Icon(Iconsax.money_3), suffixText: '₸'),
-            keyboardType: TextInputType.number,
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () {
-              final amount = double.tryParse(amountCtrl.text.replaceAll(' ', ''));
-              if (clientNameCtrl.text.isEmpty || descCtrl.text.isEmpty || amount == null) return;
-              ref.read(invoiceProvider.notifier).add(
-                    clientId: '',
-                    clientName: clientNameCtrl.text.trim(),
-                    items: [InvoiceItem(id: '', description: descCtrl.text.trim(), quantity: 1, unitPrice: amount)],
-                  );
-              Navigator.pop(ctx);
-            },
-            child: const Text('Создать счёт'),
-          ),
-        ]),
+        ),
       ),
     );
   }

@@ -7,6 +7,7 @@ import 'package:printing/printing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/models/invoice.dart';
 import '../../../core/providers/invoice_provider.dart';
+import '../../../core/providers/company_provider.dart';
 import '../../../core/services/pdf_service.dart';
 import 'invoices_screen.dart'; // for InvoiceStatusExt
 import 'esf_preview_screen.dart';
@@ -19,6 +20,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final invoices = ref.watch(invoiceProvider);
     final invoice = invoices.where((i) => i.id == invoiceId).firstOrNull;
+    final company = ref.watch(companyProvider);
     final fmt = NumberFormat('#,##0', 'ru_RU');
     final dateFmt = DateFormat('dd.MM.yyyy');
 
@@ -36,12 +38,12 @@ class InvoiceDetailScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Iconsax.printer),
             tooltip: 'Печать / PDF',
-            onPressed: () => _printPdf(context, invoice),
+            onPressed: () => _printPdf(context, invoice, company.isVatPayer),
           ),
           IconButton(
             icon: const Icon(Iconsax.share),
             tooltip: 'Поделиться',
-            onPressed: () => _sharePdf(context, invoice),
+            onPressed: () => _sharePdf(context, invoice, company.isVatPayer),
           ),
           const SizedBox(width: 4),
         ],
@@ -178,7 +180,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
             const SizedBox(width: 8),
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: () => _previewPdf(context, invoice),
+                onPressed: () => _previewPdf(context, invoice, company.isVatPayer),
                 icon: const Icon(Iconsax.document, size: 18),
                 label: const Text('PDF'),
               ),
@@ -190,21 +192,21 @@ class InvoiceDetailScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _previewPdf(BuildContext context, Invoice invoice) async {
+  Future<void> _previewPdf(BuildContext context, Invoice invoice, bool isVatPayer) async {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => _PdfPreviewPage(invoice: invoice),
+        builder: (_) => _PdfPreviewPage(invoice: invoice, isVatPayer: isVatPayer),
       ),
     );
   }
 
-  Future<void> _printPdf(BuildContext context, Invoice invoice) async {
-    final pdf = await PdfService.generateInvoice(invoice);
+  Future<void> _printPdf(BuildContext context, Invoice invoice, bool isVatPayer) async {
+    final pdf = await PdfService.generateInvoice(invoice, isVatPayer: isVatPayer);
     await Printing.layoutPdf(onLayout: (_) => pdf.save());
   }
 
-  Future<void> _sharePdf(BuildContext context, Invoice invoice) async {
-    final pdf = await PdfService.generateInvoice(invoice);
+  Future<void> _sharePdf(BuildContext context, Invoice invoice, bool isVatPayer) async {
+    final pdf = await PdfService.generateInvoice(invoice, isVatPayer: isVatPayer);
     await Printing.sharePdf(
       bytes: await pdf.save(),
       filename: '${invoice.number}.pdf',
@@ -258,8 +260,9 @@ class _InfoRow extends StatelessWidget {
 }
 
 class _PdfPreviewPage extends StatelessWidget {
-  const _PdfPreviewPage({required this.invoice});
+  const _PdfPreviewPage({required this.invoice, required this.isVatPayer});
   final Invoice invoice;
+  final bool isVatPayer;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -269,7 +272,7 @@ class _PdfPreviewPage extends StatelessWidget {
         IconButton(
           icon: const Icon(Iconsax.share),
           onPressed: () async {
-            final pdf = await PdfService.generateInvoice(invoice);
+            final pdf = await PdfService.generateInvoice(invoice, isVatPayer: isVatPayer);
             await Printing.sharePdf(
               bytes: await pdf.save(),
               filename: '${invoice.number}.pdf',
@@ -281,7 +284,7 @@ class _PdfPreviewPage extends StatelessWidget {
     ),
     body: PdfPreview(
       build: (_) async {
-        final pdf = await PdfService.generateInvoice(invoice);
+        final pdf = await PdfService.generateInvoice(invoice, isVatPayer: isVatPayer);
         return pdf.save();
       },
       canChangeOrientation: false,

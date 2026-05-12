@@ -26,6 +26,7 @@ class PdfService {
     String? companyPhone,
     String? companyBank,
     String? companyIik,
+    bool isVatPayer = false,
   }) async {
     final pdf = pw.Document(
       title: 'Счёт ${invoice.number}',
@@ -63,7 +64,7 @@ class PdfService {
             pw.SizedBox(height: 16),
 
             // Totals
-            _buildTotals(invoice),
+            _buildTotals(invoice, isVatPayer: isVatPayer),
             pw.SizedBox(height: 24),
 
             // Note
@@ -294,7 +295,12 @@ class PdfService {
     );
   }
 
-  static pw.Widget _buildTotals(Invoice invoice) {
+  static pw.Widget _buildTotals(Invoice invoice, {bool isVatPayer = false}) {
+    final net = invoice.totalAmount;
+    final vatRate = KzTax.vatRate; // 0.16
+    final vat = isVatPayer ? net * vatRate : 0.0;
+    final gross = net + vat;
+
     return pw.Align(
       alignment: pw.Alignment.centerRight,
       child: pw.Container(
@@ -311,7 +317,7 @@ class PdfService {
             children: [
               pw.Text('Без НДС:',
                   style: const pw.TextStyle(fontSize: 10, color: _grey)),
-              pw.Text('${_fmt.format(invoice.totalAmount)} ₸',
+              pw.Text('${_fmt.format(net)} ₸',
                   style: const pw.TextStyle(fontSize: 10, color: _dark)),
             ],
           ),
@@ -321,8 +327,10 @@ class PdfService {
             children: [
               pw.Text('НДС (16%):',
                   style: const pw.TextStyle(fontSize: 10, color: _grey)),
-              pw.Text('не облагается',
-                  style: const pw.TextStyle(fontSize: 10, color: _grey)),
+              pw.Text(
+                isVatPayer ? '${_fmt.format(vat)} ₸' : 'не облагается',
+                style: const pw.TextStyle(fontSize: 10, color: _grey),
+              ),
             ],
           ),
           pw.Divider(color: _divider, height: 12),
@@ -334,7 +342,7 @@ class PdfService {
                       fontSize: 12,
                       fontWeight: pw.FontWeight.bold,
                       color: _dark)),
-              pw.Text('${_fmt.format(invoice.totalAmount)} ₸',
+              pw.Text('${_fmt.format(gross)} ₸',
                   style: pw.TextStyle(
                       fontSize: 12,
                       fontWeight: pw.FontWeight.bold,

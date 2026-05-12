@@ -19,6 +19,7 @@ class EsfPreviewScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final company = ref.watch(companyProvider);
+    final validation = EsfService.validate(invoice, company);
     final xml = EsfService.generate(invoice, company);
 
     return Scaffold(
@@ -38,31 +39,48 @@ class EsfPreviewScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Iconsax.document_download),
             tooltip: 'Скачать XML',
-            onPressed: () => _download(context, invoice, xml),
+            onPressed: validation.isValid
+                ? () => _download(context, invoice, xml)
+                : () => _showBlockedSnack(context, validation),
           ),
           const SizedBox(width: 4),
         ],
       ),
       body: Column(
         children: [
-          // Warning banner
-          if (!company.isComplete)
+          // Errors banner — блокируют скачивание
+          if (validation.errors.isNotEmpty)
+            _IssueBanner(
+              icon: Iconsax.close_square,
+              color: EsepColors.expense,
+              title: 'XML не пройдёт импорт на esf.gov.kz',
+              items: validation.errors,
+            ),
+
+          // Warnings banner — мягкие предупреждения
+          if (validation.warnings.isNotEmpty)
+            _IssueBanner(
+              icon: Iconsax.warning_2,
+              color: EsepColors.warning,
+              title: 'Возможные проблемы',
+              items: validation.warnings,
+            ),
+
+          // VAT badge
+          if (company.isVatPayer)
             Container(
-              margin: const EdgeInsets.all(12),
-              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: EsepColors.warning.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: EsepColors.warning.withValues(alpha: 0.3)),
+                color: EsepColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: const Row(children: [
-                Icon(Iconsax.warning_2, color: EsepColors.warning, size: 18),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Заполните данные вашей компании в Настройках для корректного ЭСФ',
-                    style: TextStyle(fontSize: 12, color: EsepColors.warning),
-                  ),
+              child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.percent, size: 14, color: EsepColors.primary),
+                SizedBox(width: 6),
+                Text(
+                  'Плательщик НДС — добавлен 16% сверху',
+                  style: TextStyle(fontSize: 12, color: EsepColors.primary, fontWeight: FontWeight.w600),
                 ),
               ]),
             ),
@@ -127,7 +145,9 @@ class EsfPreviewScreen extends ConsumerWidget {
                 Expanded(
                   flex: 2,
                   child: ElevatedButton.icon(
-                    onPressed: () => _download(context, invoice, xml),
+                    onPressed: validation.isValid
+                        ? () => _download(context, invoice, xml)
+                        : () => _showBlockedSnack(context, validation),
                     icon: const Icon(Iconsax.document_download, size: 18),
                     label: const Text('Скачать .xml'),
                   ),
@@ -136,6 +156,17 @@ class EsfPreviewScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showBlockedSnack(BuildContext context, EsfValidation validation) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Исправьте ошибки перед скачиванием: ${validation.errors.first}',
+        ),
+        backgroundColor: EsepColors.expense,
       ),
     );
   }
@@ -156,5 +187,59 @@ class EsfPreviewScreen extends ConsumerWidget {
         ),
       );
     }
+  }
+}
+
+class _IssueBanner extends StatelessWidget {
+  const _IssueBanner({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.items,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final List<String> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(icon, color: color, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 6),
+          ...items.map((it) => Padding(
+                padding: const EdgeInsets.only(left: 26, top: 2),
+                child: Text(
+                  '• $it',
+                  style: TextStyle(fontSize: 12, color: color),
+                ),
+              )),
+        ],
+      ),
+    );
   }
 }

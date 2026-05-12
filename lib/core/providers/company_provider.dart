@@ -11,6 +11,7 @@ class CompanyInfo {
   final String? iik;   // ИИК (IBAN)
   final String? bik;   // БИК банка
   final String? kbe;   // КБе (код бенефициара)
+  final bool isVatPayer; // Плательщик НДС (ОУР), по умолчанию false (для СНР/упрощёнки)
 
   const CompanyInfo({
     required this.name,
@@ -22,6 +23,7 @@ class CompanyInfo {
     this.iik,
     this.bik,
     this.kbe,
+    this.isVatPayer = false,
   });
 
   bool get isComplete => name.isNotEmpty && iin.isNotEmpty;
@@ -37,15 +39,16 @@ class CompanyNotifier extends StateNotifier<CompanyInfo> {
   void _load() {
     final box = HiveService.settings;
     state = CompanyInfo(
-      name:     box.get('company_name',  defaultValue: '') as String,
-      iin:      box.get('company_iin',   defaultValue: '') as String,
-      address:  box.get('company_addr')  as String?,
-      phone:    box.get('company_phone') as String?,
-      email:    box.get('company_email') as String?,
-      bankName: box.get('company_bank')  as String?,
-      iik:      box.get('company_iik')   as String?,
-      bik:      box.get('company_bik')   as String?,
-      kbe:      box.get('company_kbe')   as String?,
+      name:        box.get('company_name',  defaultValue: '') as String,
+      iin:         box.get('company_iin',   defaultValue: '') as String,
+      address:     box.get('company_addr')  as String?,
+      phone:       box.get('company_phone') as String?,
+      email:       box.get('company_email') as String?,
+      bankName:    box.get('company_bank')  as String?,
+      iik:         box.get('company_iik')   as String?,
+      bik:         box.get('company_bik')   as String?,
+      kbe:         box.get('company_kbe')   as String?,
+      isVatPayer:  box.get('company_is_vat_payer', defaultValue: false) as bool,
     );
   }
 
@@ -59,6 +62,7 @@ class CompanyNotifier extends StateNotifier<CompanyInfo> {
     String? iik,
     String? bik,
     String? kbe,
+    bool? isVatPayer,
   }) async {
     final box = HiveService.settings;
     await box.put('company_name',  name);
@@ -70,6 +74,9 @@ class CompanyNotifier extends StateNotifier<CompanyInfo> {
     await box.put('company_iik',   iik ?? '');
     await box.put('company_bik',   bik ?? '');
     await box.put('company_kbe',   kbe ?? '');
+    if (isVatPayer != null) {
+      await box.put('company_is_vat_payer', isVatPayer);
+    }
     _load();
   }
 }

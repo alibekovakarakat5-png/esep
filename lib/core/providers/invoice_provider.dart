@@ -80,6 +80,7 @@ class InvoiceNotifier extends StateNotifier<List<Invoice>> {
   Future<void> add({
     String? clientId,
     required String clientName,
+    String? buyerIin,
     required List<InvoiceItem> items,
     DateTime? dueDate,
     String? notes,
@@ -90,6 +91,7 @@ class InvoiceNotifier extends StateNotifier<List<Invoice>> {
       number: _nextNumber(),
       clientId: clientId,
       clientName: clientName,
+      buyerIin: buyerIin,
       items: items
           .map((item) => item.id.isEmpty
               ? InvoiceItem(
@@ -97,6 +99,8 @@ class InvoiceNotifier extends StateNotifier<List<Invoice>> {
                   description: item.description,
                   quantity: item.quantity,
                   unitPrice: item.unitPrice,
+                  unitCode: item.unitCode,
+                  unitName: item.unitName,
                 )
               : item)
           .toList(),
