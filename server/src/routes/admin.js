@@ -304,9 +304,9 @@ router.patch('/payments/:id/extend', adminAuth, async (req, res) => {
 // ── GET /api/admin — HTML dashboard ──────────────────────────────────────────
 router.get('/', adminAuth, async (_req, res) => {
   try {
-    const [{ rows: users }, { rows: taxRows }, { rows: arts }] = await Promise.all([
+    const [{ rows: users }, { rows: taxRows }, { rows: arts }, { rows: feedback }] = await Promise.all([
       db.query(
-        `SELECT id, email, name, tier, created_at,
+        `SELECT id, email, name, tier, is_beta_tester, created_at,
                 (SELECT COUNT(*) FROM transactions WHERE user_id = users.id) AS tx_total,
                 (SELECT COUNT(*) FROM invoices   WHERE user_id = users.id) AS inv_total
          FROM users ORDER BY created_at DESC`,
@@ -315,6 +315,14 @@ router.get('/', adminAuth, async (_req, res) => {
       db.query(
         `SELECT id, slug, title, audience, status, tags, published_at, created_at
          FROM articles ORDER BY created_at DESC LIMIT 50`,
+      ),
+      db.query(
+        `SELECT f.id, f.user_id, u.email, u.name, f.screen, f.severity, f.message,
+                f.device_info, f.app_version, f.status, f.created_at
+           FROM feedback f
+           JOIN users u ON u.id = f.user_id
+          ORDER BY f.created_at DESC
+          LIMIT 200`,
       ),
     ]);
 
@@ -438,6 +446,52 @@ router.get('/', adminAuth, async (_req, res) => {
       </tr>`;
     }).join('');
 
+    // Pre-compute feedback HTML
+    // severity в БД: low / normal / high / critical (см. server/src/routes/feedback.js)
+    const sevColor = {
+      low:      { bg: '#dbeafe', fg: '#2563eb', label: '🔵 Низкая' },
+      normal:   { bg: '#dcfce7', fg: '#16a34a', label: '🟢 Норм' },
+      high:     { bg: '#fef3c7', fg: '#b45309', label: '🟠 Важно' },
+      critical: { bg: '#fee2e2', fg: '#dc2626', label: '🔴 Критично' },
+    };
+    const sevFallback = { bg: '#f3f4f6', fg: '#6b7280', label: '—' };
+    const statusColor = {
+      new:         { bg: '#fef3c7', fg: '#b45309', label: 'Новый' },
+      in_progress: { bg: '#dbeafe', fg: '#2563eb', label: 'В работе' },
+      fixed:       { bg: '#dcfce7', fg: '#16a34a', label: 'Исправлен' },
+      wontfix:     { bg: '#f3f4f6', fg: '#6b7280', label: 'Не будем' },
+      duplicate:   { bg: '#f3f4f6', fg: '#6b7280', label: 'Дубль' },
+    };
+    const feedbackRows = feedback.map((f) => {
+      const sev = sevColor[f.severity] ?? sevFallback;
+      const st = statusColor[f.status] ?? statusColor.new;
+      const safeId = escapeHtml(f.id);
+      const dt = new Date(f.created_at);
+      const dateStr = dt.toLocaleDateString('ru-RU') + ' ' + dt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+      return `
+      <tr>
+        <td style="font-size:12px;white-space:nowrap">${dateStr}</td>
+        <td style="font-size:12px">${escapeHtml(f.email)}<br/><span style="color:#9ca3af">${escapeHtml(f.name || '—')}</span></td>
+        <td><span class="badge" style="background:${sev.bg};color:${sev.fg}">${sev.label}</span></td>
+        <td style="font-size:12px;font-family:monospace;color:#6b7280">${escapeHtml(f.screen || '—')}</td>
+        <td style="font-size:13px;max-width:420px">${escapeHtml(f.message)}</td>
+        <td style="font-size:11px;color:#9ca3af">${escapeHtml(f.app_version || '—')}</td>
+        <td>
+          <select onchange="changeFeedbackStatus('${safeId}', this.value)" style="font-size:12px">
+            ${['new','in_progress','fixed','wontfix','duplicate'].map(s =>
+              `<option value="${s}"${s===f.status?' selected':''}>${statusColor[s].label}</option>`
+            ).join('')}
+          </select>
+        </td>
+      </tr>`;
+    }).join('');
+
+    const feedbackByStatus = {
+      new:         feedback.filter(f => f.status === 'new').length,
+      in_progress: feedback.filter(f => f.status === 'in_progress').length,
+      fixed:       feedback.filter(f => f.status === 'fixed').length,
+    };
+
     const artRows = arts.map((a) => {
       const safeTitle = escapeHtml(a.title);
       const safeSlug = escapeHtml(a.slug);
@@ -499,6 +553,7 @@ router.get('/', adminAuth, async (_req, res) => {
   <nav class="nav">
     <a href="#users" class="active" onclick="showSection('users',this)">Пользователи</a>
     <a href="#payments" onclick="showSection('payments',this)">Платежи</a>
+    <a href="#feedback" onclick="showSection('feedback',this)">🧪 Фидбек${feedbackByStatus.new > 0 ? ` <span style="background:#dc2626;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px">${feedbackByStatus.new}</span>` : ''}</a>
     <a href="#tax" onclick="showSection('tax',this)">Налоговые ставки</a>
     <a href="#articles" onclick="showSection('articles',this)">Статьи</a>
     <a href="#promos" onclick="showSection('promos',this)">Промокоды</a>
@@ -561,6 +616,31 @@ router.get('/', adminAuth, async (_req, res) => {
       <thead><tr><th>Email</th><th>Тариф</th><th>Сумма</th><th>Период</th><th>Статус</th><th>Оплачено</th><th>Истекает</th><th>Действия</th></tr></thead>
       <tbody>${paymentRows}</tbody>
     </table>
+  </div>
+
+  <!-- ── Feedback ── -->
+  <div id="sec-feedback" style="display:none">
+    <h2>Багрепорты и предложения от тестеров</h2>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:16px">
+      Сообщения от пользователей с галочкой «🧪 Тестер» через кнопку «Сообщить о баге» в приложении.
+    </p>
+    <div class="stats">
+      <div class="stat"><div class="stat-val" style="color:#b45309">${feedbackByStatus.new}</div><div class="stat-label">Новые</div></div>
+      <div class="stat"><div class="stat-val" style="color:#2563eb">${feedbackByStatus.in_progress}</div><div class="stat-label">В работе</div></div>
+      <div class="stat"><div class="stat-val" style="color:#16a34a">${feedbackByStatus.fixed}</div><div class="stat-label">Исправлено</div></div>
+      <div class="stat"><div class="stat-val">${feedback.length}</div><div class="stat-label">Всего</div></div>
+    </div>
+    ${feedback.length === 0
+      ? `<div style="background:#fff;border:1px dashed #e5e7eb;border-radius:12px;padding:32px;text-align:center;color:#9ca3af">
+          Пока нет фидбека. Включи тестеру галочку «🧪 Тестер» — у него появится кнопка «Сообщить о баге» на каждом экране.
+        </div>`
+      : `<table>
+          <thead><tr>
+            <th>Когда</th><th>Кто</th><th>Тип</th><th>Экран</th><th>Сообщение</th><th>Версия</th><th>Статус</th>
+          </tr></thead>
+          <tbody>${feedbackRows}</tbody>
+        </table>`
+    }
   </div>
 
   <!-- ── Tax Config ── -->
@@ -640,7 +720,7 @@ router.get('/', adminAuth, async (_req, res) => {
     });
 
     function showSection(id, el) {
-      ['users','payments','tax','articles','promos'].forEach(s => {
+      ['users','payments','feedback','tax','articles','promos'].forEach(s => {
         document.getElementById('sec-'+s).style.display = s===id ? '' : 'none';
       });
       document.querySelectorAll('.nav a').forEach(a => a.classList.remove('active'));
@@ -648,7 +728,7 @@ router.get('/', adminAuth, async (_req, res) => {
     }
     // Handle hash on load
     const hash = location.hash.replace('#','');
-    if (['payments','tax','articles','promos'].includes(hash)) {
+    if (['payments','feedback','tax','articles','promos'].includes(hash)) {
       document.querySelectorAll('.nav a').forEach(a => {
         if (a.getAttribute('href')==='#'+hash) showSection(hash,a);
       });
@@ -775,6 +855,13 @@ router.get('/', adminAuth, async (_req, res) => {
       });
       if (r.ok) { toast('Продлено на 1 месяц'); setTimeout(()=>location.reload(),800); }
       else toast('Ошибка', false);
+    }
+
+    async function changeFeedbackStatus(id, status) {
+      const r = await api('/api/admin/feedback/'+id+'/status', {
+        method:'PATCH', body:JSON.stringify({status})
+      });
+      toast(r.ok ? 'Статус обновлён' : 'Ошибка', r.ok);
     }
   </script>
 </body>
