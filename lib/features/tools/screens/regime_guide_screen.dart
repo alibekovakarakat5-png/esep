@@ -717,7 +717,7 @@ class _RegimeGuideScreenState extends ConsumerState<RegimeGuideScreen> {
         const Text('Налог с дохода:',
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
-        _paymentRow('4% от дохода', 'ИПН + СН'),
+        _paymentRow('4% от дохода', 'ИПН (СН=0% по СНР)'),
         const SizedBox(height: 12),
         const Text('Соцплатежи дополнительно (ежемесячно):',
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),

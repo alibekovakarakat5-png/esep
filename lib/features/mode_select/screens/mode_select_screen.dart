@@ -40,7 +40,7 @@ class ModeSelectScreen extends ConsumerWidget {
                 color: const Color(0xFF0D9488),
                 features: const [
                   (Iconsax.wallet_2,    'Доходы и расходы'),
-                  (Iconsax.calculator,  'КПН 20% и НДС 12%'),
+                  (Iconsax.calculator,  'КПН 20% и НДС 16%'),
                   (Iconsax.receipt_2,   'Счета и акты'),
                   (Iconsax.money_send,  'Зарплата и соцплатежи'),
                 ],

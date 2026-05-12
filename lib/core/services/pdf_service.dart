@@ -319,7 +319,7 @@ class PdfService {
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text('НДС (12%):',
+              pw.Text('НДС (16%):',
                   style: const pw.TextStyle(fontSize: 10, color: _grey)),
               pw.Text('не облагается',
                   style: const pw.TextStyle(fontSize: 10, color: _grey)),
