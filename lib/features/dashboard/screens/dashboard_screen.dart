@@ -124,6 +124,10 @@ class DashboardScreen extends ConsumerWidget {
           if (ref.watch(featureTourProvider).showDashboardTour)
             const SizedBox(height: 10),
 
+          // ── Диагностика «Что изменилось в 2026» ────────────────
+          _DiagnosisBanner(onTap: () => context.go('/diagnosis')),
+          const SizedBox(height: 12),
+
           // ── "Кнопка Спокойствия" — главная карточка ─────────────
           _CalmCard(
             hasTransactions: transactions.isNotEmpty,
@@ -1560,4 +1564,64 @@ class _TourTip {
   final String body;
   final Color color;
   const _TourTip({required this.icon, required this.title, required this.body, required this.color});
+}
+
+/// Промо-баннер для онбординг-диагностики «Что изменилось в 2026».
+/// Показывается всем — это лид-магнит и upsell-крючок.
+class _DiagnosisBanner extends StatelessWidget {
+  const _DiagnosisBanner({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0099CC), Color(0xFF0077A8)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(children: [
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Iconsax.chart_2, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Что изменилось для вас в 2026',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
+              SizedBox(height: 2),
+              Text('1 минута — узнайте сколько заплатите по новому НК',
+                  style: TextStyle(fontSize: 12, color: Colors.white70)),
+            ]),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.22),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Row(mainAxisSize: MainAxisSize.min, children: [
+              Text('Начать',
+                  style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w700)),
+              SizedBox(width: 4),
+              Icon(Iconsax.arrow_right_3, color: Colors.white, size: 14),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
 }

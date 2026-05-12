@@ -32,6 +32,7 @@ import '../../features/esf_recon/screens/esf_recon_detail_screen.dart';
 import '../../features/account_monitor/screens/account_monitor_screen.dart';
 import '../../features/settings/screens/tax_profile_screen.dart';
 import '../../features/settings/screens/telegram_link_screen.dart';
+import '../../features/diagnosis/screens/diagnosis_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
 import '../providers/auth_provider.dart';
 import '../providers/user_mode_provider.dart';
@@ -223,6 +224,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/tax-profile',
             builder: (_, __) => const TaxProfileScreen(),
+          ),
+
+          // ─ Диагностика «Что изменилось для меня в 2026» ──────────────────
+          GoRoute(
+            path: '/diagnosis',
+            builder: (_, __) => const DiagnosisScreen(),
           ),
 
           // ─ Привязка Telegram ──────────────────────────────────────────────
