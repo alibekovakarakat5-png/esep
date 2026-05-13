@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Rendered videos (большие, не нужны в git — генерируются)
+out/
+public/audio/*.mp3
+
+# Generated TTS metadata
+public/audio/*.json
+
+# Remotion cache
+.remotion/
+
+# OS / IDE
+.DS_Store
+.vscode/
+*.log

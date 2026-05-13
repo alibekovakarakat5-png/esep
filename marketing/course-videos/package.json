@@ -1,0 +1,29 @@
+{
+  "name": "esep-course-videos",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Видео-уроки для курса 'НК 2026 за полчаса' (Esep)",
+  "scripts": {
+    "tts:edge": "node scripts/generate-tts.js --provider=edge",
+    "tts:eleven": "node scripts/generate-tts.js --provider=elevenlabs",
+    "studio": "remotion studio",
+    "render:reel": "remotion render Lesson01Reel out/lesson-01-reel.mp4 --codec=h264 --crf=18",
+    "render:full": "remotion render Lesson01Full out/lesson-01-full.mp4 --codec=h264 --crf=18",
+    "render:all": "npm run render:reel && npm run render:full"
+  },
+  "dependencies": {
+    "@remotion/bundler": "^4.0.0",
+    "@remotion/cli": "^4.0.0",
+    "@remotion/google-fonts": "^4.0.0",
+    "@remotion/media-utils": "^4.0.0",
+    "msedge-tts": "^1.3.7",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  }
+}
