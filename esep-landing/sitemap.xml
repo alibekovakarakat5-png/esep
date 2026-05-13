@@ -80,12 +80,6 @@
 
   <!-- Сложные вопросы (advanced) -->
   <url>
-    <loc>https://esepkz.com/nk2026/dividendy</loc>
-    <lastmod>2026-05-13</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.90</priority>
-  </url>
-  <url>
     <loc>https://esepkz.com/nk2026/marketpleysy</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
@@ -97,6 +91,8 @@
     <changefreq>monthly</changefreq>
     <priority>0.90</priority>
   </url>
+  <!-- /nk2026/dividendy временно скрыта из sitemap до подтверждения нормы НК 2026 у бухгалтера -->
+
 
   <!-- Существующие блоги -->
   <url>
