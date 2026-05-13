@@ -554,6 +554,7 @@ router.get('/', adminAuth, async (_req, res) => {
     <a href="#users" class="active" onclick="showSection('users',this)">Пользователи</a>
     <a href="#payments" onclick="showSection('payments',this)">Платежи</a>
     <a href="#feedback" onclick="showSection('feedback',this)">🧪 Фидбек${feedbackByStatus.new > 0 ? ` <span style="background:#dc2626;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px">${feedbackByStatus.new}</span>` : ''}</a>
+    <a href="#course" onclick="showSection('course',this)">📚 Курс (черновик)</a>
     <a href="#tax" onclick="showSection('tax',this)">Налоговые ставки</a>
     <a href="#articles" onclick="showSection('articles',this)">Статьи</a>
     <a href="#promos" onclick="showSection('promos',this)">Промокоды</a>
@@ -643,6 +644,118 @@ router.get('/', adminAuth, async (_req, res) => {
     }
   </div>
 
+  <!-- ── Course (черновик) ── -->
+  <div id="sec-course" style="display:none">
+    <h2>Курс «НК 2026 за полчаса» — черновик</h2>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:16px">
+      Раздел скрыт от публики (нет в навигации, noindex для Google, нет в sitemap).
+      Открыть статьи можно по прямым ссылкам ниже.
+      Когда Фарида подтвердит все факты — снимем noindex и вернём в навигацию.
+    </p>
+
+    <div class="stats" style="margin-bottom:20px">
+      <div class="stat">
+        <div class="stat-val">10</div>
+        <div class="stat-label">Базовые уроки</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="color:#b45309">3</div>
+        <div class="stat-label">Сложные вопросы</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="color:#dc2626">1</div>
+        <div class="stat-label">На проверке</div>
+      </div>
+    </div>
+
+    <h2 style="font-size:14px">Хаб</h2>
+    <table>
+      <thead><tr><th>Страница</th><th>Тип</th><th>Статус</th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Главная путеводителя</strong></td>
+          <td><span class="badge" style="background:#e0f2fe;color:#0369a1">хаб</span></td>
+          <td><span class="badge" style="background:#fef3c7;color:#b45309">скрыто (noindex)</span></td>
+          <td><a href="https://esepkz.com/nk2026" target="_blank" style="color:#2563eb">Открыть →</a></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 style="font-size:14px;margin-top:20px">Базовые уроки (10)</h2>
+    <table>
+      <thead><tr><th>Урок</th><th>Тема</th><th>Статус</th><th></th></tr></thead>
+      <tbody>
+        ${[
+          ['1', 'МРП и МЗП 2026', 'mrp-mzp'],
+          ['2', 'Упрощёнка 910 — ставка 4%', 'uproshenka-910'],
+          ['3', 'НДС вырос до 16%', 'nds-16'],
+          ['4', 'Упрощёнка освобождена от НДС', 'nds-osvobozhdenie'],
+          ['5', 'ОПВР работодателя 3.5%', 'opvr-3-5'],
+          ['6', 'СО выросло до 5%', 'so-5'],
+          ['7', 'ИПН прогрессивный 10/15%', 'ipn-progressivnyy'],
+          ['8', 'СН для ТОО 6% упрощён', 'sn-too'],
+          ['9', 'Самозанятые 4%, патент отменён', 'samozanyatye'],
+          ['10', 'Дедлайны 2026', 'dedlayny-2026'],
+        ].map(([num, title, slug]) => `
+        <tr>
+          <td><strong>Урок ${num}</strong></td>
+          <td>${title}</td>
+          <td><span class="badge" style="background:#fef3c7;color:#b45309">черновик</span></td>
+          <td><a href="https://esepkz.com/nk2026/${slug}" target="_blank" style="color:#2563eb">Открыть →</a></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+
+    <h2 style="font-size:14px;margin-top:20px">Сложные вопросы (экспертный уровень)</h2>
+    <table>
+      <thead><tr><th>Тема</th><th>Тип</th><th>Статус</th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Налоги с Kaspi / Wildberries / OZON</strong></td>
+          <td><span class="badge" style="background:#fef3c7;color:#b45309">эксперт</span></td>
+          <td><span class="badge" style="background:#dcfce7;color:#16a34a">факты ок</span></td>
+          <td><a href="https://esepkz.com/nk2026/marketpleysy" target="_blank" style="color:#2563eb">Открыть →</a></td>
+        </tr>
+        <tr>
+          <td><strong>ГПХ vs трудовой договор</strong></td>
+          <td><span class="badge" style="background:#fef3c7;color:#b45309">эксперт</span></td>
+          <td><span class="badge" style="background:#dcfce7;color:#16a34a">факты ок</span></td>
+          <td><a href="https://esepkz.com/nk2026/gph-vs-trudovoy" target="_blank" style="color:#2563eb">Открыть →</a></td>
+        </tr>
+        <tr>
+          <td><strong>Дивиденды 5% — освобождение через 3 года</strong></td>
+          <td><span class="badge" style="background:#fef3c7;color:#b45309">эксперт</span></td>
+          <td><span class="badge" style="background:#fee2e2;color:#dc2626">⚠ на проверке у Фариды</span></td>
+          <td><a href="https://esepkz.com/nk2026/dividendy" target="_blank" style="color:#2563eb">Открыть →</a></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 style="font-size:14px;margin-top:24px">Видео-ролики (Voxa)</h2>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:12px">
+      Локальный проект <code>voxa-video</code>. Studio: <a href="http://localhost:3003" target="_blank">localhost:3003</a>,
+      Encoder: <a href="http://localhost:3099" target="_blank">localhost:3099</a>.
+    </p>
+    <table>
+      <thead><tr><th>Видео</th><th>Длительность</th><th>Готовность</th></tr></thead>
+      <tbody>
+        <tr><td>Урок 1 — МРП и МЗП</td><td>39 сек</td><td><span class="badge" style="background:#dcfce7;color:#16a34a">готов</span></td></tr>
+        <tr><td>Маркетплейсы Kaspi/WB/OZON</td><td>30 сек</td><td><span class="badge" style="background:#dcfce7;color:#16a34a">готов</span></td></tr>
+        <tr><td>ГПХ vs трудовой</td><td>31 сек</td><td><span class="badge" style="background:#dcfce7;color:#16a34a">готов</span></td></tr>
+        <tr><td>Дивиденды 5%</td><td>30 сек</td><td><span class="badge" style="background:#fee2e2;color:#dc2626">⚠ не публиковать</span></td></tr>
+      </tbody>
+    </table>
+
+    <div style="margin-top:24px;padding:16px 20px;background:#dbeafe;border-radius:10px;color:#1e40af;font-size:13px">
+      <strong>План открытия раздела:</strong>
+      1) Фарида проверяет факты по всем 14 статьям →
+      2) Снимаем <code>noindex</code> со всех файлов →
+      3) Возвращаем хаб в навигацию лендинга →
+      4) Добавляем все URL в sitemap →
+      5) Запускаем рекламу (Google Ads, Meta, Insta-Reels).
+    </div>
+  </div>
+
   <!-- ── Tax Config ── -->
   <div id="sec-tax" style="display:none">
     <h2>Налоговые ставки 2026</h2>
@@ -720,7 +833,7 @@ router.get('/', adminAuth, async (_req, res) => {
     });
 
     function showSection(id, el) {
-      ['users','payments','feedback','tax','articles','promos'].forEach(s => {
+      ['users','payments','feedback','course','tax','articles','promos'].forEach(s => {
         document.getElementById('sec-'+s).style.display = s===id ? '' : 'none';
       });
       document.querySelectorAll('.nav a').forEach(a => a.classList.remove('active'));
@@ -728,7 +841,7 @@ router.get('/', adminAuth, async (_req, res) => {
     }
     // Handle hash on load
     const hash = location.hash.replace('#','');
-    if (['payments','feedback','tax','articles','promos'].includes(hash)) {
+    if (['payments','feedback','course','tax','articles','promos'].includes(hash)) {
       document.querySelectorAll('.nav a').forEach(a => {
         if (a.getAttribute('href')==='#'+hash) showSection(hash,a);
       });
