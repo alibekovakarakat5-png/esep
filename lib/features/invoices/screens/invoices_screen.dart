@@ -311,6 +311,12 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
     final descCtrl = TextEditingController();
     final amountCtrl = TextEditingController();
     InvoiceUnit selectedUnit = InvoiceUnit.piece;
+    // Реквизиты для ЭСФ
+    final esfUnitCtrl = TextEditingController();
+    final contractNumCtrl = TextEditingController();
+    final deliveryDocNumCtrl = TextEditingController();
+    DateTime? contractDate;
+    DateTime? deliveryDocDate;
 
     showAdaptiveSheet(
       context,
@@ -380,12 +386,68 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                   ),
                 ),
               ]),
-              const SizedBox(height: 24),
+              const SizedBox(height: 8),
+              // ── Реквизиты для ЭСФ (опционально) ───────────────────────────
+              Theme(
+                data: Theme.of(ctx).copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: const EdgeInsets.only(top: 4, bottom: 4),
+                  leading: const Icon(Iconsax.document_code, size: 20),
+                  title: const Text('Реквизиты для ЭСФ',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Договор, документ-основание, код ед. ЭСФ',
+                      style: TextStyle(fontSize: 11)),
+                  children: [
+                    TextField(
+                      controller: esfUnitCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Код единицы измерения ЭСФ',
+                        prefixIcon: Icon(Iconsax.ruler),
+                        helperText: 'Из справочника ИС ЭСФ (возьмите в 1С)',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: contractNumCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Номер договора',
+                        prefixIcon: Icon(Iconsax.document_text_1),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _DatePickerField(
+                      label: 'Дата договора',
+                      value: contractDate,
+                      onPick: (d) => setSheetState(() => contractDate = d),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: deliveryDocNumCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Номер документа-основания (акт/накладная)',
+                        prefixIcon: Icon(Iconsax.receipt_1),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _DatePickerField(
+                      label: 'Дата документа-основания',
+                      value: deliveryDocDate,
+                      onPick: (d) => setSheetState(() => deliveryDocDate = d),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () {
                   final amount = double.tryParse(amountCtrl.text.replaceAll(' ', ''));
                   if (clientNameCtrl.text.isEmpty || descCtrl.text.isEmpty || amount == null) return;
                   final iin = buyerIinCtrl.text.trim();
+                  final esfUnit = esfUnitCtrl.text.trim();
+                  final contractNum = contractNumCtrl.text.trim();
+                  final deliveryDocNum = deliveryDocNumCtrl.text.trim();
                   ref.read(invoiceProvider.notifier).add(
                         clientId: '',
                         clientName: clientNameCtrl.text.trim(),
@@ -397,7 +459,13 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                           unitPrice: amount,
                           unitCode: selectedUnit.code,
                           unitName: selectedUnit.name,
+                          esfUnitCode: esfUnit.isEmpty ? null : esfUnit,
                         )],
+                        contractNum: contractNum.isEmpty ? null : contractNum,
+                        contractDate: contractDate,
+                        deliveryDocNum:
+                            deliveryDocNum.isEmpty ? null : deliveryDocNum,
+                        deliveryDocDate: deliveryDocDate,
                       );
                   Navigator.pop(ctx);
                 },
@@ -493,6 +561,54 @@ class _InvoiceTile extends StatelessWidget {
               )),
           const SizedBox(height: 8),
         ]),
+      ),
+    );
+  }
+}
+
+/// Поле выбора даты для реквизитов ЭСФ (договор, документ-основание).
+class _DatePickerField extends StatelessWidget {
+  const _DatePickerField({
+    required this.label,
+    required this.value,
+    required this.onPick,
+  });
+
+  final String label;
+  final DateTime? value;
+  final ValueChanged<DateTime> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = value == null
+        ? 'Не выбрана'
+        : '${value!.day.toString().padLeft(2, '0')}.'
+            '${value!.month.toString().padLeft(2, '0')}.${value!.year}';
+    return InkWell(
+      onTap: () async {
+        final now = DateTime.now();
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: value ?? now,
+          firstDate: DateTime(now.year - 5),
+          lastDate: DateTime(now.year + 1),
+        );
+        if (picked != null) onPick(picked);
+      },
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: const Icon(Iconsax.calendar_1),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 14,
+            color: value == null
+                ? EsepColors.textDisabled
+                : EsepColors.textPrimary,
+          ),
+        ),
       ),
     );
   }

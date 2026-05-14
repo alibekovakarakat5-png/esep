@@ -1,82 +1,80 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!--
-  ЭСФ сгенерирован приложением Esep (esep.kz)
-  Для загрузки перейдите: https://esf.gov.kz
-  Дата генерации: 2026-05-12
-  Поставщик не является плательщиком НДС (СНР/упрощёнка)
--->
-<ESF xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-
-  <!-- 1. Заголовок -->
-  <HEADER>
-    <INVOICE_NUM>ЭСФ-2026-001</INVOICE_NUM>
-    <INVOICE_DATE>2026-05-12</INVOICE_DATE>
-    <DELIVERY_DATE>2026-05-12</DELIVERY_DATE>
-    <TYPE>ORDINARY</TYPE>
-    <CORRECTION>false</CORRECTION>
-    <INPUT_TYPE>MANUAL</INPUT_TYPE>
-  </HEADER>
-
-  <!-- 2. Поставщик -->
-  <SELLER>
-    <IIN>900101300123</IIN>
-    <NAME>ИП Алибеков А.К.</NAME>
-    <ADDRESS>г. Астана, пр. Кабанбай батыра, 11</ADDRESS>
-    <IS_VAT_PAYER>false</IS_VAT_PAYER>
-    <BANK_DETAILS>
-      <NAME>Kaspi Bank</NAME>
-      <IIK>KZ123456789012345678</IIK>
-      <BIK>CASPKZKA</BIK>
-      <KBE>19</KBE>
-    </BANK_DETAILS>
-  </SELLER>
-
-  <!-- 3. Получатель -->
-  <BUYER>
-    <!-- ИИН/БИН покупателя не заполнен -->
-    <NAME>ТОО АстанаТрейд</NAME>
-  </BUYER>
-
-  <!-- 4. Оборот -->
-  <TURNOVER>
-    <PRODUCT>
-      <NUM>1</NUM>
-      <DESCRIPTION>Консультация по форме 910</DESCRIPTION>
-      <UNIT_CODE>931</UNIT_CODE>
-      <UNIT_NAME>услуга</UNIT_NAME>
-      <COUNT>1.00</COUNT>
-      <PRICE>50000.00</PRICE>
-      <NET_TURNOVER>50000.00</NET_TURNOVER>
-      <NDS_RATE>WITHOUT_NDS</NDS_RATE>
-      <NDS_SUM>0.00</NDS_SUM>
-      <TURNOVER_WITH_NDS>50000.00</TURNOVER_WITH_NDS>
-    </PRODUCT>
-    <PRODUCT>
-      <NUM>2</NUM>
-      <DESCRIPTION>Настройка учёта</DESCRIPTION>
-      <UNIT_CODE>356</UNIT_CODE>
-      <UNIT_NAME>час</UNIT_NAME>
-      <COUNT>2.00</COUNT>
-      <PRICE>25000.00</PRICE>
-      <NET_TURNOVER>50000.00</NET_TURNOVER>
-      <NDS_RATE>WITHOUT_NDS</NDS_RATE>
-      <NDS_SUM>0.00</NDS_SUM>
-      <TURNOVER_WITH_NDS>50000.00</TURNOVER_WITH_NDS>
-    </PRODUCT>
-  </TURNOVER>
-
-  <!-- 5. Итого -->
-  <TOTAL>
-    <TOTAL_NET_TURNOVER>100000.00</TOTAL_NET_TURNOVER>
-    <TOTAL_NDS>0.00</TOTAL_NDS>
-    <TOTAL_TURNOVER_WITH_NDS>100000.00</TOTAL_TURNOVER_WITH_NDS>
-  </TOTAL>
-
-  <!--
-    ВАЖНО: Перед отправкой в ИС ЭСФ:
-    1. Убедитесь что ИИН/БИН покупателя заполнен (12 цифр)
-    2. Подпишите файл ЭЦП (НУЦ РК) в портале esf.gov.kz
-    3. Или загрузите XML вручную через импорт
-  -->
-
-</ESF>
+<?xml version="1.0" encoding="UTF-8"?><esf:invoiceInfoContainer xmlns:esf="esf">
+  <invoiceSet>
+    <invoiceInfo>
+      <invoiceBody><![CDATA[<v2:invoice xmlns:a="abstractInvoice.esf" xmlns:v2="v2.esf">
+    <date>12.05.2026</date>
+    <invoiceType>ORDINARY_INVOICE</invoiceType>
+    <num>СЧ-2026-001</num>
+    <operatorFullname>Алибеков Аскар Канатович</operatorFullname>
+    <turnoverDate>12.05.2026</turnoverDate>
+    <consignee>
+        <address></address>
+        <countryCode>KZ</countryCode>
+        <name>ТОО АстанаТрейд</name>
+        <tin></tin>
+    </consignee>
+    <consignor>
+        <address>г. Астана, пр. Кабанбай батыра, 11</address>
+        <name>ИП Алибеков А.К.</name>
+        <tin>900101300123</tin>
+    </consignor>
+    <customers>
+        <customer>
+            <address></address>
+            <countryCode>KZ</countryCode>
+            <name>ТОО АстанаТрейд</name>
+            <tin></tin>
+        </customer>
+    </customers>
+    <deliveryTerm>
+        <hasContract>false</hasContract>
+    </deliveryTerm>
+    <productSet>
+        <currencyCode>KZT</currencyCode>
+        <products>
+            <product>
+                <catalogTruId>1</catalogTruId>
+                <description>Консультация по форме 910</description>
+                <ndsAmount>0</ndsAmount>
+                <priceWithTax>50000</priceWithTax>
+                <priceWithoutTax>50000</priceWithoutTax>
+                <quantity>1</quantity>
+                <truOriginCode>5</truOriginCode>
+                <turnoverSize>50000</turnoverSize>
+                <unitNomenclature>5114</unitNomenclature>
+                <unitPrice>50000</unitPrice>
+            </product>
+            <product>
+                <catalogTruId>1</catalogTruId>
+                <description>Настройка учёта</description>
+                <ndsAmount>0</ndsAmount>
+                <priceWithTax>50000</priceWithTax>
+                <priceWithoutTax>50000</priceWithoutTax>
+                <quantity>2</quantity>
+                <truOriginCode>5</truOriginCode>
+                <turnoverSize>50000</turnoverSize>
+                <unitNomenclature>5114</unitNomenclature>
+                <unitPrice>25000</unitPrice>
+            </product>
+        </products>
+        <totalExciseAmount>0</totalExciseAmount>
+        <totalNdsAmount>0</totalNdsAmount>
+        <totalPriceWithTax>100000</totalPriceWithTax>
+        <totalPriceWithoutTax>100000</totalPriceWithoutTax>
+        <totalTurnoverSize>100000</totalTurnoverSize>
+    </productSet>
+    <sellers>
+        <seller>
+            <address>г. Астана, пр. Кабанбай батыра, 11</address>
+            <bank>Kaspi Bank</bank>
+            <bik>CASPKZKA</bik>
+            <iik>KZ123456789012345678</iik>
+            <kbe>19</kbe>
+            <name>ИП Алибеков А.К.</name>
+            <tin>900101300123</tin>
+        </seller>
+    </sellers>
+</v2:invoice>]]></invoiceBody>
+    </invoiceInfo>
+  </invoiceSet>
+</esf:invoiceInfoContainer>

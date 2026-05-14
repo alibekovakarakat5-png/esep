@@ -84,6 +84,11 @@ class InvoiceNotifier extends StateNotifier<List<Invoice>> {
     required List<InvoiceItem> items,
     DateTime? dueDate,
     String? notes,
+    DateTime? turnoverDate,
+    String? contractNum,
+    DateTime? contractDate,
+    String? deliveryDocNum,
+    DateTime? deliveryDocDate,
   }) async {
     final id = _uuid.v4();
     final invoice = Invoice(
@@ -93,21 +98,18 @@ class InvoiceNotifier extends StateNotifier<List<Invoice>> {
       clientName: clientName,
       buyerIin: buyerIin,
       items: items
-          .map((item) => item.id.isEmpty
-              ? InvoiceItem(
-                  id: _uuid.v4(),
-                  description: item.description,
-                  quantity: item.quantity,
-                  unitPrice: item.unitPrice,
-                  unitCode: item.unitCode,
-                  unitName: item.unitName,
-                )
-              : item)
+          .map((item) =>
+              item.id.isEmpty ? item.copyWith(id: _uuid.v4()) : item)
           .toList(),
       status: InvoiceStatus.draft,
       createdAt: DateTime.now(),
       dueDate: dueDate,
       notes: notes,
+      turnoverDate: turnoverDate,
+      contractNum: contractNum,
+      contractDate: contractDate,
+      deliveryDocNum: deliveryDocNum,
+      deliveryDocDate: deliveryDocDate,
     );
     await ApiClient.post('/invoices', invoice.toJson());
     await _load();

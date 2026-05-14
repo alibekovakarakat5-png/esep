@@ -67,6 +67,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final company = ref.read(companyProvider);
     final nameCtrl    = TextEditingController(text: company.name);
     final iinCtrl     = TextEditingController(text: company.iin);
+    final operatorCtrl = TextEditingController(text: company.operatorFullname ?? '');
     final addrCtrl    = TextEditingController(text: company.address ?? '');
     final phoneCtrl   = TextEditingController(text: company.phone ?? '');
     final emailCtrl   = TextEditingController(text: company.email ?? '');
@@ -101,6 +102,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 10),
               _field(emailCtrl, 'Email', Iconsax.sms,
                   type: TextInputType.emailAddress),
+              const SizedBox(height: 10),
+              _field(operatorCtrl, 'ФИО оператора (для ЭСФ) *', Iconsax.user_tag),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: EdgeInsets.only(left: 4, top: 4),
+                  child: Text(
+                    'Кто выписывает ЭСФ — обязательно для импорта на esf.gov.kz',
+                    style: TextStyle(fontSize: 11, color: EsepColors.textSecondary),
+                  ),
+                ),
+              ),
               const Divider(height: 24),
               // ── НДС-статус ────────────────────────────────────────────────
               Container(
@@ -162,6 +175,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     bik:      bikCtrl.text.trim().isEmpty ? null : bikCtrl.text.trim(),
                     kbe:      kbeCtrl.text.trim().isEmpty ? null : kbeCtrl.text.trim(),
                     isVatPayer: isVatPayer,
+                    operatorFullname: operatorCtrl.text.trim().isEmpty
+                        ? null
+                        : operatorCtrl.text.trim(),
                   );
                   if (ctx.mounted) Navigator.pop(ctx);
                 },

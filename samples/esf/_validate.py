@@ -1,102 +1,123 @@
-"""Validate sample ЭСФ XML files for well-formedness and key structure.
+"""Validate sample ЭСФ XML files (формат контейнера импорта ИС ЭСФ).
+
+Структура: esf:invoiceInfoContainer → invoiceBody (CDATA) → v2:invoice.
+Скрипт парсит контейнер, извлекает CDATA-тело и проверяет v2:invoice.
+
 Run: python samples/esf/_validate.py
 """
 import os
+import re
 import sys
 import xml.etree.ElementTree as ET
 
+# Консоль Windows по умолчанию cp1251 — переключаем на utf-8 для emoji/кириллицы.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except (AttributeError, ValueError):
+    pass
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-REQUIRED_PATHS_NOVAT = [
-    "HEADER/INVOICE_NUM",
-    "HEADER/INVOICE_DATE",
-    "HEADER/TYPE",
-    "SELLER/IIN",
-    "SELLER/NAME",
-    "SELLER/IS_VAT_PAYER",
-    "BUYER/NAME",
-    "TURNOVER/PRODUCT/NUM",
-    "TURNOVER/PRODUCT/DESCRIPTION",
-    "TURNOVER/PRODUCT/UNIT_CODE",
-    "TURNOVER/PRODUCT/UNIT_NAME",
-    "TURNOVER/PRODUCT/NET_TURNOVER",
-    "TURNOVER/PRODUCT/NDS_RATE",
-    "TURNOVER/PRODUCT/NDS_SUM",
-    "TURNOVER/PRODUCT/TURNOVER_WITH_NDS",
-    "TOTAL/TOTAL_NET_TURNOVER",
-    "TOTAL/TOTAL_NDS",
-    "TOTAL/TOTAL_TURNOVER_WITH_NDS",
+# Внутри v2:invoice в namespace только корень; дочерние теги без префикса.
+V2_ROOT = "{v2.esf}invoice"
+
+# Обязательные пути внутри v2:invoice
+REQUIRED_PATHS = [
+    "date",
+    "invoiceType",
+    "num",
+    "operatorFullname",
+    "turnoverDate",
+    "consignee/name",
+    "consignor/name",
+    "customers/customer/name",
+    "deliveryTerm/hasContract",
+    "productSet/currencyCode",
+    "productSet/products/product/description",
+    "productSet/products/product/priceWithoutTax",
+    "productSet/products/product/ndsAmount",
+    "productSet/products/product/priceWithTax",
+    "productSet/products/product/quantity",
+    "productSet/products/product/unitPrice",
+    "productSet/totalNdsAmount",
+    "productSet/totalPriceWithoutTax",
+    "productSet/totalPriceWithTax",
+    "sellers/seller/tin",
+    "sellers/seller/name",
 ]
 
 CASES = [
-    ("esf-novat.xml",       True,  "WITHOUT_NDS", "false"),
-    ("esf-vat.xml",         True,  "NDS_16",      "true"),
-    ("esf-missing-iin.xml", True,  "WITHOUT_NDS", "false"),
-    ("esf-incomplete.xml",  True,  "WITHOUT_NDS", "false"),
+    ("esf-novat.xml",       False),  # (файл, плательщик НДС)
+    ("esf-vat.xml",         True),
+    ("esf-missing-iin.xml", False),
+    ("esf-incomplete.xml",  False),
 ]
 
-def validate(filename, must_parse, expected_nds_rate, expected_is_vat):
+
+def extract_invoice(path):
+    """Парсит контейнер, достаёт CDATA-тело, возвращает корень v2:invoice."""
+    with open(path, "r", encoding="utf-8") as f:
+        raw = f.read()
+
+    # 1. Контейнер должен быть well-formed
+    ET.fromstring(raw)
+
+    # 2. Извлекаем CDATA из invoiceBody
+    m = re.search(r"<invoiceBody><!\[CDATA\[(.*?)\]\]></invoiceBody>", raw, re.S)
+    if not m:
+        raise ValueError("invoiceBody CDATA не найден")
+    body = m.group(1)
+
+    # 3. Парсим внутренний v2:invoice
+    return ET.fromstring(body)
+
+
+def validate(filename, is_vat):
     path = os.path.join(HERE, filename)
     issues = []
 
-    # 1. Parse
     try:
-        tree = ET.parse(path)
-    except ET.ParseError as e:
+        inv = extract_invoice(path)
+    except (ET.ParseError, ValueError) as e:
         return [f"❌ XML PARSE ERROR: {e}"], None
 
-    root = tree.getroot()
-    if root.tag != "ESF":
-        issues.append(f"⚠ root tag = {root.tag}, ожидалось ESF")
+    if inv.tag != V2_ROOT:
+        issues.append(f"⚠ root tag = {inv.tag}, ожидалось {V2_ROOT}")
 
-    # 2. Required paths
-    for p in REQUIRED_PATHS_NOVAT:
-        if root.find(p) is None:
+    for p in REQUIRED_PATHS:
+        if inv.find(p) is None:
             issues.append(f"❌ missing required path: {p}")
 
-    # 3. NDS_RATE consistency
-    rate = root.find("TURNOVER/PRODUCT/NDS_RATE")
-    if rate is not None and rate.text != expected_nds_rate:
-        issues.append(f"❌ NDS_RATE = {rate.text}, ожидалось {expected_nds_rate}")
-
-    # 4. IS_VAT_PAYER
-    isvat = root.find("SELLER/IS_VAT_PAYER")
-    if isvat is not None and isvat.text != expected_is_vat:
-        issues.append(f"❌ IS_VAT_PAYER = {isvat.text}, ожидалось {expected_is_vat}")
-
-    # 5. Math consistency: TOTAL_NDS = sum of product NDS_SUM; TOTAL_NET = sum of NET_TURNOVER
     def fnum(el):
         return float(el.text) if el is not None and el.text else 0.0
-    sum_net = sum(fnum(p.find("NET_TURNOVER")) for p in root.findall("TURNOVER/PRODUCT"))
-    sum_nds = sum(fnum(p.find("NDS_SUM")) for p in root.findall("TURNOVER/PRODUCT"))
-    sum_gross = sum(fnum(p.find("TURNOVER_WITH_NDS")) for p in root.findall("TURNOVER/PRODUCT"))
 
-    total_net = fnum(root.find("TOTAL/TOTAL_NET_TURNOVER"))
-    total_nds = fnum(root.find("TOTAL/TOTAL_NDS"))
-    total_gross = fnum(root.find("TOTAL/TOTAL_TURNOVER_WITH_NDS"))
+    products = inv.findall("productSet/products/product")
+    sum_net = sum(fnum(p.find("priceWithoutTax")) for p in products)
+    sum_nds = sum(fnum(p.find("ndsAmount")) for p in products)
+    sum_gross = sum(fnum(p.find("priceWithTax")) for p in products)
+
+    total_net = fnum(inv.find("productSet/totalPriceWithoutTax"))
+    total_nds = fnum(inv.find("productSet/totalNdsAmount"))
+    total_gross = fnum(inv.find("productSet/totalPriceWithTax"))
 
     if abs(total_net - sum_net) > 0.01:
-        issues.append(f"❌ TOTAL_NET_TURNOVER ({total_net}) != сумма NET по позициям ({sum_net})")
+        issues.append(f"❌ totalPriceWithoutTax ({total_net}) != сумма по позициям ({sum_net})")
     if abs(total_nds - sum_nds) > 0.01:
-        issues.append(f"❌ TOTAL_NDS ({total_nds}) != сумма NDS_SUM ({sum_nds})")
+        issues.append(f"❌ totalNdsAmount ({total_nds}) != сумма ndsAmount ({sum_nds})")
     if abs(total_gross - sum_gross) > 0.01:
-        issues.append(f"❌ TOTAL_TURNOVER_WITH_NDS ({total_gross}) != сумма TURNOVER_WITH_NDS ({sum_gross})")
+        issues.append(f"❌ totalPriceWithTax ({total_gross}) != сумма priceWithTax ({sum_gross})")
 
-    # 6. VAT math when IS_VAT_PAYER = true
-    if expected_is_vat == "true":
-        for p in root.findall("TURNOVER/PRODUCT"):
-            net = fnum(p.find("NET_TURNOVER"))
-            nds = fnum(p.find("NDS_SUM"))
-            expected_nds = round(net * 0.16, 2)
-            if abs(nds - expected_nds) > 0.01:
-                issues.append(f"❌ В строке: NDS_SUM={nds}, ожидалось {expected_nds} (16% от NET {net})")
-
-    # 7. VAT math when not payer = NDS_SUM should be 0
-    if expected_is_vat == "false":
-        for p in root.findall("TURNOVER/PRODUCT"):
-            nds = fnum(p.find("NDS_SUM"))
+    # НДС-математика
+    for p in products:
+        net = fnum(p.find("priceWithoutTax"))
+        nds = fnum(p.find("ndsAmount"))
+        if is_vat:
+            expected = round(net * 0.16, 2)
+            if abs(nds - expected) > 0.01:
+                issues.append(f"❌ В строке: ndsAmount={nds}, ожидалось {expected} (16% от {net})")
+        else:
             if nds != 0:
-                issues.append(f"❌ NDS_SUM = {nds} при IS_VAT_PAYER=false, должно быть 0.00")
+                issues.append(f"❌ ndsAmount={nds} для не-плательщика НДС, должно быть 0")
 
     return issues, {
         "total_net": total_net,
@@ -106,17 +127,17 @@ def validate(filename, must_parse, expected_nds_rate, expected_is_vat):
 
 
 def main():
-    print(f"{'File':32s} {'Status':10s} {'Net':>12s} {'НДС':>10s} {'Brutto':>12s}")
-    print("-" * 80)
+    print(f"{'File':32s} {'Status':10s} {'Net':>14s} {'НДС':>12s} {'Brutto':>14s}")
+    print("-" * 86)
     any_fail = False
-    for filename, must_parse, expected_rate, expected_isvat in CASES:
-        issues, totals = validate(filename, must_parse, expected_rate, expected_isvat)
+    for filename, is_vat in CASES:
+        issues, totals = validate(filename, is_vat)
         status = "OK" if not issues else "FAIL"
         if issues:
             any_fail = True
-        net = f"{totals['total_net']:>12,.2f}" if totals else "      —"
-        nds = f"{totals['total_nds']:>10,.2f}" if totals else "      —"
-        gr  = f"{totals['total_gross']:>12,.2f}" if totals else "      —"
+        net = f"{totals['total_net']:>14,.2f}" if totals else "      —"
+        nds = f"{totals['total_nds']:>12,.2f}" if totals else "      —"
+        gr = f"{totals['total_gross']:>14,.2f}" if totals else "      —"
         print(f"{filename:32s} {status:10s} {net} {nds} {gr}")
         for it in issues:
             print(f"    {it}")

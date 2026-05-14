@@ -1,10 +1,12 @@
 // Реплика логики lib/core/services/esf_service.dart на Node.js.
+// Формат — контейнер импорта ИС ЭСФ:
+//   esf:invoiceInfoContainer → invoiceBody (CDATA) → v2:invoice
 // Только для генерации тестовых XML — НЕ продакшен-код.
 // Запуск: node samples/esf/_generate.js
 //
 // На выходе:
-//   esf-vat.xml    — плательщик НДС, ИИН покупателя заполнен
-//   esf-novat.xml  — не плательщик НДС, ИИН заполнен
+//   esf-vat.xml         — плательщик НДС, ИИН покупателя заполнен
+//   esf-novat.xml       — не плательщик НДС, ИИН заполнен
 //   esf-missing-iin.xml — без ИИН покупателя (warning)
 //   esf-incomplete.xml  — пустой поставщик (error)
 
@@ -23,16 +25,18 @@ function esc(s) {
     .replace(/'/g, '&apos;');
 }
 
-function fmt(num) {
-  return Number(num).toFixed(2);
+// Числа как в ИС ЭСФ: точка, без разделителей тысяч, хвостовые нули обрезаны.
+function num(v) {
+  const rounded = Math.round(Number(v) * 100) / 100;
+  if (Number.isInteger(rounded)) return String(rounded);
+  return String(rounded).replace(/0+$/, '').replace(/\.$/, '');
 }
 
 function dateFmt(d) {
-  return d.toISOString().slice(0, 10);
-}
-
-function toEsfNumber(invoiceNumber) {
-  return invoiceNumber.replace('СЧ-', 'ЭСФ-');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${dd}.${mm}.${yyyy}`;
 }
 
 function validate(invoice, company) {
@@ -42,29 +46,31 @@ function validate(invoice, company) {
   if (!company.name) errors.push('Не заполнено название/ФИО поставщика');
   if (!company.iin) errors.push('Не заполнен ИИН/БИН поставщика');
   else if (company.iin.length !== 12) errors.push('ИИН/БИН поставщика должен содержать 12 цифр');
+  if (!company.operatorFullname) errors.push('Не заполнено ФИО оператора');
 
   if (!invoice.clientName) errors.push('Не указано имя покупателя');
   if (!invoice.buyerIin) warnings.push('ИИН/БИН покупателя не указан — ЭСФ не примет получатель-юрлицо');
   else if (invoice.buyerIin.length !== 12) errors.push('ИИН/БИН покупателя должен содержать 12 цифр');
 
   if (!invoice.items || invoice.items.length === 0) errors.push('В счёте нет ни одной позиции');
+  for (const item of invoice.items || []) {
+    if (!item.esfUnitCode) warnings.push(`Позиция «${item.description}»: не заполнен код единицы измерения ЭСФ`);
+  }
 
   if (!company.iik) warnings.push('Не заполнен ИИК поставщика');
 
   return { errors, warnings, isValid: errors.length === 0 };
 }
 
-function generate(invoice, company) {
-  const now = new Date();
-  const invoiceDate = dateFmt(invoice.createdAt);
-  const today = dateFmt(now);
-  const esfNumber = toEsfNumber(invoice.number);
+function buildInvoiceBody(invoice, company) {
   const isVat = !!company.isVatPayer;
+  const invoiceDate = dateFmt(invoice.createdAt);
+  const turnoverDate = dateFmt(invoice.turnoverDate || invoice.createdAt);
+  const operator = company.operatorFullname || company.name;
 
   let totalNet = 0, totalVat = 0, totalGross = 0;
 
-  const items = invoice.items.map((item, idx) => {
-    const i = idx + 1;
+  const products = (invoice.items || []).map((item) => {
     const net = item.quantity * item.unitPrice;
     const vat = isVat ? net * VAT_RATE : 0;
     const gross = net + vat;
@@ -72,92 +78,118 @@ function generate(invoice, company) {
     totalVat += vat;
     totalGross += gross;
 
-    return `    <PRODUCT>
-      <NUM>${i}</NUM>
-      <DESCRIPTION>${esc(item.description)}</DESCRIPTION>
-      <UNIT_CODE>${esc(item.unitCode)}</UNIT_CODE>
-      <UNIT_NAME>${esc(item.unitName)}</UNIT_NAME>
-      <COUNT>${fmt(item.quantity)}</COUNT>
-      <PRICE>${fmt(item.unitPrice)}</PRICE>
-      <NET_TURNOVER>${fmt(net)}</NET_TURNOVER>
-      <NDS_RATE>${isVat ? 'NDS_16' : 'WITHOUT_NDS'}</NDS_RATE>
-      <NDS_SUM>${fmt(vat)}</NDS_SUM>
-      <TURNOVER_WITH_NDS>${fmt(gross)}</TURNOVER_WITH_NDS>
-    </PRODUCT>`;
+    const unitNomenclature = item.esfUnitCode
+      ? `\n                <unitNomenclature>${esc(item.esfUnitCode)}</unitNomenclature>`
+      : '';
+
+    return `            <product>
+                <catalogTruId>${esc(item.catalogTruId || '1')}</catalogTruId>
+                <description>${esc(item.description)}</description>
+                <ndsAmount>${num(vat)}</ndsAmount>
+                <priceWithTax>${num(gross)}</priceWithTax>
+                <priceWithoutTax>${num(net)}</priceWithoutTax>
+                <quantity>${num(item.quantity)}</quantity>
+                <truOriginCode>${esc(item.truOriginCode || '5')}</truOriginCode>
+                <turnoverSize>${num(net)}</turnoverSize>${unitNomenclature}
+                <unitPrice>${num(item.unitPrice)}</unitPrice>
+            </product>`;
   }).join('\n');
 
-  const buyerIin = invoice.buyerIin || '';
-  const buyerIinNode = buyerIin
-    ? `<IIN_BIN>${esc(buyerIin)}</IIN_BIN>`
-    : `<!-- ИИН/БИН покупателя не заполнен -->`;
+  const consignorAddress = invoice.consignorSameAsSeller !== false
+    ? (company.address || '') : (invoice.consignorAddress || '');
+  const consignorName = invoice.consignorSameAsSeller !== false
+    ? company.name : (invoice.consignorName || '');
+  const consignorTin = invoice.consignorSameAsSeller !== false
+    ? company.iin : (invoice.consignorTin || '');
 
-  const vatNotice = isVat
-    ? 'Поставщик является плательщиком НДС: ставка 16% по НК РК 2026'
-    : 'Поставщик не является плательщиком НДС (СНР/упрощёнка)';
+  const consigneeAddress = invoice.consigneeSameAsCustomer !== false
+    ? '' : (invoice.consigneeAddress || '');
+  const consigneeName = invoice.consigneeSameAsCustomer !== false
+    ? invoice.clientName : (invoice.consigneeName || '');
+  const consigneeTin = invoice.consigneeSameAsCustomer !== false
+    ? (invoice.buyerIin || '') : (invoice.consigneeTin || '');
 
-  const bankBlock = company.iik
-    ? `    <BANK_DETAILS>
-      <NAME>${esc(company.bankName || '')}</NAME>
-      <IIK>${esc(company.iik || '')}</IIK>
-      <BIK>${esc(company.bik || '')}</BIK>
-      <KBE>${esc(company.kbe || '19')}</KBE>
-    </BANK_DETAILS>`
-    : '    <!-- Банковские реквизиты не заполнены -->';
+  const hasContract = !!(invoice.contractNum && invoice.contractNum.length);
+  let deliveryTerm = '    <deliveryTerm>\n';
+  if (hasContract) {
+    if (invoice.contractDate) {
+      deliveryTerm += `        <contractDate>${dateFmt(invoice.contractDate)}</contractDate>\n`;
+    }
+    deliveryTerm += `        <contractNum>${esc(invoice.contractNum)}</contractNum>\n`;
+    deliveryTerm += '        <hasContract>true</hasContract>\n';
+  } else {
+    deliveryTerm += '        <hasContract>false</hasContract>\n';
+  }
+  deliveryTerm += '    </deliveryTerm>';
 
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<!--
-  ЭСФ сгенерирован приложением Esep (esep.kz)
-  Для загрузки перейдите: https://esf.gov.kz
-  Дата генерации: ${today}
-  ${vatNotice}
--->
-<ESF xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  let deliveryDoc = '';
+  if (invoice.deliveryDocDate) {
+    deliveryDoc += `    <deliveryDocDate>${dateFmt(invoice.deliveryDocDate)}</deliveryDocDate>\n`;
+  }
+  if (invoice.deliveryDocNum) {
+    deliveryDoc += `    <deliveryDocNum>${esc(invoice.deliveryDocNum)}</deliveryDocNum>\n`;
+  }
 
-  <!-- 1. Заголовок -->
-  <HEADER>
-    <INVOICE_NUM>${esfNumber}</INVOICE_NUM>
-    <INVOICE_DATE>${invoiceDate}</INVOICE_DATE>
-    <DELIVERY_DATE>${invoiceDate}</DELIVERY_DATE>
-    <TYPE>ORDINARY</TYPE>
-    <CORRECTION>false</CORRECTION>
-    <INPUT_TYPE>MANUAL</INPUT_TYPE>
-  </HEADER>
+  return `<v2:invoice xmlns:a="abstractInvoice.esf" xmlns:v2="v2.esf">
+    <date>${invoiceDate}</date>
+    <invoiceType>ORDINARY_INVOICE</invoiceType>
+    <num>${esc(invoice.number)}</num>
+    <operatorFullname>${esc(operator)}</operatorFullname>
+    <turnoverDate>${turnoverDate}</turnoverDate>
+    <consignee>
+        <address>${esc(consigneeAddress)}</address>
+        <countryCode>KZ</countryCode>
+        <name>${esc(consigneeName)}</name>
+        <tin>${esc(consigneeTin)}</tin>
+    </consignee>
+    <consignor>
+        <address>${esc(consignorAddress)}</address>
+        <name>${esc(consignorName)}</name>
+        <tin>${esc(consignorTin)}</tin>
+    </consignor>
+    <customers>
+        <customer>
+            <address></address>
+            <countryCode>KZ</countryCode>
+            <name>${esc(invoice.clientName)}</name>
+            <tin>${esc(invoice.buyerIin || '')}</tin>
+        </customer>
+    </customers>
+${deliveryDoc}${deliveryTerm}
+    <productSet>
+        <currencyCode>KZT</currencyCode>
+        <products>
+${products}
+        </products>
+        <totalExciseAmount>0</totalExciseAmount>
+        <totalNdsAmount>${num(totalVat)}</totalNdsAmount>
+        <totalPriceWithTax>${num(totalGross)}</totalPriceWithTax>
+        <totalPriceWithoutTax>${num(totalNet)}</totalPriceWithoutTax>
+        <totalTurnoverSize>${num(totalNet)}</totalTurnoverSize>
+    </productSet>
+    <sellers>
+        <seller>
+            <address>${esc(company.address || '')}</address>
+            <bank>${esc(company.bankName || '')}</bank>
+            <bik>${esc(company.bik || '')}</bik>
+            <iik>${esc(company.iik || '')}</iik>
+            <kbe>${esc(company.kbe || '19')}</kbe>
+            <name>${esc(company.name)}</name>
+            <tin>${esc(company.iin)}</tin>
+        </seller>
+    </sellers>
+</v2:invoice>`;
+}
 
-  <!-- 2. Поставщик -->
-  <SELLER>
-    <IIN>${esc(company.iin)}</IIN>
-    <NAME>${esc(company.name)}</NAME>
-    <ADDRESS>${esc(company.address || '')}</ADDRESS>
-    <IS_VAT_PAYER>${isVat ? 'true' : 'false'}</IS_VAT_PAYER>
-${bankBlock}
-  </SELLER>
-
-  <!-- 3. Получатель -->
-  <BUYER>
-    ${buyerIinNode}
-    <NAME>${esc(invoice.clientName)}</NAME>
-  </BUYER>
-
-  <!-- 4. Оборот -->
-  <TURNOVER>
-${items}
-  </TURNOVER>
-
-  <!-- 5. Итого -->
-  <TOTAL>
-    <TOTAL_NET_TURNOVER>${fmt(totalNet)}</TOTAL_NET_TURNOVER>
-    <TOTAL_NDS>${fmt(totalVat)}</TOTAL_NDS>
-    <TOTAL_TURNOVER_WITH_NDS>${fmt(totalGross)}</TOTAL_TURNOVER_WITH_NDS>
-  </TOTAL>
-
-  <!--
-    ВАЖНО: Перед отправкой в ИС ЭСФ:
-    1. Убедитесь что ИИН/БИН покупателя заполнен (12 цифр)
-    2. Подпишите файл ЭЦП (НУЦ РК) в портале esf.gov.kz
-    3. Или загрузите XML вручную через импорт
-  -->
-
-</ESF>`;
+function generate(invoice, company) {
+  const body = buildInvoiceBody(invoice, company);
+  return `<?xml version="1.0" encoding="UTF-8"?><esf:invoiceInfoContainer xmlns:esf="esf">
+  <invoiceSet>
+    <invoiceInfo>
+      <invoiceBody><![CDATA[${body}]]></invoiceBody>
+    </invoiceInfo>
+  </invoiceSet>
+</esf:invoiceInfoContainer>`;
 }
 
 // ─── Test fixtures ────────────────────────────────────────────────────────
@@ -171,6 +203,7 @@ const companyComplete = {
   iik: 'KZ123456789012345678',
   bik: 'CASPKZKA',
   kbe: '19',
+  operatorFullname: 'Алибеков Аскар Канатович',
 };
 
 const companyVat = { ...companyComplete, isVatPayer: true };
@@ -187,8 +220,8 @@ const invoice = {
   buyerIin: '060540001234',
   createdAt: new Date('2026-05-12'),
   items: [
-    { description: 'Консультация по форме 910', quantity: 1, unitPrice: 50000, unitCode: '931', unitName: 'услуга' },
-    { description: 'Настройка учёта', quantity: 2, unitPrice: 25000, unitCode: '356', unitName: 'час' },
+    { description: 'Консультация по форме 910', quantity: 1, unitPrice: 50000, esfUnitCode: '5114', catalogTruId: '1', truOriginCode: '5' },
+    { description: 'Настройка учёта', quantity: 2, unitPrice: 25000, esfUnitCode: '5114', catalogTruId: '1', truOriginCode: '5' },
   ],
 };
 

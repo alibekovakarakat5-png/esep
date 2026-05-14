@@ -1,4 +1,6 @@
-// Тесты на генерацию ЭСФ XML.
+// Тесты на генерацию ЭСФ XML в формате контейнера импорта ИС ЭСФ
+// (esf:invoiceInfoContainer → invoiceBody CDATA → v2:invoice).
+//
 // Запуск: flutter test test/esf_service_test.dart
 //
 // Параллельно — образцы XML в samples/esf/ генерируются через
@@ -24,6 +26,7 @@ void main() {
         bik: 'CASPKZKA',
         kbe: '19',
         isVatPayer: isVatPayer,
+        operatorFullname: 'Алибеков Аскар Канатович',
       );
 
   Invoice invoice({String? buyerIin = '060540001234'}) => Invoice(
@@ -39,6 +42,7 @@ void main() {
             unitPrice: 50000,
             unitCode: '931',
             unitName: 'услуга',
+            esfUnitCode: '5114',
           ),
           const InvoiceItem(
             id: 'item-2',
@@ -47,6 +51,7 @@ void main() {
             unitPrice: 25000,
             unitCode: '356',
             unitName: 'час',
+            esfUnitCode: '5114',
           ),
         ],
         status: InvoiceStatus.draft,
@@ -92,6 +97,15 @@ void main() {
       expect(v.errors.any((e) => e.contains('название')), isTrue);
     });
 
+    test('пустое ФИО оператора → error', () {
+      final v = EsfService.validate(
+        invoice(),
+        const CompanyInfo(name: 'ИП Тест', iin: '900101300123'),
+      );
+      expect(v.isValid, isFalse);
+      expect(v.errors.any((e) => e.contains('ФИО оператора')), isTrue);
+    });
+
     test('пустые позиции → error', () {
       final inv = Invoice(
         id: 'empty',
@@ -106,62 +120,119 @@ void main() {
       expect(v.isValid, isFalse);
       expect(v.errors.any((e) => e.contains('позиции')), isTrue);
     });
+
+    test('грузоотправитель не совпадает, но не заполнен → error', () {
+      final inv = invoice().copyWith(consignorSameAsSeller: false);
+      final v = EsfService.validate(inv, companyComplete());
+      expect(v.isValid, isFalse);
+      expect(v.errors.any((e) => e.contains('грузоотправителя')), isTrue);
+    });
+
+    test('позиция без кода ед. ЭСФ → warning', () {
+      final inv = invoice().copyWith(items: [
+        const InvoiceItem(
+          id: 'x',
+          description: 'Без кода',
+          quantity: 1,
+          unitPrice: 1000,
+        ),
+      ]);
+      final v = EsfService.validate(inv, companyComplete());
+      expect(v.isValid, isTrue);
+      expect(v.warnings.any((w) => w.contains('код единицы измерения')), isTrue);
+    });
+  });
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Структура контейнера
+  // ────────────────────────────────────────────────────────────────────────
+  group('EsfService.generate — структура контейнера', () {
+    test('контейнер invoiceInfoContainer с CDATA-телом', () {
+      final xml = EsfService.generate(invoice(), companyComplete());
+      expect(xml, startsWith('<?xml version="1.0" encoding="UTF-8"?>'));
+      expect(xml, contains('<esf:invoiceInfoContainer xmlns:esf="esf">'));
+      expect(xml, contains('<invoiceBody><![CDATA['));
+      expect(xml, contains('</v2:invoice>]]></invoiceBody>'));
+      expect(xml, contains('</esf:invoiceInfoContainer>'));
+    });
+
+    test('внутренний документ v2:invoice с нужными namespace', () {
+      final xml = EsfService.generate(invoice(), companyComplete());
+      expect(
+        xml,
+        contains('<v2:invoice xmlns:a="abstractInvoice.esf" xmlns:v2="v2.esf">'),
+      );
+      expect(xml, contains('<invoiceType>ORDINARY_INVOICE</invoiceType>'));
+      expect(xml, contains('<num>СЧ-2026-001</num>'));
+      expect(xml, contains('<date>12.05.2026</date>'));
+      expect(xml, contains('<turnoverDate>12.05.2026</turnoverDate>'));
+    });
+
+    test('системные поля не выводятся', () {
+      final xml = EsfService.generate(invoice(), companyComplete());
+      expect(xml.contains('<invoiceId>'), isFalse);
+      expect(xml.contains('<registrationNumber>'), isFalse);
+      expect(xml.contains('<signature>'), isFalse);
+      expect(xml.contains('<certificate>'), isFalse);
+      expect(xml.contains('<invoiceStatus>'), isFalse);
+    });
+
+    test('ФИО оператора попадает в XML', () {
+      final xml = EsfService.generate(invoice(), companyComplete());
+      expect(
+        xml,
+        contains('<operatorFullname>Алибеков Аскар Канатович</operatorFullname>'),
+      );
+    });
+
+    test('поставщик и покупатель в правильных секциях', () {
+      final xml = EsfService.generate(invoice(), companyComplete());
+      expect(xml, contains('<tin>900101300123</tin>')); // продавец
+      expect(xml, contains('<tin>060540001234</tin>')); // покупатель
+      expect(xml, contains('<name>ТОО АстанаТрейд</name>'));
+      expect(xml, contains('<bik>CASPKZKA</bik>'));
+      expect(xml, contains('<iik>KZ123456789012345678</iik>'));
+    });
   });
 
   // ────────────────────────────────────────────────────────────────────────
   // Generation — non-VAT
   // ────────────────────────────────────────────────────────────────────────
   group('EsfService.generate (без НДС)', () {
-    test('базовая структура валидна', () {
+    test('без НДС: ndsAmount=0, суммы равны', () {
       final xml = EsfService.generate(invoice(), companyComplete());
-      expect(xml, startsWith('<?xml version="1.0" encoding="UTF-8"?>'));
-      expect(xml, contains('<ESF'));
-      expect(xml, contains('</ESF>'));
-      expect(xml, contains('<INVOICE_NUM>ЭСФ-2026-001</INVOICE_NUM>'));
-    });
-
-    test('без НДС: NDS_RATE=WITHOUT_NDS, NDS_SUM=0', () {
-      final xml = EsfService.generate(invoice(), companyComplete());
-      expect(xml, contains('<NDS_RATE>WITHOUT_NDS</NDS_RATE>'));
-      expect(xml, contains('<TOTAL_NDS>0.00</TOTAL_NDS>'));
-      expect(xml, contains('<IS_VAT_PAYER>false</IS_VAT_PAYER>'));
       // Сумма = 50000 * 1 + 25000 * 2 = 100000
-      expect(xml, contains('<TOTAL_NET_TURNOVER>100000.00</TOTAL_NET_TURNOVER>'));
-      expect(xml, contains('<TOTAL_TURNOVER_WITH_NDS>100000.00</TOTAL_TURNOVER_WITH_NDS>'));
+      expect(xml, contains('<totalNdsAmount>0</totalNdsAmount>'));
+      expect(xml, contains('<totalPriceWithoutTax>100000</totalPriceWithoutTax>'));
+      expect(xml, contains('<totalPriceWithTax>100000</totalPriceWithTax>'));
+      expect(xml, contains('<totalTurnoverSize>100000</totalTurnoverSize>'));
+      expect(xml, contains('<totalExciseAmount>0</totalExciseAmount>'));
     });
 
-    test('XML не содержит вложенных комментариев (не сломает парсер)', () {
+    test('код единицы измерения ЭСФ выводится в unitNomenclature', () {
       final xml = EsfService.generate(invoice(), companyComplete());
-      // Эвристика: внутри <!-- ... --> не должно быть второго <!-- или -->
-      final headerCommentMatch = RegExp(r'<!--([\s\S]*?)-->').firstMatch(xml);
-      expect(headerCommentMatch, isNotNull);
-      final inside = headerCommentMatch!.group(1)!;
-      expect(inside.contains('<!--'), isFalse,
-          reason: 'Вложенный комментарий — невалидный XML');
-      expect(inside.contains('-->'), isFalse,
-          reason: 'Преждевременный конец комментария — невалидный XML');
+      final matches =
+          RegExp('<unitNomenclature>5114</unitNomenclature>').allMatches(xml);
+      expect(matches.length, 2);
     });
 
-    test('ИИН покупателя попадает в XML', () {
+    test('позиция без кода ед. ЭСФ → тег unitNomenclature отсутствует', () {
+      final inv = invoice().copyWith(items: [
+        const InvoiceItem(
+          id: 'x',
+          description: 'Без кода',
+          quantity: 1,
+          unitPrice: 1000,
+        ),
+      ]);
+      final xml = EsfService.generate(inv, companyComplete());
+      expect(xml.contains('<unitNomenclature>'), isFalse);
+    });
+
+    test('catalogTruId и truOriginCode имеют дефолты', () {
       final xml = EsfService.generate(invoice(), companyComplete());
-      expect(xml, contains('<IIN_BIN>060540001234</IIN_BIN>'));
-    });
-
-    test('пустой ИИН покупателя → плейсхолдер-комментарий', () {
-      final xml = EsfService.generate(
-        invoice(buyerIin: null),
-        companyComplete(),
-      );
-      expect(xml.contains('<IIN_BIN>'), isFalse);
-      expect(xml, contains('ИИН/БИН покупателя не заполнен'));
-    });
-
-    test('UNIT_CODE/UNIT_NAME из позиции', () {
-      final xml = EsfService.generate(invoice(), companyComplete());
-      expect(xml, contains('<UNIT_CODE>931</UNIT_CODE>'));
-      expect(xml, contains('<UNIT_NAME>услуга</UNIT_NAME>'));
-      expect(xml, contains('<UNIT_CODE>356</UNIT_CODE>'));
-      expect(xml, contains('<UNIT_NAME>час</UNIT_NAME>'));
+      expect(xml, contains('<catalogTruId>1</catalogTruId>'));
+      expect(xml, contains('<truOriginCode>5</truOriginCode>'));
     });
   });
 
@@ -169,26 +240,101 @@ void main() {
   // Generation — VAT
   // ────────────────────────────────────────────────────────────────────────
   group('EsfService.generate (плательщик НДС)', () {
-    test('NDS_RATE=NDS_16 на всех позициях', () {
-      final xml = EsfService.generate(
-        invoice(),
-        companyComplete(isVatPayer: true),
-      );
-      // Должно быть 2 позиции с NDS_16
-      final ndsMatches = RegExp('<NDS_RATE>NDS_16</NDS_RATE>').allMatches(xml);
-      expect(ndsMatches.length, 2);
-      expect(xml, contains('<IS_VAT_PAYER>true</IS_VAT_PAYER>'));
-    });
-
     test('НДС 16% считается корректно', () {
       final xml = EsfService.generate(
         invoice(),
         companyComplete(isVatPayer: true),
       );
       // 50000 → 8000 НДС, 50000 (25000*2) → 8000 НДС, итого 16 000
-      expect(xml, contains('<TOTAL_NET_TURNOVER>100000.00</TOTAL_NET_TURNOVER>'));
-      expect(xml, contains('<TOTAL_NDS>16000.00</TOTAL_NDS>'));
-      expect(xml, contains('<TOTAL_TURNOVER_WITH_NDS>116000.00</TOTAL_TURNOVER_WITH_NDS>'));
+      expect(xml, contains('<totalPriceWithoutTax>100000</totalPriceWithoutTax>'));
+      expect(xml, contains('<totalNdsAmount>16000</totalNdsAmount>'));
+      expect(xml, contains('<totalPriceWithTax>116000</totalPriceWithTax>'));
+    });
+
+    test('ndsAmount проставлен на каждой позиции', () {
+      final xml = EsfService.generate(
+        invoice(),
+        companyComplete(isVatPayer: true),
+      );
+      final matches = RegExp('<ndsAmount>8000</ndsAmount>').allMatches(xml);
+      expect(matches.length, 2);
+    });
+  });
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Форматирование чисел
+  // ────────────────────────────────────────────────────────────────────────
+  group('Форматирование чисел', () {
+    test('хвостовые нули обрезаются, дробная часть сохраняется', () {
+      final inv = invoice().copyWith(items: [
+        const InvoiceItem(
+          id: 'frac',
+          description: 'Услуга с дробной ценой',
+          quantity: 1,
+          unitPrice: 1335906.5,
+          esfUnitCode: '5114',
+        ),
+      ]);
+      final xml = EsfService.generate(inv, companyComplete());
+      expect(xml, contains('<unitPrice>1335906.5</unitPrice>'));
+      expect(xml, contains('<priceWithoutTax>1335906.5</priceWithoutTax>'));
+      expect(xml.contains('1335906.50'), isFalse);
+    });
+
+    test('целые числа без десятичной точки', () {
+      final xml = EsfService.generate(invoice(), companyComplete());
+      expect(xml, contains('<quantity>1</quantity>'));
+      expect(xml, contains('<quantity>2</quantity>'));
+      expect(xml.contains('<quantity>1.00</quantity>'), isFalse);
+    });
+  });
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Грузоотправитель / грузополучатель
+  // ────────────────────────────────────────────────────────────────────────
+  group('Грузоотправитель / грузополучатель', () {
+    test('по умолчанию consignor = поставщик, consignee = покупатель', () {
+      final xml = EsfService.generate(invoice(), companyComplete());
+      // consignor берёт ИИН поставщика, consignee — ИИН покупателя
+      expect(xml, contains('<consignor>'));
+      expect(xml, contains('<consignee>'));
+      // имя поставщика встречается и в consignor, и в sellers
+      final sellerNameMatches =
+          RegExp('<name>ИП Алибеков А.К.</name>').allMatches(xml);
+      expect(sellerNameMatches.length, 2);
+    });
+
+    test('отдельный грузоотправитель выводится из полей счёта', () {
+      final inv = invoice().copyWith(
+        consignorSameAsSeller: false,
+        consignorName: 'ТОО Склад-Логистик',
+        consignorTin: '111111111111',
+        consignorAddress: 'г. Алматы, ул. Складская 1',
+      );
+      final xml = EsfService.generate(inv, companyComplete());
+      expect(xml, contains('<name>ТОО Склад-Логистик</name>'));
+      expect(xml, contains('<tin>111111111111</tin>'));
+    });
+  });
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Договор-основание
+  // ────────────────────────────────────────────────────────────────────────
+  group('Договор-основание', () {
+    test('без договора → hasContract=false', () {
+      final xml = EsfService.generate(invoice(), companyComplete());
+      expect(xml, contains('<hasContract>false</hasContract>'));
+    });
+
+    test('с договором → hasContract=true + номер и дата', () {
+      final inv = invoice().copyWith(
+        contractNum: '994919/2024/1',
+        contractDate: DateTime(2024, 8, 27),
+      );
+      final xml = EsfService.generate(inv, companyComplete());
+      expect(xml, contains('<hasContract>true</hasContract>'));
+      expect(xml, contains('<contractNum>994919/2024/1</contractNum>'));
+      expect(xml, contains('<contractDate>27.08.2024</contractDate>'));
     });
   });
 
@@ -199,7 +345,7 @@ void main() {
     test('амперсанд и угловые скобки в названии не ломают XML', () {
       final inv = invoice().copyWith(clientName: 'ТОО "Тест & Co" <ИП>');
       final xml = EsfService.generate(inv, companyComplete());
-      expect(xml.contains('ТОО "Тест & Co"'), isFalse);
+      expect(xml.contains('ТОО "Тест & Co" <ИП>'), isFalse);
       expect(xml, contains('&amp;'));
       expect(xml, contains('&lt;'));
       expect(xml, contains('&gt;'));

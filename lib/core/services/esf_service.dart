@@ -17,13 +17,19 @@ class EsfValidation {
   bool get hasIssues => errors.isNotEmpty || warnings.isNotEmpty;
 }
 
-/// Генератор ЭСФ XML для ИС ЭСФ КГД РК
-/// Формат: IS ESF v9, тип — обычная счёт-фактура
+/// Генератор ЭСФ XML для ИС ЭСФ КГД РК.
+///
+/// Формат — официальный контейнер пакетного импорта:
+/// `esf:invoiceInfoContainer` → `invoiceSet` → `invoiceInfo` →
+/// `invoiceBody` (CDATA) → `v2:invoice`.
+///
+/// Системные поля (invoiceId, registrationNumber, signature, certificate,
+/// invoiceStatus и т.д.) не выводятся — их присваивает ИС ЭСФ при
+/// регистрации. ЭЦП пользователь ставит на портале при загрузке.
 class EsfService {
   EsfService._();
 
-  static final _dateFmt = DateFormat('yyyy-MM-dd');
-  static final _numFmt = NumberFormat('0.00', 'en_US');
+  static final _dateFmt = DateFormat('dd.MM.yyyy');
 
   /// Проверка готовности данных для генерации ЭСФ.
   /// Используйте перед `generate()`.
@@ -40,6 +46,12 @@ class EsfService {
     } else if (company.iin.length != 12) {
       errors.add('ИИН/БИН поставщика должен содержать 12 цифр');
     }
+    if (company.operatorFullname == null ||
+        company.operatorFullname!.trim().isEmpty) {
+      errors.add(
+          'Не заполнено ФИО оператора (Настройки → Компания) — '
+          'обязательно для ЭСФ');
+    }
 
     // Данные покупателя
     if (invoice.clientName.isEmpty) {
@@ -53,9 +65,28 @@ class EsfService {
       errors.add('ИИН/БИН покупателя должен содержать 12 цифр');
     }
 
+    // Грузоотправитель / грузополучатель
+    if (!invoice.consignorSameAsSeller &&
+        (invoice.consignorName == null ||
+            invoice.consignorName!.trim().isEmpty)) {
+      errors.add('Не заполнено название грузоотправителя');
+    }
+    if (!invoice.consigneeSameAsCustomer &&
+        (invoice.consigneeName == null ||
+            invoice.consigneeName!.trim().isEmpty)) {
+      errors.add('Не заполнено название грузополучателя');
+    }
+
     // Позиции
     if (invoice.items.isEmpty) {
       errors.add('В счёте нет ни одной позиции');
+    }
+    for (final item in invoice.items) {
+      if (item.esfUnitCode == null || item.esfUnitCode!.trim().isEmpty) {
+        warnings.add(
+            'Позиция «${item.description}»: не заполнен код единицы измерения '
+            'ЭСФ — возьмите его из своей учётной системы (1С).');
+      }
     }
 
     // Банковские реквизиты — мягкое предупреждение
@@ -67,24 +98,38 @@ class EsfService {
     return EsfValidation(errors: errors, warnings: warnings);
   }
 
-  /// Генерирует XML строку ЭСФ.
+  /// Генерирует XML строку ЭСФ в формате контейнера импорта ИС ЭСФ.
   /// Если `company.isVatPayer == true` — товары/услуги облагаются НДС 16%.
   /// Сумма строки трактуется как **без НДС** (net), НДС начисляется сверху.
   static String generate(Invoice invoice, CompanyInfo company) {
-    final now = DateTime.now();
-    final invoiceDate = _dateFmt.format(invoice.createdAt);
-    final today = _dateFmt.format(now);
-    final esfNumber = _toEsfNumber(invoice.number);
+    final body = _buildInvoiceBody(invoice, company);
+    return '<?xml version="1.0" encoding="UTF-8"?>'
+        '<esf:invoiceInfoContainer xmlns:esf="esf">\n'
+        '  <invoiceSet>\n'
+        '    <invoiceInfo>\n'
+        '      <invoiceBody><![CDATA[$body]]></invoiceBody>\n'
+        '    </invoiceInfo>\n'
+        '  </invoiceSet>\n'
+        '</esf:invoiceInfoContainer>';
+  }
+
+  /// Внутренний документ `v2:invoice` (помещается в CDATA контейнера).
+  static String _buildInvoiceBody(Invoice invoice, CompanyInfo company) {
     final isVat = company.isVatPayer;
     final vatRate = KzTax.vatRate; // 0.16
+    final invoiceDate = _dateFmt.format(invoice.createdAt);
+    final turnoverDate =
+        _dateFmt.format(invoice.turnoverDate ?? invoice.createdAt);
+    final operator = (company.operatorFullname != null &&
+            company.operatorFullname!.trim().isNotEmpty)
+        ? company.operatorFullname!.trim()
+        : company.name;
 
     double totalNet = 0;
     double totalVat = 0;
     double totalGross = 0;
 
-    final items = invoice.items.asMap().entries.map((e) {
-      final i = e.key + 1;
-      final item = e.value;
+    final products = invoice.items.map((item) {
       final net = item.total;
       final vat = isVat ? net * vatRate : 0.0;
       final gross = net + vat;
@@ -92,93 +137,135 @@ class EsfService {
       totalVat += vat;
       totalGross += gross;
 
-      return '''    <PRODUCT>
-      <NUM>$i</NUM>
-      <DESCRIPTION>${_esc(item.description)}</DESCRIPTION>
-      <UNIT_CODE>${_esc(item.unitCode)}</UNIT_CODE>
-      <UNIT_NAME>${_esc(item.unitName)}</UNIT_NAME>
-      <COUNT>${_numFmt.format(item.quantity)}</COUNT>
-      <PRICE>${_numFmt.format(item.unitPrice)}</PRICE>
-      <NET_TURNOVER>${_numFmt.format(net)}</NET_TURNOVER>
-      <NDS_RATE>${isVat ? 'NDS_16' : 'WITHOUT_NDS'}</NDS_RATE>
-      <NDS_SUM>${_numFmt.format(vat)}</NDS_SUM>
-      <TURNOVER_WITH_NDS>${_numFmt.format(gross)}</TURNOVER_WITH_NDS>
-    </PRODUCT>''';
+      final unitNomenclature =
+          (item.esfUnitCode != null && item.esfUnitCode!.trim().isNotEmpty)
+              ? '\n                <unitNomenclature>${_esc(item.esfUnitCode!.trim())}</unitNomenclature>'
+              : '';
+
+      return '''            <product>
+                <catalogTruId>${_esc(item.catalogTruId)}</catalogTruId>
+                <description>${_esc(item.description)}</description>
+                <ndsAmount>${_num(vat)}</ndsAmount>
+                <priceWithTax>${_num(gross)}</priceWithTax>
+                <priceWithoutTax>${_num(net)}</priceWithoutTax>
+                <quantity>${_num(item.quantity)}</quantity>
+                <truOriginCode>${_esc(item.truOriginCode)}</truOriginCode>
+                <turnoverSize>${_num(net)}</turnoverSize>$unitNomenclature
+                <unitPrice>${_num(item.unitPrice)}</unitPrice>
+            </product>''';
     }).join('\n');
 
-    final buyerIin = invoice.buyerIin ?? '';
-    final buyerIinNode = buyerIin.isNotEmpty
-        ? '<IIN_BIN>${_esc(buyerIin)}</IIN_BIN>'
-        : '<!-- ИИН/БИН покупателя не заполнен — заполните перед загрузкой на esf.gov.kz -->';
+    // Грузоотправитель — поставщик или отдельные реквизиты
+    final consignorAddress = invoice.consignorSameAsSeller
+        ? (company.address ?? '')
+        : (invoice.consignorAddress ?? '');
+    final consignorName =
+        invoice.consignorSameAsSeller ? company.name : (invoice.consignorName ?? '');
+    final consignorTin =
+        invoice.consignorSameAsSeller ? company.iin : (invoice.consignorTin ?? '');
 
-    final vatNotice = isVat
-        ? 'Поставщик является плательщиком НДС: ставка 16% по НК РК 2026'
-        : 'Поставщик не является плательщиком НДС (СНР/упрощёнка)';
+    // Грузополучатель — покупатель или отдельные реквизиты
+    final consigneeAddress = invoice.consigneeSameAsCustomer
+        ? ''
+        : (invoice.consigneeAddress ?? '');
+    final consigneeName = invoice.consigneeSameAsCustomer
+        ? invoice.clientName
+        : (invoice.consigneeName ?? '');
+    final consigneeTin = invoice.consigneeSameAsCustomer
+        ? (invoice.buyerIin ?? '')
+        : (invoice.consigneeTin ?? '');
 
-    return '''<?xml version="1.0" encoding="UTF-8"?>
-<!--
-  ЭСФ сгенерирован приложением Esep (esep.kz)
-  Для загрузки перейдите: https://esf.gov.kz
-  Дата генерации: $today
-  $vatNotice
--->
-<ESF xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    // Договор-основание
+    final deliveryTerm = StringBuffer('    <deliveryTerm>\n');
+    if (invoice.hasContract) {
+      if (invoice.contractDate != null) {
+        deliveryTerm.write(
+            '        <contractDate>${_dateFmt.format(invoice.contractDate!)}</contractDate>\n');
+      }
+      deliveryTerm.write(
+          '        <contractNum>${_esc(invoice.contractNum!)}</contractNum>\n');
+      deliveryTerm.write('        <hasContract>true</hasContract>\n');
+    } else {
+      deliveryTerm.write('        <hasContract>false</hasContract>\n');
+    }
+    deliveryTerm.write('    </deliveryTerm>');
 
-  <!-- 1. Заголовок -->
-  <HEADER>
-    <INVOICE_NUM>$esfNumber</INVOICE_NUM>
-    <INVOICE_DATE>$invoiceDate</INVOICE_DATE>
-    <DELIVERY_DATE>$invoiceDate</DELIVERY_DATE>
-    <TYPE>ORDINARY</TYPE>
-    <CORRECTION>false</CORRECTION>
-    <INPUT_TYPE>MANUAL</INPUT_TYPE>
-  </HEADER>
+    // Документ-основание (акт/накладная) — опционально
+    final deliveryDoc = StringBuffer();
+    if (invoice.deliveryDocDate != null) {
+      deliveryDoc.write(
+          '    <deliveryDocDate>${_dateFmt.format(invoice.deliveryDocDate!)}</deliveryDocDate>\n');
+    }
+    if (invoice.deliveryDocNum != null &&
+        invoice.deliveryDocNum!.trim().isNotEmpty) {
+      deliveryDoc.write(
+          '    <deliveryDocNum>${_esc(invoice.deliveryDocNum!.trim())}</deliveryDocNum>\n');
+    }
 
-  <!-- 2. Поставщик -->
-  <SELLER>
-    <IIN>${_esc(company.iin)}</IIN>
-    <NAME>${_esc(company.name)}</NAME>
-    <ADDRESS>${_esc(company.address ?? '')}</ADDRESS>
-    <IS_VAT_PAYER>${isVat ? 'true' : 'false'}</IS_VAT_PAYER>
-${company.iik != null && company.iik!.isNotEmpty ? '''    <BANK_DETAILS>
-      <NAME>${_esc(company.bankName ?? '')}</NAME>
-      <IIK>${_esc(company.iik ?? '')}</IIK>
-      <BIK>${_esc(company.bik ?? '')}</BIK>
-      <KBE>${_esc(company.kbe ?? '19')}</KBE>
-    </BANK_DETAILS>''' : '    <!-- Банковские реквизиты не заполнены -->'}
-  </SELLER>
+    final buyerTin = invoice.buyerIin ?? '';
 
-  <!-- 3. Получатель -->
-  <BUYER>
-    $buyerIinNode
-    <NAME>${_esc(invoice.clientName)}</NAME>
-  </BUYER>
-
-  <!-- 4. Оборот -->
-  <TURNOVER>
-$items
-  </TURNOVER>
-
-  <!-- 5. Итого -->
-  <TOTAL>
-    <TOTAL_NET_TURNOVER>${_numFmt.format(totalNet)}</TOTAL_NET_TURNOVER>
-    <TOTAL_NDS>${_numFmt.format(totalVat)}</TOTAL_NDS>
-    <TOTAL_TURNOVER_WITH_NDS>${_numFmt.format(totalGross)}</TOTAL_TURNOVER_WITH_NDS>
-  </TOTAL>
-
-  <!--
-    ВАЖНО: Перед отправкой в ИС ЭСФ:
-    1. Убедитесь что ИИН/БИН покупателя заполнен (12 цифр)
-    2. Подпишите файл ЭЦП (НУЦ РК) в портале esf.gov.kz
-    3. Или загрузите XML вручную через импорт
-  -->
-
-</ESF>''';
+    return '''<v2:invoice xmlns:a="abstractInvoice.esf" xmlns:v2="v2.esf">
+    <date>$invoiceDate</date>
+    <invoiceType>ORDINARY_INVOICE</invoiceType>
+    <num>${_esc(invoice.number)}</num>
+    <operatorFullname>${_esc(operator)}</operatorFullname>
+    <turnoverDate>$turnoverDate</turnoverDate>
+    <consignee>
+        <address>${_esc(consigneeAddress)}</address>
+        <countryCode>KZ</countryCode>
+        <name>${_esc(consigneeName)}</name>
+        <tin>${_esc(consigneeTin)}</tin>
+    </consignee>
+    <consignor>
+        <address>${_esc(consignorAddress)}</address>
+        <name>${_esc(consignorName)}</name>
+        <tin>${_esc(consignorTin)}</tin>
+    </consignor>
+    <customers>
+        <customer>
+            <address></address>
+            <countryCode>KZ</countryCode>
+            <name>${_esc(invoice.clientName)}</name>
+            <tin>${_esc(buyerTin)}</tin>
+        </customer>
+    </customers>
+${deliveryDoc.toString()}$deliveryTerm
+    <productSet>
+        <currencyCode>KZT</currencyCode>
+        <products>
+$products
+        </products>
+        <totalExciseAmount>0</totalExciseAmount>
+        <totalNdsAmount>${_num(totalVat)}</totalNdsAmount>
+        <totalPriceWithTax>${_num(totalGross)}</totalPriceWithTax>
+        <totalPriceWithoutTax>${_num(totalNet)}</totalPriceWithoutTax>
+        <totalTurnoverSize>${_num(totalNet)}</totalTurnoverSize>
+    </productSet>
+    <sellers>
+        <seller>
+            <address>${_esc(company.address ?? '')}</address>
+            <bank>${_esc(company.bankName ?? '')}</bank>
+            <bik>${_esc(company.bik ?? '')}</bik>
+            <iik>${_esc(company.iik ?? '')}</iik>
+            <kbe>${_esc(company.kbe ?? '19')}</kbe>
+            <name>${_esc(company.name)}</name>
+            <tin>${_esc(company.iin)}</tin>
+        </seller>
+    </sellers>
+</v2:invoice>''';
   }
 
-  /// СЧ-2026-001 → ЭСФ-2026-001
-  static String _toEsfNumber(String invoiceNumber) {
-    return invoiceNumber.replaceFirst('СЧ-', 'ЭСФ-');
+  /// Формат чисел как в ИС ЭСФ: точка-разделитель, без разделителей тысяч,
+  /// хвостовые нули обрезаются (`1335906.5`, `1`, `0`).
+  static String _num(double v) {
+    final rounded = (v * 100).round() / 100;
+    if (rounded == rounded.truncateToDouble()) {
+      return rounded.toInt().toString();
+    }
+    var s = rounded.toStringAsFixed(2);
+    s = s.replaceFirst(RegExp(r'0+$'), '');
+    s = s.replaceFirst(RegExp(r'\.$'), '');
+    return s;
   }
 
   /// XML-экранирование спецсимволов

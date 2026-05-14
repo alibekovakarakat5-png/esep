@@ -12,6 +12,7 @@ class CompanyInfo {
   final String? bik;   // БИК банка
   final String? kbe;   // КБе (код бенефициара)
   final bool isVatPayer; // Плательщик НДС (ОУР), по умолчанию false (для СНР/упрощёнки)
+  final String? operatorFullname; // ФИО оператора, выписывающего ЭСФ
 
   const CompanyInfo({
     required this.name,
@@ -24,6 +25,7 @@ class CompanyInfo {
     this.bik,
     this.kbe,
     this.isVatPayer = false,
+    this.operatorFullname,
   });
 
   bool get isComplete => name.isNotEmpty && iin.isNotEmpty;
@@ -49,6 +51,7 @@ class CompanyNotifier extends StateNotifier<CompanyInfo> {
       bik:         box.get('company_bik')   as String?,
       kbe:         box.get('company_kbe')   as String?,
       isVatPayer:  box.get('company_is_vat_payer', defaultValue: false) as bool,
+      operatorFullname: box.get('company_operator_fullname') as String?,
     );
   }
 
@@ -63,6 +66,7 @@ class CompanyNotifier extends StateNotifier<CompanyInfo> {
     String? bik,
     String? kbe,
     bool? isVatPayer,
+    String? operatorFullname,
   }) async {
     final box = HiveService.settings;
     await box.put('company_name',  name);
@@ -74,6 +78,7 @@ class CompanyNotifier extends StateNotifier<CompanyInfo> {
     await box.put('company_iik',   iik ?? '');
     await box.put('company_bik',   bik ?? '');
     await box.put('company_kbe',   kbe ?? '');
+    await box.put('company_operator_fullname', operatorFullname ?? '');
     if (isVatPayer != null) {
       await box.put('company_is_vat_payer', isVatPayer);
     }
