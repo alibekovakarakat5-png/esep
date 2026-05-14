@@ -7,6 +7,20 @@ import '../models/transaction.dart';
 import '../constants/kz_tax_constants.dart';
 import '../providers/company_provider.dart';
 
+/// Формат выгрузки формы 910.00.
+///
+/// - [xmlSono] — XML для старой системы СОНО (её сворачивают)
+/// - [jsonIsna] — JSON для нового КНП ИСНА (актуальный формат на 2026)
+enum Form910Format {
+  xmlSono,
+  jsonIsna;
+
+  String get ext => this == Form910Format.xmlSono ? 'xml' : 'json';
+  String get label => this == Form910Format.xmlSono
+      ? 'XML (СОНО)'
+      : 'JSON (КНП ИСНА)';
+}
+
 /// Данные формы 910.00 — Упрощённая декларация для субъектов малого бизнеса
 class Form910Data {
   // Header
@@ -71,10 +85,26 @@ class Form910Data {
       : '2-е полугодие $year';
 }
 
+/// Генератор формы 910.00 (Упрощённая декларация).
+///
+/// ⚠️ ВАЖНО ПРО ФОРМАТЫ (проверено по kgd.gov.kz, pro1c.kz, uchet.kz):
+/// - Имена полей (`field_910_00_001` и т.д.) — из официального пакета
+///   СОНО v27 r133, см. `docs/forms/form-910-00-v27-spec.md`.
+/// - Конверт XML (корневой элемент) и схема JSON ИСНА **публично не
+///   опубликованы**. Реализованы по обоснованной догадке. Перед боевым
+///   использованием обязательно сверить с реальным образцом экспорта
+///   из 1С / КНП ИСНА.
+/// - Реальная форма ждёт помесячную разбивку (поля `_1.._6`), а здесь
+///   считаются 6-месячные агрегаты — месячные поля не заполняются.
 class Form910Service {
   Form910Service._();
 
+  static const _formCode = '910.00';
+  static const _formVersion = 27;
+  static const _formRevision = 133;
+
   static final _dateFmt = DateFormat('dd.MM.yyyy');
+  static final _amountFmt = NumberFormat('0.00', 'en_US');
 
   /// Calculate form 910 data from transactions
   static Form910Data calculate({
@@ -142,68 +172,113 @@ class Form910Service {
     );
   }
 
-  /// Generate XML for form 910.00
-  static String generateXml(Form910Data data) {
-    final now = DateTime.now();
-    final fmt = NumberFormat('0.00');
-    final ratePercent = (KzTax.simplified910TotalRate * 100).toStringAsFixed(0);
+  /// Соответствие данных → официальные имена полей формы 910.00 v27.
+  /// Источник имён: `docs/forms/form-910-00-v27-spec.md`.
+  static Map<String, double> _fieldValues(Form910Data d) => {
+        'field_910_00_001': d.income,
+        'field_910_00_001_A': d.incomeNonCash,
+        'field_910_00_001_B': d.incomeEcommerce,
+        'field_910_00_002': d.transferPricing,
+        'field_910_00_003': d.avgEmployees,
+        'field_910_00_004': d.avgMonthlyWage,
+        'field_910_00_005': d.calculatedTax,
+        'field_910_00_006': d.taxAdjustment,
+        'field_910_00_007': d.netTax,
+        'field_910_00_008': d.ipn,
+        'field_910_00_009': d.socialTax,
+        'field_910_00_010': d.soIncome,
+        'field_910_00_011': d.soAmount,
+        'field_910_00_012': d.opvIncome,
+        'field_910_00_013': d.opvAmount,
+        'field_910_00_014': d.opvrAmount,
+        'field_910_00_015': d.vosmsAmount,
+      };
 
-    return '''<?xml version="1.0" encoding="UTF-8"?>
-<declaration>
-  <formCode>910.00</formCode>
-  <formVersion>2026</formVersion>
-  <generatedBy>Esep</generatedBy>
-  <generatedAt>${_dateFmt.format(now)}</generatedAt>
-
-  <header>
-    <iin>${_escapeXml(data.iin)}</iin>
-    <fullName>${_escapeXml(data.fullName)}</fullName>
-    <taxPeriod>
-      <year>${data.year}</year>
-      <halfYear>${data.halfYear}</halfYear>
-    </taxPeriod>
-    <declarationType>${_escapeXml(data.declarationType)}</declarationType>
-    <taxRegime>упрощенная декларация</taxRegime>
-  </header>
-
-  <section1 title="Исчисление налогов">
-    <field code="910.00.001" name="Доход за налоговый период">${fmt.format(data.income)}</field>
-    <field code="910.00.001A" name="Безналичные расчеты">${fmt.format(data.incomeNonCash)}</field>
-    <field code="910.00.001B" name="Электронная торговля">${fmt.format(data.incomeEcommerce)}</field>
-    <field code="910.00.002" name="Корректировка трансфертного ценообразования">${fmt.format(data.transferPricing)}</field>
-    <field code="910.00.003" name="Среднесписочная численность работников">${fmt.format(data.avgEmployees)}</field>
-    <field code="910.00.004" name="Среднемесячная з/п на работника">${fmt.format(data.avgMonthlyWage)}</field>
-    <field code="910.00.005" name="Исчисленные налоги ($ratePercent%)">${fmt.format(data.calculatedTax)}</field>
-    <field code="910.00.006" name="Корректировка налогов">${fmt.format(data.taxAdjustment)}</field>
-    <field code="910.00.007" name="Итого налогов">${fmt.format(data.netTax)}</field>
-    <field code="910.00.008" name="ИПН">${fmt.format(data.ipn)}</field>
-    <field code="910.00.009" name="Социальный налог">${fmt.format(data.socialTax)}</field>
-  </section1>
-
-  <section2 title="Исчисление социальных платежей">
-    <field code="910.00.010" name="Доход для исчисления СО">${fmt.format(data.soIncome)}</field>
-    <field code="910.00.011" name="Сумма СО">${fmt.format(data.soAmount)}</field>
-    <field code="910.00.012" name="Доход для исчисления ОПВ">${fmt.format(data.opvIncome)}</field>
-    <field code="910.00.013" name="Сумма ОПВ">${fmt.format(data.opvAmount)}</field>
-    <field code="910.00.014" name="Сумма ОПВР">${fmt.format(data.opvrAmount)}</field>
-    <field code="910.00.015" name="Сумма ВОСМС">${fmt.format(data.vosmsAmount)}</field>
-  </section2>
-
-  <totals>
-    <totalTax>${fmt.format(data.totalTax)}</totalTax>
-    <totalSocial>${fmt.format(data.totalSocial)}</totalSocial>
-    <grandTotal>${fmt.format(data.grandTotal)}</grandTotal>
-  </totals>
-</declaration>''';
+  /// Чекбокс типа декларации (dt_main / dt_additional / dt_final).
+  static String _declarationTypeField(Form910Data d) {
+    switch (d.declarationType) {
+      case 'дополнительная':
+        return 'dt_additional';
+      case 'ликвидационная':
+        return 'dt_final';
+      default:
+        return 'dt_main';
+    }
   }
 
-  /// Share XML file
-  static Future<void> shareXml(Form910Data data) async {
-    final xml = generateXml(data);
-    final fileName = 'form_910_${data.year}_H${data.halfYear}.xml';
-    final bytes = utf8.encode(xml);
+  /// Универсальная точка генерации — выбирает формат.
+  static String generate(Form910Data data, Form910Format format) {
+    return format == Form910Format.xmlSono
+        ? generateXml(data)
+        : generateJson(data);
+  }
 
-    await saveAndShareFile(bytes, fileName, subject: 'Форма 910.00 — ${data.periodLabel}');
+  /// XML для СОНО. Имена полей официальные, конверт — по догадке.
+  static String generateXml(Form910Data data) {
+    final fields = _fieldValues(data);
+    final dtField = _declarationTypeField(data);
+    final fieldXml = fields.entries
+        .map((e) => '  <${e.key}>${_amountFmt.format(e.value)}</${e.key}>')
+        .join('\n');
+
+    return '''<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Форма 910.00 (версия $_formVersion, ревизия $_formRevision) — сгенерирована Esep.
+  Имена полей — из официального пакета СОНО. Корневой конверт реализован
+  по догадке: ПЕРЕД ПОДАЧЕЙ сверить с образцом экспорта из 1С/СОНО.
+  Дата генерации: ${_dateFmt.format(DateTime.now())}
+-->
+<form code="$_formCode" version="$_formVersion" revision="$_formRevision">
+  <iin>${_escapeXml(data.iin)}</iin>
+  <payer_name1>${_escapeXml(data.fullName)}</payer_name1>
+  <period_year>${data.year}</period_year>
+  <period_half_year>${data.halfYear}</period_half_year>
+  <$dtField>1</$dtField>
+  <currency_code>KZT</currency_code>
+$fieldXml
+</form>''';
+  }
+
+  /// JSON для КНП ИСНА. ⚠️ Схема ИСНА публично не опубликована — структура
+  /// реализована по обоснованной догадке, сверить с реальным образцом
+  /// экспорта из 1С (команда «Экспорт в ИСНА (JSON)») или из КНП ИСНА.
+  static String generateJson(Form910Data data) {
+    final payload = {
+      // ⚠️ unverified envelope — structure pending real ИСНА sample
+      '_meta': {
+        'generatedBy': 'Esep',
+        'generatedAt': DateTime.now().toIso8601String(),
+        'note': 'Конверт не сверён с официальной схемой ИСНА',
+      },
+      'formCode': _formCode,
+      'version': _formVersion,
+      'revision': _formRevision,
+      'period': {
+        'year': data.year,
+        'halfYear': data.halfYear,
+      },
+      'taxpayer': {
+        'iin': data.iin,
+        'name': data.fullName,
+      },
+      'declarationType': _declarationTypeField(data),
+      'currencyCode': 'KZT',
+      'fields': {
+        for (final e in _fieldValues(data).entries)
+          e.key: double.parse(e.value.toStringAsFixed(2)),
+      },
+    };
+    return const JsonEncoder.withIndent('  ').convert(payload);
+  }
+
+  /// Сохранить/поделиться файлом формы в выбранном формате.
+  static Future<void> shareFile(Form910Data data, Form910Format format) async {
+    final content = generate(data, format);
+    final fileName =
+        'form_910_${data.year}_H${data.halfYear}.${format.ext}';
+    final bytes = utf8.encode(content);
+    await saveAndShareFile(bytes, fileName,
+        subject: 'Форма 910.00 — ${data.periodLabel} (${format.label})');
   }
 
   static String _escapeXml(String input) {

@@ -83,16 +83,49 @@ class _Form910ScreenState extends ConsumerState<Form910Screen> {
     setState(() => _result = data);
   }
 
-  Future<void> _exportXml() async {
+  Future<void> _export() async {
     final result = _result;
     if (result == null) return;
+
+    final format = await _pickFormat();
+    if (format == null) return;
 
     final consent = ref.read(legalConsentProvider);
     if (!consent.exportDisclaimerDismissed) {
       final ok = await _showPreExportDialog();
       if (ok != true) return;
     }
-    await Form910Service.shareXml(result);
+    await Form910Service.shareFile(result, format);
+  }
+
+  Future<Form910Format?> _pickFormat() {
+    return showModalBottomSheet<Form910Format>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('Формат файла', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+          ListTile(
+            leading: const Icon(Iconsax.document_code, color: EsepColors.primary),
+            title: const Text('JSON — КНП ИСНА'),
+            subtitle: const Text('Актуальная система на 2026'),
+            onTap: () => Navigator.pop(ctx, Form910Format.jsonIsna),
+          ),
+          ListTile(
+            leading: const Icon(Iconsax.document_text),
+            title: const Text('XML — СОНО'),
+            subtitle: const Text('Старая система, сворачивается'),
+            onTap: () => Navigator.pop(ctx, Form910Format.xmlSono),
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
   }
 
   Future<bool?> _showPreExportDialog() {
@@ -181,8 +214,8 @@ class _Form910ScreenState extends ConsumerState<Form910Screen> {
           if (_result != null)
             IconButton(
               icon: const Icon(Iconsax.document_upload),
-              tooltip: 'Экспорт XML',
-              onPressed: _exportXml,
+              tooltip: 'Экспорт файла',
+              onPressed: _export,
             ),
           const BetaFeedbackButton(screen: 'form910', compact: true),
         ],
@@ -336,9 +369,9 @@ class _Form910ScreenState extends ConsumerState<Form910Screen> {
             Row(children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: _exportXml,
+                  onPressed: _export,
                   icon: const Icon(Iconsax.document_code, size: 18),
-                  label: const Text('XML'),
+                  label: const Text('Экспорт файла'),
                 ),
               ),
             ]),
@@ -356,9 +389,9 @@ class _Form910ScreenState extends ConsumerState<Form910Screen> {
                   ]),
                   const SizedBox(height: 10),
                   const Text(
-                    '1. Скачайте XML-файл выше\n'
+                    '1. Скачайте файл выше (JSON — для нового КНП ИСНА, XML — для старой СОНО)\n'
                     '2. Войдите в Кабинет налогоплательщика\n'
-                    '3. Загрузите XML или заполните вручную',
+                    '3. Загрузите файл или заполните вручную',
                     style: TextStyle(fontSize: 12, color: EsepColors.textSecondary, height: 1.6),
                   ),
                   const SizedBox(height: 12),
