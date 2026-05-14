@@ -85,7 +85,7 @@ lib/
 │   │   └── tax_profile.dart
 │   └── services/
 │       ├── auth_service.dart          # register(), login() → API
-│       ├── esf_service.dart           # ⚠ XML-генератор ЭСФ (формат самопальный, не для прямой загрузки в ИС ЭСФ — ждём 1С XML от Фариды)
+│       ├── esf_service.dart           # XML-генератор ЭСФ — официальный контейнер ИС ЭСФ v2 (invoiceInfoContainer → invoiceBody CDATA → v2:invoice)
 │       ├── pdf_service.dart           # PDF счетов (с НДС 16%)
 │       ├── diagnosis_service.dart     # Расчёт дельты 2025 vs 2026 для онбординга
 │       ├── base_url_stub.dart         # mobile prod URL
@@ -324,6 +324,8 @@ PNG-кадры в `out/Esep<Name>/`, encoder на http://localhost:3099 прео
 | `d206a37` | feat(seo): 3 экспертные статьи (дивиденды, маркетплейсы, ГПХ) |
 | `8657c19` | fix(seo): 80% → 30-50% (штраф маркетплейсы), дивиденды скрыты до проверки |
 | `0b2dd96` | feat(admin): раздел курсов скрыт от публики, preview только в админке |
+| `822ab8a` | docs(claude-md): обновлён до состояния 13.05.2026 |
+| `fa3f116` | feat(esf): переход на официальный формат контейнера ИС ЭСФ v2 (модели + UI + тесты + харнесс) |
 
 ---
 
@@ -332,8 +334,9 @@ PNG-кадры в `out/Esep<Name>/`, encoder на http://localhost:3099 прео
 ### 🔴 Срочно (для продаж)
 
 - [ ] **Фарида проверяет 14 статей НК 2026** — чек-лист готовится отдельно. Особенно дивиденды (статья НК)
-- [ ] **Получить от Фариды 1С-ЭСФ XML** — без него `esf_service.dart` генерит самопальный формат, не принимаемый esf.gov.kz. После получения переписать под официальную схему `urn:kz:kgd:esf:v2`
-- [ ] **Запустить `flutter analyze` и `flutter test`** локально — Device Guard блокирует dart.exe на этой машине. Тесты ЭСФ в `test/esf_service_test.dart` готовы, нужен прогон
+- [x] **Получить от Фариды 1С-ЭСФ XML** — получен (`export_esf.xml`), `esf_service.dart` переписан под официальный контейнер ИС ЭСФ v2 (коммит `fa3f116`)
+- [ ] **Показать Фариде образец** `samples/esf/esf-vat.xml` — подтвердить, что контейнер принимается импортом esf.gov.kz
+- [ ] **Запустить `flutter analyze` и `flutter test`** локально — Device Guard блокирует dart.exe на этой машине. Тесты ЭСФ в `test/esf_service_test.dart` переписаны под новый формат, нужен прогон. Логика генератора проверена через node/python харнесс в `samples/esf/`
 
 ### 🟡 Этап 2 — XML формы для cabinet.salyk.kz
 
@@ -369,7 +372,7 @@ PNG-кадры в `out/Esep<Name>/`, encoder на http://localhost:3099 прео
 - Коммиты: без эмодзи, ConventionalCommits-стиль (`fix(scope): ...`, `feat(scope): ...`)
 - Ответы — концентрированные, без воды
 - Email пользователя: aksharayev@gmail.com
-- Дата компиляции этой памяти: **2026-05-13**
+- Дата компиляции этой памяти: **2026-05-14**
 
 ---
 
