@@ -94,7 +94,7 @@ class _TooCalculatorScreenState extends State<TooCalculatorScreen> {
             contentPadding: EdgeInsets.zero,
             title: const Text('Плательщик НДС', style: TextStyle(fontSize: 14)),
             subtitle: Text(
-              'НДС 12%, порог: ${_fmt.format(KzTax.vatRegistrationThreshold)} ₸/год',
+              'НДС 16%, порог: ${_fmt.format(KzTax.vatRegistrationThreshold)} ₸/год',
               style: const TextStyle(fontSize: 12, color: EsepColors.textSecondary),
             ),
             value: _isVatPayer,
@@ -186,7 +186,7 @@ class _TooCalculatorScreenState extends State<TooCalculatorScreen> {
                     const Row(children: [
                       Icon(Iconsax.receipt_2, color: EsepColors.info, size: 20),
                       SizedBox(width: 8),
-                      Text('НДС (12%)', style: TextStyle(fontWeight: FontWeight.w600)),
+                      Text('НДС (16%)', style: TextStyle(fontWeight: FontWeight.w600)),
                     ]),
                     const Divider(height: 24),
                     _TaxRow('НДС получен (с дохода)', _fmt.format(calc.vatReceived), EsepColors.income),
@@ -221,7 +221,7 @@ class _TooCalculatorScreenState extends State<TooCalculatorScreen> {
                       SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Соц. налог за сотрудников (9.5%)',
+                          'Соц. налог за сотрудников (6%)',
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -230,14 +230,8 @@ class _TooCalculatorScreenState extends State<TooCalculatorScreen> {
                     _TaxRow('Средняя зарплата', _fmt.format(_monthlyPayroll), EsepColors.textPrimary),
                     const SizedBox(height: 8),
                     _TaxRow(
-                      'ОПВ (10%)',
-                      _fmt.format(_monthlyPayroll * KzTax.employeeOpvRate),
-                      EsepColors.warning,
-                    ),
-                    const SizedBox(height: 8),
-                    _TaxRow(
-                      'База СН (ЗП - ОПВ)',
-                      _fmt.format(_monthlyPayroll - _monthlyPayroll * KzTax.employeeOpvRate),
+                      'База СН (ФОТ)',
+                      _fmt.format(_monthlyPayroll),
                       EsepColors.textSecondary,
                     ),
                     const SizedBox(height: 8),
@@ -267,42 +261,9 @@ class _TooCalculatorScreenState extends State<TooCalculatorScreen> {
             const SizedBox(height: 16),
           ],
 
-          // ─── Card 4: Дивиденды ──────────────────────────────────────────
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(children: [
-                    Icon(Iconsax.money_recive, color: EsepColors.income, size: 20),
-                    SizedBox(width: 8),
-                    Text('Дивиденды (5%)', style: TextStyle(fontWeight: FontWeight.w600)),
-                  ]),
-                  const Divider(height: 24),
-                  _TaxRow('Чистая прибыль', _fmt.format(calc.netProfit), EsepColors.income),
-                  const SizedBox(height: 8),
-                  _TaxRow('ИПН с дивидендов (5%)', _fmt.format(calc.dividendTax), EsepColors.expense),
-                  const Divider(height: 24),
-                  Row(children: [
-                    const Expanded(
-                      child: Text(
-                        'На руки учредителю',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                    Text(
-                      '${_fmt.format(calc.netProfit - calc.dividendTax)} ₸',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: EsepColors.income),
-                    ),
-                  ]),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // ─── Card 5: Итого ──────────────────────────────────────────────
+          // ─── Card 4: Итого ──────────────────────────────────────────────
+          // ИПН с дивидендов скрыт до подтверждения Фаридой: возникает только
+          // при фактическом распределении прибыли, а не на весь чистый доход.
           Card(
             color: EsepColors.info.withValues(alpha: 0.08),
             child: Padding(
@@ -317,20 +278,12 @@ class _TooCalculatorScreenState extends State<TooCalculatorScreen> {
                     _SummaryRow('НДС к уплате', '${_fmt.format(calc.vatPayable)} ₸', EsepColors.expense),
                   ],
                   const Divider(height: 16, color: EsepColors.divider),
-                  _SummaryRow('ИПН с дивидендов', '${_fmt.format(calc.dividendTax)} ₸', EsepColors.expense),
-                  const Divider(height: 16, color: EsepColors.divider),
                   _SummaryRow('Всего налогов', '${_fmt.format(calc.totalTax)} ₸', EsepColors.expense),
                   const Divider(height: 16, color: EsepColors.divider),
                   _SummaryRow(
                     'Эффективная ставка',
                     '${(calc.effectiveRate * 100).toStringAsFixed(1)}%',
                     EsepColors.warning,
-                  ),
-                  const Divider(height: 16, color: EsepColors.divider),
-                  _SummaryRow(
-                    'Чистыми после всех налогов',
-                    '${_fmt.format(calc.netProfit - calc.dividendTax)} ₸',
-                    EsepColors.income,
                   ),
                 ],
               ),

@@ -351,7 +351,10 @@ class KzTax {
     // Социальный налог за сотрудников: 6% от ФОТ (новый НК РК 2026, без вычета СО)
     final socialTax = max(0.0, monthlyPayroll * socialTaxTooRate) * employeeCount;
 
-    // Dividend tax on remaining profit
+    // Чистая прибыль и потенциальный ИПН с дивидендов.
+    // ВАЖНО: dividendTax НЕ входит в totalTax — ИПН с дивидендов возникает
+    // только при фактическом распределении прибыли учредителям, а не на весь
+    // чистый доход. Поля остаются для будущего UI; ставка 5% на проверке у бухгалтера.
     final netProfit = taxableIncome - kpn;
     final dividendTax = netProfit * dividendTaxRate;
 
@@ -366,7 +369,7 @@ class KzTax {
       socialTax: socialTax,
       netProfit: netProfit,
       dividendTax: dividendTax,
-      totalTax: kpn + vatPayable + dividendTax,
+      totalTax: kpn + vatPayable,
     );
   }
 }

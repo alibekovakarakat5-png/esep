@@ -1308,11 +1308,10 @@ class _RegimeOptimizerCard extends StatelessWidget {
       regimes.add(_RegimeOption('Упрощёнка (910)', total910, '4% от дохода', true));
     }
 
-    // ЕСП
-    if (yearIncome <= KzTax.espYearLimit) {
-      final espTotal = KzTax.espMonthlyCity * 6;
-      regimes.add(_RegimeOption('ЕСП', espTotal, '1 МРП/мес (${fmt.format(KzTax.currentMrp)} ₸)', false));
-    }
+    // ЕСП не включаем в оптимизатор-советчик: статус режима в НК 2026 не
+    // подтверждён, а по «1 МРП/мес» он почти всегда выходит самым дешёвым и
+    // приложение советовало бы переход на режим под вопросом. Справка по ЕСП
+    // остаётся в гайде режимов (regime_guide_screen).
 
     // Самозанятый
     if (yearIncome <= KzTax.selfEmployedYearLimit) {
