@@ -436,6 +436,7 @@ class _GeneralCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final ipn = KzTax.calculateProgressiveIpn(income);
     final rateLabel = income > KzTax.generalIpnThreshold ? '10-15%' : '10%';
+    final sn = KzTax.ipMonthlySocialTax() * 12; // СН ИП на ОУР за год
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -449,6 +450,8 @@ class _GeneralCard extends StatelessWidget {
           _TaxRow('Чистый доход', fmt.format(income), EsepColors.textPrimary),
           const SizedBox(height: 8),
           _TaxRow('ИПН ($rateLabel)', fmt.format(ipn), EsepColors.expense),
+          const SizedBox(height: 8),
+          _TaxRow('Соцналог (2 МРП/мес)', fmt.format(sn), EsepColors.expense),
           const Divider(height: 20),
           const Text(
             'ОУР: без лимита дохода. ИПН 10% от чистого дохода (доход − вычеты).\n'

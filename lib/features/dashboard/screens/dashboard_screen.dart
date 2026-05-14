@@ -1323,8 +1323,9 @@ class _RegimeOptimizerCard extends StatelessWidget {
     final netIncome = halfYearIncome - (monthExpense * 6);
     final annualNetIncome = (netIncome > 0 ? netIncome : 0.0) * 2;
     final ourIpn = KzTax.calculateProgressiveIpn(annualNetIncome) / 2; // за полугодие
-    final ourTax = ourIpn + social6;
-    regimes.add(_RegimeOption('ОУР', ourTax, '10-15% от чистого дохода', false));
+    final ourSn = KzTax.ipMonthlySocialTax() * 6; // СН ИП на ОУР за полугодие
+    final ourTax = ourIpn + ourSn + social6;
+    regimes.add(_RegimeOption('ОУР', ourTax, '10-15% + соцналог 2 МРП/мес', false));
 
     // Сортируем по стоимости
     regimes.sort((a, b) => a.total.compareTo(b.total));

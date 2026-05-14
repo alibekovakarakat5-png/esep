@@ -332,6 +332,19 @@ class KzTax {
   /// Социальный налог ТОО: 6% от ФОТ (Новый НК РК 2026)
   static double get socialTaxTooRate => _cfg('social_tax_too_rate', 0.06);
 
+  /// СН для ИП на ОУР — фиксированная сумма в МРП (Новый НК РК 2026):
+  /// 2 МРП/мес за себя + 1 МРП/мес за каждого работника.
+  /// Не применяется к ИП на упрощёнке (910) — там СН = 0.
+  /// ⚠ Источник: разъяснение КГД РК; уточнить у бухгалтера.
+  static double get ipSocialTaxMrpSelf => _cfg('ip_sn_mrp_self', 2.0);
+  static double get ipSocialTaxMrpPerEmployee =>
+      _cfg('ip_sn_mrp_per_employee', 1.0);
+
+  /// Месячный СН для ИП на ОУР (за себя + за работников).
+  static double ipMonthlySocialTax({int employees = 0}) =>
+      currentMrp *
+      (ipSocialTaxMrpSelf + ipSocialTaxMrpPerEmployee * employees);
+
   /// Расчёт КПН
   static TooTaxCalculation calculateToo({
     required double income,

@@ -1,0 +1,926 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RulesDocKinds>
+	<documentKinds>
+		<documentKind code="910.00" version="27" kind="00010000000000000000" inisValue="3"/>
+		<documentKind code="910.00" version="27" kind="00011000000000000000" inisValue="6"/>
+		<documentKind code="910.00" version="27" kind="00100000000000000000" inisValue="4"/>
+		<documentKind code="910.00" version="27" kind="01000000000000000000" inisValue="2"/>
+		<documentKind code="910.00" version="27" kind="10000000000000000000" inisValue="1"/>
+		<documentKind code="910.00" version="27" kind="10100000000000000000" inisValue="4"/>
+	</documentKinds>
+	<rules>
+		<rule name="Правило9.U.4" formula="@page.field_910_00_023_4" condition="(@page.field_910_00_023_4&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_022_U.1" formula="@page.field_910_00_022_1" condition="(@page.field_910_00_022_1&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_022_U.2" formula="@page.field_910_00_022_2" condition="(@page.field_910_00_022_2&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_022_F.1" formula="@page.field_910_00_022_1" condition="(@page.field_910_00_022_1&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_022_U.6" formula="@page.field_910_00_022_6" condition="(@page.field_910_00_022_6&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_022_F.5" formula="@page.field_910_00_022_5" condition="(@page.field_910_00_022_5&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_022_U.3" formula="@page.field_910_00_022_3" condition="(@page.field_910_00_022_3&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_024_F.2" formula="@page.field_910_00_024_2" condition="(@page.field_910_00_024_2&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="903101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_024_U.3" formula="@page.field_910_00_024_3" condition="(@page.field_910_00_024_3&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="903101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило4.U.5" formula="@page.field_910_00_015_5" condition="@formula.typenp.(@page_910_00_01.iin, '2')='U'" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило3.F.1" formula="@page.field_910_00_013_1" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило8.U.3" formula="@page.field_910_00_021_3" condition="(@page.field_910_00_021_3&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило3.F.2" formula="@page.field_910_00_013_2" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило9.F.3" formula="@page.field_910_00_023_3" condition="(@page.field_910_00_023_3&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило10.U.6" formula="@page.field_910_00_025_6" condition="(@page.field_910_00_025_6&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_022_F.4" formula="@page.field_910_00_022_4" condition="(@page.field_910_00_022_4&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило5.F.1" formula="@page.field_910_00_011_1" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило5.F.2" formula="@page.field_910_00_011_2" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило5.F.3" formula="@page.field_910_00_011_3" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило4.F.1" formula="@page.field_910_00_015_1" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило5.F.4" formula="@page.field_910_00_011_4" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило8.F.4" formula="@page.field_910_00_021_4" condition="(@page.field_910_00_021_4&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило11.F.3" formula="@page.field_910_00_014_3" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило4.F.4" formula="@page.field_910_00_015_4" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило4.F.5" formula="@page.field_910_00_015_5" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило1.1" formula="@page.field_910_00_008" condition="@formula.typenp.(@page.iin, '2')='U'" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.01" code="910.00" version="27" year="2023" formula="@formula.get_date(25,@page.period_half_year*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="101111" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило4.F.6" formula="@page.field_910_00_015_6" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило10.U.3" formula="@page.field_910_00_025_3" condition="(@page.field_910_00_025_3&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило9.U.5" formula="@page.field_910_00_023_5" condition="(@page.field_910_00_023_5&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило10.F.1" formula="@page.field_910_00_025_1" condition="(@page.field_910_00_025_1&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_020_1" formula="@page.field_910_00_020_1" condition="(@page.field_910_00_020_1&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="101201" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_020_2" formula="@page.field_910_00_020_2" condition="(@page.field_910_00_020_2&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="101201" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_020_3" formula="@page.field_910_00_020_3" condition="(@page.field_910_00_020_3&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="101201" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_020_4" formula="@page.field_910_00_020_4" condition="(@page.field_910_00_020_4&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="101201" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_020_5" formula="@page.field_910_00_020_5" condition="(@page.field_910_00_020_5&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="101201" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило7.3" formula="@page.field_910_00_019_3" condition="(@page.field_910_00_019_3&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="101201" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_020_6" formula="@page.field_910_00_020_6" condition="(@page.field_910_00_020_6&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="101201" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_022_F.2" formula="@page.field_910_00_022_2" condition="(@page.field_910_00_022_2&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_022_F.3" formula="@page.field_910_00_022_3" condition="(@page.field_910_00_022_3&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_022_F.6" formula="@page.field_910_00_022_6" condition="(@page.field_910_00_022_6&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_022_U.4" formula="@page.field_910_00_022_4" condition="(@page.field_910_00_022_4&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило8.U.1" formula="@page.field_910_00_021_1" condition="(@page.field_910_00_021_1&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило10.U.1" formula="@page.field_910_00_025_1" condition="(@page.field_910_00_025_1&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило7.6" formula="@page.field_910_00_019_6" condition="(@page.field_910_00_019_6&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="101201" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило3.U.3" formula="@page.field_910_00_013_3" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило10.F.4" formula="@page.field_910_00_025_4" condition="(@page.field_910_00_025_4&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило10.F.5" formula="@page.field_910_00_025_5" condition="(@page.field_910_00_025_5&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило10.F.3" formula="@page.field_910_00_025_3" condition="(@page.field_910_00_025_3&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило9.F.2" formula="@page.field_910_00_023_2" condition="(@page.field_910_00_023_2&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило6.3" formula="@page.field_910_00_018_3" condition="@formula.is_true=1" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="906101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило8.U.4" formula="@page.field_910_00_021_4" condition="(@page.field_910_00_021_4&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило7.4" formula="@page.field_910_00_019_4" condition="(@page.field_910_00_019_4&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="101201" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило9.U.6" formula="@page.field_910_00_023_6" condition="(@page.field_910_00_023_6&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило8.U.5" formula="@page.field_910_00_021_5" condition="(@page.field_910_00_021_5&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило6.4" formula="@page.field_910_00_018_4" condition="@formula.is_true=1" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="906101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило6.5" formula="@page.field_910_00_018_5" condition="@formula.is_true=1" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="906101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило8.F.2" formula="@page.field_910_00_021_2" condition="(@page.field_910_00_021_2&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило11.F.4" formula="@page.field_910_00_014_4" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило4.U.6" formula="@page.field_910_00_015_6" condition="@formula.typenp.(@page_910_00_01.iin, '2')='U'" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило11.F.2" formula="@page.field_910_00_014_2" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило7.5" formula="@page.field_910_00_019_5" condition="(@page.field_910_00_019_5&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="101201" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило9.F.1" formula="@page.field_910_00_023_1" condition="(@page.field_910_00_023_1&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило3.U.2" formula="@page.field_910_00_013_2" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило3.U.6" formula="@page.field_910_00_013_6" condition="@formula.typenp.(@page_910_00_01.iin, '2')='U'" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило8.F.1" formula="@page.field_910_00_021_1" condition="(@page.field_910_00_021_1&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило6.1" formula="@page.field_910_00_018_1" condition="@formula.is_true=1" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="906101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило10.F.6" formula="@page.field_910_00_025_6" condition="(@page.field_910_00_025_6&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило11.F.6" formula="@page.field_910_00_014_6" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило5.U.1" formula="@page.field_910_00_011_1" condition="@formula.typenp.(@page_910_00_01.iin, '2')='U'" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило9.F.6" formula="@page.field_910_00_023_6" condition="(@page.field_910_00_023_6&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило4.F.3" formula="@page.field_910_00_015_3" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило9.F.5" formula="@page.field_910_00_023_5" condition="(@page.field_910_00_023_5&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило9.U.1" formula="@page.field_910_00_023_1" condition="(@page.field_910_00_023_1&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило9.U.2" formula="@page.field_910_00_023_2" condition="(@page.field_910_00_023_2&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило11.U.4" formula="@page.field_910_00_014_4" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило11.U.5" formula="@page.field_910_00_014_5" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило10.U.2" formula="@page.field_910_00_025_2" condition="(@page.field_910_00_025_2&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило6.2" formula="@page.field_910_00_018_2" condition="@formula.is_true=1" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="906101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило3.F.4" formula="@page.field_910_00_013_4" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило4.U.1" formula="@page.field_910_00_015_1" condition="@formula.typenp.(@page_910_00_01.iin, '2')='U'" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило8.U.6" formula="@page.field_910_00_021_6" condition="(@page.field_910_00_021_6&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило3.F.5" formula="@page.field_910_00_013_5" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_024_U.5" formula="@page.field_910_00_024_5" condition="(@page.field_910_00_024_5&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="903101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_024_F.4" formula="@page.field_910_00_024_4" condition="(@page.field_910_00_024_4&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="903101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило8.F.5" formula="@page.field_910_00_021_5" condition="(@page.field_910_00_021_5&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило2" formula="@page.field_910_00_009" condition="@formula.is_true=1" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.01" code="910.00" version="27" year="2023" formula="@formula.get_date(25,@page.period_half_year*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="103101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_024_U.1" formula="@page.field_910_00_024_1" condition="(@page.field_910_00_024_1&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="903101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило11.F.1" formula="@page.field_910_00_014_1" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило6.6" formula="@page.field_910_00_018_6" condition="@formula.is_true=1" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="906101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_022_U.5" formula="@page.field_910_00_022_5" condition="(@page.field_910_00_022_5&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило7.1" formula="@page.field_910_00_019_1" condition="(@page.field_910_00_019_1&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="101201" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_024_U.2" formula="@page.field_910_00_024_2" condition="(@page.field_910_00_024_2&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="903101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_024_F.1" formula="@page.field_910_00_024_1" condition="(@page.field_910_00_024_1&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="903101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_024_U.6" formula="@page.field_910_00_024_6" condition="(@page.field_910_00_024_6&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="903101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_024_F.5" formula="@page.field_910_00_024_5" condition="(@page.field_910_00_024_5&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="903101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило4.U.2" formula="@page.field_910_00_015_2" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило7.2" formula="@page.field_910_00_019_2" condition="(@page.field_910_00_019_2&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="101201" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило3.U.1" formula="@page.field_910_00_013_1" condition="@formula.typenp.(@page_910_00_01.iin, '2')='U'" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило5.F.5" formula="@page.field_910_00_011_5" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило5.F.6" formula="@page.field_910_00_011_6" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_024_F.3" formula="@page.field_910_00_024_3" condition="(@page.field_910_00_024_3&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="903101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_024_F.6" formula="@page.field_910_00_024_6" condition="(@page.field_910_00_024_6&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="903101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило_910_00_024_U.4" formula="@page.field_910_00_024_4" condition="(@page.field_910_00_024_4&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="903101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило11.U.3" formula="@page.field_910_00_014_3" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило8.F.3" formula="@page.field_910_00_021_3" condition="(@page.field_910_00_021_3&lt;>'')*(@formula.typenp.(@page_910_00_01.iin,'2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило9.U.3" formula="@page.field_910_00_023_3" condition="(@page.field_910_00_023_3&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило5.U.4" formula="@page.field_910_00_011_4" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило3.F.6" formula="@page.field_910_00_013_6" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило11.U.1" formula="@page.field_910_00_014_1" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.02" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило11.U.2" formula="@page.field_910_00_014_2" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило9.F.4" formula="@page.field_910_00_023_4" condition="(@page.field_910_00_023_4&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило4.F.2" formula="@page.field_910_00_015_2" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило4.U.3" formula="@page.field_910_00_015_3" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило5.U.6" formula="@page.field_910_00_011_6" condition="@formula.typenp.(@page_910_00_01.iin, '2')='U'" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило10.F.2" formula="@page.field_910_00_025_2" condition="(@page.field_910_00_025_2&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило10.U.4" formula="@page.field_910_00_025_4" condition="(@page.field_910_00_025_4&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило10.U.5" formula="@page.field_910_00_025_5" condition="(@page.field_910_00_025_5&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило11.U.6" formula="@page.field_910_00_014_6" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило11.F.5" formula="@page.field_910_00_014_5" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило3.F.3" formula="@page.field_910_00_013_3" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило1" formula="@page.field_910_00_008" condition="@formula.typenp.(@page.iin, '2')='F'" isKno="true" knoFormula="(@formula.if_else(@page.field_bin_msu='',@formula.num_to_str(@page.rating_auth_code),@formula.get_msu_code(@field_bin_msu)))" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.01" code="910.00" version="27" year="2023" formula="@formula.get_date(25,@page.period_half_year*6+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="101202" condition="@formula.typenp.(@page.iin, '2')='F'"/>
+			</kbks>
+		</rule>
+		<rule name="Правило8.F.6" formula="@page.field_910_00_021_6" condition="(@page.field_910_00_021_6&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='F')*(@page.rating_auth_code_struct&lt;>'')" isKno="true" knoFormula="@page.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.07" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+7,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило3.U.4" formula="@page.field_910_00_013_4" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило3.U.5" formula="@page.field_910_00_013_5" condition="@formula.typenp.(@page_910_00_01.iin, '2')='U'" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило4.U.4" formula="@page.field_910_00_015_4" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.05" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+5,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило8.U.2" formula="@page.field_910_00_021_2" condition="(@page.field_910_00_021_2&lt;>'')*(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило5.U.5" formula="@page.field_910_00_011_5" condition="@formula.typenp.(@page_910_00_01.iin, '2')='U'" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.06" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+6,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило5.U.2" formula="@page.field_910_00_011_2" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.03" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+3,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило5.U.3" formula="@page.field_910_00_011_3" condition="(@formula.typenp.(@page_910_00_01.iin, '2')='U')" isKno="true" knoFormula="@page.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="910.00.27.2023.04" code="910.00" version="27" year="2023" formula="@formula.get_date(25,(@page.period_half_year-1)*6+4,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="910.00.27.2023.08" code="910.00" version="27" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date,d)+10,@formula.cut_date(@formula.get_fil_date,m),@formula.cut_date(@formula.get_fil_date,y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+	</rules>
+	<submissionDates>
+		<submissionDate full-id="910.00.27.2023.18" code="910.00" version="27" year="2023" subm-date="'15.02.2024'" tax-period="18"/>
+		<submissionDate full-id="910.00.27.2023.17" code="910.00" version="27" year="2023" subm-date="'15.08.2023'" tax-period="17"/>
+		<submissionDate full-id="910.00.27.2024.18" code="910.00" version="27" year="2024" subm-date="'15.02.2025'" tax-period="18"/>
+		<submissionDate full-id="910.00.27.2024.17" code="910.00" version="27" year="2024" subm-date="'15.08.2024'" tax-period="17"/>
+		<submissionDate full-id="910.00.27.2025.18" code="910.00" version="27" year="2025" subm-date="'15.02.2026'" tax-period="18"/>
+		<submissionDate full-id="910.00.27.2025.17" code="910.00" version="27" year="2025" subm-date="'15.08.2025'" tax-period="17"/>
+		<submissionDate full-id="910.00.27.2026.18" code="910.00" version="27" year="2026" subm-date="'15.02.2027'" tax-period="18"/>
+		<submissionDate full-id="910.00.27.2026.17" code="910.00" version="27" year="2026" subm-date="'15.08.2026'" tax-period="17"/>
+	</submissionDates>
+</RulesDocKinds>

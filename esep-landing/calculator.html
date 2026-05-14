@@ -378,11 +378,13 @@
 
     } else {
       const ipn  = income * 0.10;
+      const sn   = MRP * 2 * 12; // СН ИП за себя: 2 МРП/мес (НК 2026)
       const soc  = social * 12;
-      const total = ipn + soc;
+      const total = ipn + sn + soc;
       title.textContent = 'ОУР — налог за год';
       el.innerHTML = `
         <div class="result-row"><div class="label">ИПН 10% от чистого дохода<div class="hint">Ст. 317 НК РК</div></div><span class="val red">${fmt(ipn)}</span></div>
+        <div class="result-row"><div class="label">Соцналог 2 МРП/мес<div class="hint">Фикс. ставка для ИП на ОУР</div></div><span class="val red">${fmt(sn)}</span></div>
         <div class="result-row"><div class="label">Соцплатежи × 12 мес</div><span class="val orange">${fmt(soc)}</span></div>
         <div class="result-row total"><span class="label">Итого в год</span><span class="val">${fmt(total)}</span></div>
         <div class="info-box">При обороте более ${fmt(MRP * 10000)} необходима постановка на учёт по НДС (16%).<div class="ref">Ст. 367–368 НК РК</div></div>`;

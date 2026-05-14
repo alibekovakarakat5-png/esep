@@ -80,7 +80,8 @@ class _RegimeGuideScreenState extends ConsumerState<RegimeGuideScreen> {
       if (monthlyExpense > monthlyIncome * 0.5) {
         final netIncome = (monthlyIncome - monthlyExpense) * 12;
         final ourTax = KzTax.calculateProgressiveIpn(netIncome > 0 ? netIncome : 0);
-        final ourTotal = ourTax + social6 * 2;
+        final ourSn = KzTax.ipMonthlySocialTax() * 12; // СН ИП на ОУР за год
+        final ourTotal = ourTax + ourSn + social6 * 2;
         if (ourTotal < yearTotal * 0.7) {
           best = 'ОУР (Общеустановленный режим)';
           explanation = 'У вас расходы > 50% от дохода. На ОУР налог считается от чистой прибыли '
