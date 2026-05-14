@@ -653,6 +653,22 @@ router.get('/', adminAuth, async (_req, res) => {
       Когда Фарида подтвердит все факты — снимем noindex и вернём в навигацию.
     </p>
 
+    <div style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:10px;padding:16px;margin-bottom:20px;display:flex;align-items:center;gap:14px">
+      <div style="font-size:32px">📄</div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:15px">PDF-курс «НК РК 2026 за полчаса»</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:2px">
+          10 базовых уроков одним файлом — обложка, оглавление, таблицы, примеры расчётов, FAQ.
+          Собран из статей ниже скриптом <code>_build_pdf.py</code>.
+        </div>
+        <span class="badge" style="background:#fef3c7;color:#b45309;margin-top:6px;display:inline-block">черновик · ждёт проверки Фариды</span>
+      </div>
+      <a href="https://esepkz.com/nk2026/kurs-nk-2026-chernovik.pdf" target="_blank"
+         style="background:#0F2B46;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap">
+        Скачать PDF →
+      </a>
+    </div>
+
     <div class="stats" style="margin-bottom:20px">
       <div class="stat">
         <div class="stat-val">10</div>
