@@ -1,5 +1,7 @@
 /* Esep · NK 2026 article shared styles */
 
+:root { color-scheme: light; }
+html { background: #f8fafc; }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; color: #334155; background: #f8fafc; line-height: 1.7; -webkit-font-smoothing: antialiased; }
 a { color: #0EA5E9; text-decoration: none; }
