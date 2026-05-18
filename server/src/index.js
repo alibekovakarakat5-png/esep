@@ -362,7 +362,26 @@ app.use('/api/platform',     platformRoutes);    // Enterprise Platform API — 
 
 // Static files (Platform Dashboard preview, для созвонов)
 const path = require('path');
-app.use(express.static(path.join(__dirname, '..', 'public')));
+const fs = require('fs');
+
+// Пробуем несколько возможных путей (зависит от того, как Railway копирует проект)
+const possiblePublicPaths = [
+  path.join(__dirname, '..', 'public'),        // обычный путь: server/public/
+  path.join(process.cwd(), 'public'),           // если CWD=server/
+  path.join(process.cwd(), 'server', 'public'), // если CWD=repo root
+  '/app/server/public',                         // Railway, если копируется весь репо
+  '/app/public',                                // Railway, если server/ = root
+];
+let staticPath = null;
+for (const p of possiblePublicPaths) {
+  if (fs.existsSync(path.join(p, 'platform.html'))) { staticPath = p; break; }
+}
+if (staticPath) {
+  console.log(`[static] serving from ${staticPath}`);
+  app.use(express.static(staticPath));
+} else {
+  console.warn('[static] public folder NOT FOUND, tried:', possiblePublicPaths);
+}
 
 // Auth recovery: только привязка Telegram (всё под авторизацией).
 // Восстановление пароля идёт через TG-бота (команда /reset email).
