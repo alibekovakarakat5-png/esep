@@ -35,7 +35,9 @@ import '../../features/settings/screens/telegram_link_screen.dart';
 import '../../features/diagnosis/screens/diagnosis_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
 import '../providers/auth_provider.dart';
+import '../providers/subscription_provider.dart';
 import '../providers/user_mode_provider.dart';
+import '../../features/platform/screens/platform_dashboard_screen.dart';
 
 // ── Router Listeneables ───────────────────────────────────────────────────────
 
@@ -44,6 +46,7 @@ class _RouterListenable extends ChangeNotifier {
     ref.listen<AuthState>(authProvider, (_, __) => notifyListeners());
     ref.listen<UserMode?>(userModeProvider, (_, __) => notifyListeners());
     ref.listen<bool>(hasSeenOnboardingProvider, (_, __) => notifyListeners());
+    ref.listen<SubscriptionState>(subscriptionProvider, (_, __) => notifyListeners());
   }
 }
 
@@ -62,6 +65,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final authState     = ref.read(authProvider);
       final mode          = ref.read(userModeProvider);
       final seenOnboarding = ref.read(hasSeenOnboardingProvider);
+      final tier          = ref.read(subscriptionProvider).tier;
       final location      = state.matchedLocation;
 
       if (authState == AuthState.loading) return null;
@@ -78,6 +82,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           location != '/onboarding' &&
           !location.startsWith('/legal/')) {
         return '/auth';
+      }
+
+      // ── Enterprise tier — отдельный кабинет для корпоративных клиентов
+      // (курьерская служба, маркетплейсы). НЕ показывает обычный учёт/счета,
+      // вместо этого — Platform Dashboard с 9 сервисами.
+      if (authState == AuthState.authenticated &&
+          tier == SubscriptionTier.enterprise) {
+        if (location != '/platform' &&
+            !location.startsWith('/platform/') &&
+            !location.startsWith('/legal/')) {
+          return '/platform';
+        }
+        return null;
       }
 
       // Logged in, on auth or onboarding → pick mode or home
@@ -123,6 +140,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ?? LegalDocType.terms;
           return LegalDocScreen(type: type);
         },
+      ),
+
+      // ── Platform Dashboard — для enterprise-клиентов (вне shell, без BottomNav)
+      // У enterprise-юзеров (курьерская служба, маркетплейсы) свой
+      // кастомный кабинет с 9 сервисами Platform API, а не классический учёт.
+      GoRoute(
+        path: '/platform',
+        builder: (_, __) => const PlatformDashboardScreen(),
       ),
 
       // ── Main shell (with bottom nav) ─────────────────────────────────────

@@ -10,6 +10,10 @@ import 'base_url_stub.dart'
 class ApiClient {
   static String get _base => detectApiBase();
 
+  /// Публичный аксессор для базового URL (нужен, например, для Platform API
+  /// с заголовком X-Platform-Key вместо JWT).
+  static String get baseUrl => _base;
+
   // ── Public helpers ────────────────────────────────────────────────────────
 
   static Future<dynamic> get(String path) async {

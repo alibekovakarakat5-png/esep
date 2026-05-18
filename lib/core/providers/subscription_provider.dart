@@ -10,7 +10,7 @@ import '../theme/app_theme.dart';
 
 // ── Subscription tiers ──────────────────────────────────────────────────────
 
-enum SubscriptionTier { free, solo, accountant, accountantPro }
+enum SubscriptionTier { free, solo, accountant, accountantPro, enterprise }
 
 extension SubscriptionTierExt on SubscriptionTier {
   String get apiName {
@@ -19,6 +19,7 @@ extension SubscriptionTierExt on SubscriptionTier {
       case SubscriptionTier.solo: return 'solo';
       case SubscriptionTier.accountant: return 'accountant';
       case SubscriptionTier.accountantPro: return 'accountant_pro';
+      case SubscriptionTier.enterprise: return 'enterprise';
     }
   }
 
@@ -28,6 +29,7 @@ extension SubscriptionTierExt on SubscriptionTier {
       case SubscriptionTier.solo: return 'Solo';
       case SubscriptionTier.accountant: return 'Бухгалтер';
       case SubscriptionTier.accountantPro: return 'Бухгалтер Про';
+      case SubscriptionTier.enterprise: return 'Enterprise (Platform API)';
     }
   }
 
@@ -38,6 +40,7 @@ extension SubscriptionTierExt on SubscriptionTier {
       case SubscriptionTier.solo: return 2000;
       case SubscriptionTier.accountant: return 4900;
       case SubscriptionTier.accountantPro: return 14900;
+      case SubscriptionTier.enterprise: return 0; // индивидуальная тарификация
     }
   }
 
@@ -48,6 +51,7 @@ extension SubscriptionTierExt on SubscriptionTier {
       case SubscriptionTier.solo: return 20000;
       case SubscriptionTier.accountant: return 48900;
       case SubscriptionTier.accountantPro: return 148900;
+      case SubscriptionTier.enterprise: return 0;
     }
   }
 
@@ -58,6 +62,7 @@ extension SubscriptionTierExt on SubscriptionTier {
       case SubscriptionTier.solo: return -1;
       case SubscriptionTier.accountant: return -1;
       case SubscriptionTier.accountantPro: return -1;
+      case SubscriptionTier.enterprise: return -1;
     }
   }
 
@@ -68,6 +73,7 @@ extension SubscriptionTierExt on SubscriptionTier {
       case SubscriptionTier.solo: return -1;
       case SubscriptionTier.accountant: return -1;
       case SubscriptionTier.accountantPro: return -1;
+      case SubscriptionTier.enterprise: return -1;
     }
   }
 
@@ -78,6 +84,7 @@ extension SubscriptionTierExt on SubscriptionTier {
       case SubscriptionTier.solo: return 1;
       case SubscriptionTier.accountant: return 15;
       case SubscriptionTier.accountantPro: return 50;
+      case SubscriptionTier.enterprise: return -1;
     }
   }
 
@@ -88,8 +95,12 @@ extension SubscriptionTierExt on SubscriptionTier {
       case SubscriptionTier.solo: return -1;
       case SubscriptionTier.accountant: return -1;
       case SubscriptionTier.accountantPro: return -1;
+      case SubscriptionTier.enterprise: return -1;
     }
   }
+
+  /// Доступ к Platform API (B2B сервисы для корпоративных клиентов)
+  bool get hasPlatformApi => this == SubscriptionTier.enterprise;
 
   /// Price per extra business slot above limit (KZT/month)
   static const int overflowSlotPrice = 500;
@@ -128,6 +139,8 @@ SubscriptionTier subscriptionTierFromApi(String? value) {
     case 'accountantPro':
     case 'corporate':
       return SubscriptionTier.accountantPro;
+    case 'enterprise':
+      return SubscriptionTier.enterprise;
     default:
       return SubscriptionTier.free;
   }

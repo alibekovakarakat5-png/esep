@@ -360,6 +360,10 @@ app.use('/api/tax-profile',  authMiddleware, taxProfileRoutes);
 app.use('/api/kbk',          authMiddleware, kbkRoutes);
 app.use('/api/platform',     platformRoutes);    // Enterprise Platform API — auth внутри (X-Platform-Key)
 
+// Static files (Platform Dashboard preview, для созвонов)
+const path = require('path');
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
 // Auth recovery: только привязка Telegram (всё под авторизацией).
 // Восстановление пароля идёт через TG-бота (команда /reset email).
 app.use('/api/auth', authMiddleware, authRecoveryRoutes);

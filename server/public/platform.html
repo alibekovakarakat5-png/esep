@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Esep Platform API — Корпоративный кабинет</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #F8FAFC;
+    color: #0F172A;
+    min-height: 100vh;
+  }
+  /* === Login screen === */
+  .login {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .login-card {
+    background: white; padding: 32px; border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(15,42,70,0.1); width: 100%; max-width: 420px;
+  }
+  .login h1 { color: #0F2B46; font-size: 24px; margin-bottom: 6px; }
+  .login p.sub { color: #64748B; font-size: 13px; margin-bottom: 20px; }
+  input, select, textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid #CBD5E1;
+    border-radius: 8px; font-size: 14px; font-family: inherit;
+    transition: border-color 0.15s;
+  }
+  input:focus { outline: none; border-color: #0EA5E9; }
+  label { display: block; font-size: 12px; font-weight: 500; margin: 12px 0 4px; color: #334155; }
+  button {
+    background: #0EA5E9; color: white; border: none; padding: 11px 20px;
+    border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+    width: 100%; margin-top: 16px; transition: background 0.15s;
+  }
+  button:hover { background: #0284C7; }
+  button:disabled { background: #94A3B8; cursor: not-allowed; }
+  button.secondary { background: white; color: #0EA5E9; border: 1px solid #0EA5E9; }
+  .demo-creds {
+    margin-top: 16px; padding: 12px; background: #F0F9FF;
+    border-left: 3px solid #0EA5E9; border-radius: 4px; font-size: 12px;
+  }
+  .demo-creds code { font-family: ui-monospace, monospace; font-size: 11px; }
+  .error { color: #DC2626; margin-top: 8px; font-size: 13px; }
+
+  /* === Dashboard === */
+  .header {
+    background: linear-gradient(135deg, #0F2B46 0%, #1E3A5F 100%);
+    color: white; padding: 20px;
+  }
+  .header-inner {
+    max-width: 1280px; margin: 0 auto;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .header h1 { font-size: 18px; font-weight: 700; }
+  .header .bin { color: rgba(255,255,255,0.7); font-size: 12px; margin-top: 2px; }
+  .badge {
+    background: #22C55E; color: white; padding: 4px 10px; border-radius: 20px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+  }
+  .header .icon-btn {
+    width: auto; padding: 8px 12px; background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white; margin: 0; font-size: 12px;
+  }
+  .header .icon-btn:hover { background: rgba(255,255,255,0.2); }
+  .container {
+    max-width: 1280px; margin: 0 auto; padding: 20px;
+  }
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+           gap: 12px; margin-bottom: 24px; }
+  .stat {
+    background: white; padding: 14px; border-radius: 12px;
+    border: 1px solid #E2E8F0;
+  }
+  .stat-value { font-size: 24px; font-weight: 700; color: #0F2B46; margin: 6px 0 2px; }
+  .stat-label { font-size: 12px; color: #475569; }
+  .stat-sub { font-size: 11px; color: #94A3B8; margin-top: 1px; }
+  .stat-icon {
+    width: 32px; height: 32px; border-radius: 8px; display: flex;
+    align-items: center; justify-content: center; font-size: 16px;
+  }
+  /* Services grid */
+  h2 { color: #0F2B46; font-size: 18px; margin: 16px 0 4px; }
+  h2 + p { color: #64748B; font-size: 13px; margin-bottom: 12px; }
+  .services {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+  }
+  .service {
+    background: white; border: 1px solid #E2E8F0; border-radius: 14px;
+    padding: 14px; cursor: pointer; transition: all 0.15s;
+    display: flex; flex-direction: column; gap: 8px; min-height: 130px;
+  }
+  .service:hover { border-color: #0EA5E9; transform: translateY(-2px);
+                   box-shadow: 0 4px 12px rgba(14,165,233,0.15); }
+  .service.disabled { opacity: 0.5; cursor: not-allowed; }
+  .service.disabled:hover { transform: none; box-shadow: none; border-color: #E2E8F0; }
+  .service-header { display: flex; justify-content: space-between; align-items: start; }
+  .service-icon {
+    width: 36px; height: 36px; border-radius: 10px; display: flex;
+    align-items: center; justify-content: center; font-size: 18px;
+  }
+  .service-status {
+    font-size: 9px; padding: 3px 8px; border-radius: 20px; font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+  .service-status.live { background: #DCFCE7; color: #166534; }
+  .service-status.demo { background: #FEF3C7; color: #92400E; }
+  .service-status.block { background: #FEE2E2; color: #991B1B; }
+  .service-title { font-size: 14px; font-weight: 700; color: #0F172A; line-height: 1.3; }
+  .service-sub { font-size: 11px; color: #64748B; line-height: 1.4; }
+  .service-cta { text-align: right; font-size: 11px; font-weight: 600; }
+
+  /* Integration card */
+  .integration {
+    margin-top: 24px; background: white; padding: 16px;
+    border-radius: 12px; border: 1px solid #E2E8F0;
+  }
+  .integration h3 { font-size: 15px; color: #0F2B46; margin-bottom: 8px; }
+  .integration table { font-size: 12px; width: 100%; }
+  .integration td { padding: 3px 0; vertical-align: top; }
+  .integration td:first-child { color: #475569; width: 120px; }
+  .integration code {
+    background: #F1F5F9; padding: 2px 6px; border-radius: 4px;
+    font-size: 11px; font-family: ui-monospace, monospace; color: #334155;
+  }
+  .integration p { margin-top: 8px; font-size: 12px; color: #64748B; line-height: 1.5; }
+
+  /* ─── Welcome banner ────────────────────────────────────────────── */
+  .welcome {
+    background: linear-gradient(135deg, #E0F2FE 0%, #DBEAFE 100%);
+    border: 1px solid #BAE6FD;
+    border-radius: 14px; padding: 18px; margin-bottom: 16px;
+    position: relative;
+  }
+  .welcome h3 { color: #0F2B46; font-size: 16px; margin-bottom: 6px; }
+  .welcome .lead { color: #475569; font-size: 13px; line-height: 1.5; margin-bottom: 12px; }
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .step {
+    background: white; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid #BAE6FD;
+  }
+  .step-num {
+    display: inline-block; background: #0EA5E9; color: white;
+    width: 22px; height: 22px; border-radius: 50%; text-align: center;
+    line-height: 22px; font-size: 12px; font-weight: 700; margin-right: 6px;
+  }
+  .step-title { font-weight: 600; font-size: 13px; color: #0F2B46; }
+  .step-text { font-size: 11px; color: #64748B; margin-top: 2px; line-height: 1.4; }
+  .welcome .hide-btn {
+    position: absolute; top: 12px; right: 12px;
+    background: transparent; color: #64748B; padding: 4px 10px;
+    margin: 0; width: auto; font-size: 11px; border: 1px solid #CBD5E1;
+  }
+
+  /* ─── Service "use case" hint ───────────────────────────────────── */
+  .service-when {
+    background: #F8FAFC; border-radius: 6px;
+    padding: 6px 8px; font-size: 10px; color: #475569;
+    line-height: 1.4; margin-top: 4px;
+  }
+  .service-when b { color: #0F2B46; }
+
+  /* ─── Human-readable result ─────────────────────────────────────── */
+  .human-result {
+    margin: 12px 0; padding: 14px; border-radius: 10px;
+    border: 1px solid #E2E8F0; background: #F8FAFC;
+  }
+  .human-result h4 {
+    font-size: 13px; color: #0F2B46; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .human-result .rrow { display: flex; gap: 8px; padding: 4px 0; font-size: 13px; }
+  .human-result .rrow .ricon {
+    flex-shrink: 0; width: 18px; text-align: center;
+  }
+  .human-result .rrow .rtext { color: #334155; line-height: 1.5; }
+  .human-result .rtext b { color: #0F2B46; }
+  .json-toggle {
+    background: transparent; color: #0EA5E9; padding: 4px 10px;
+    margin: 6px 0 0; width: auto; font-size: 11px; border: none;
+    text-decoration: underline; cursor: pointer;
+  }
+
+  /* ─── Field hint ────────────────────────────────────────────────── */
+  .field-hint {
+    font-size: 10px; color: #64748B; margin-top: 2px; line-height: 1.3;
+  }
+  .field-hint code {
+    background: #F1F5F9; padding: 1px 5px; border-radius: 3px;
+    font-family: ui-monospace, monospace; font-size: 10px;
+  }
+
+  /* ─── Service description inside modal ──────────────────────────── */
+  .service-desc {
+    background: #FEF3C7; border-left: 3px solid #F59E0B;
+    padding: 10px 12px; border-radius: 4px; font-size: 12px;
+    color: #78350F; line-height: 1.5; margin-bottom: 14px;
+  }
+  .service-desc b { color: #92400E; }
+
+  /* ─── Legend (status badges) ────────────────────────────────────── */
+  .legend {
+    display: flex; gap: 12px; margin-top: 8px; font-size: 11px; color: #64748B;
+    flex-wrap: wrap;
+  }
+  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* Modal (service test) */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(15,42,70,0.5);
+    display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 100;
+  }
+  .modal {
+    background: white; border-radius: 16px; max-width: 720px;
+    width: 100%; max-height: 92vh; overflow: hidden; display: flex; flex-direction: column;
+  }
+  .modal-head { padding: 16px 20px; border-bottom: 1px solid #E2E8F0; background: #0F2B46; color: white; }
+  .modal-head h2 { color: white; margin: 0; }
+  .modal-close {
+    background: rgba(255,255,255,0.1); padding: 6px 10px; font-size: 14px; width: auto; margin: 0;
+  }
+  .modal-body { padding: 20px; overflow-y: auto; }
+  .modal-section { font-weight: 700; font-size: 13px; color: #475569; margin: 16px 0 4px; }
+  .result {
+    margin-top: 12px; padding: 0;
+    border: 1px solid #E2E8F0; border-radius: 10px; overflow: hidden;
+  }
+  .result-head { padding: 10px 14px; font-size: 13px; font-weight: 700;
+                 display: flex; align-items: center; gap: 8px; }
+  .result-head.ok    { background: #DCFCE7; color: #166534; }
+  .result-head.warn  { background: #FEF3C7; color: #92400E; }
+  .result-head.error { background: #FEE2E2; color: #991B1B; }
+  .result pre {
+    padding: 12px; font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 11px; line-height: 1.6; color: #334155; overflow-x: auto;
+    background: #F8FAFC; max-height: 360px;
+  }
+  .logout {
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+    color: white; font-size: 11px; padding: 6px 12px; margin: 0; width: auto;
+  }
+  .copy-btn {
+    background: transparent; color: #0EA5E9; padding: 4px 10px;
+    margin: 0; width: auto; font-size: 11px; border: 1px solid #0EA5E9;
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── Login screen ─────────────────────────────────────────────────────── -->
+<div id="login-screen" class="login">
+  <div class="login-card">
+    <h1>Esep Platform API</h1>
+    <p class="sub">Корпоративный кабинет для платформ и маркетплейсов</p>
+
+    <label>Email</label>
+    <input type="email" id="email" value="kurier-demo@esepkz.com" autocomplete="username">
+
+    <label>Пароль</label>
+    <input type="password" id="password" value="DemoKurier2026!" autocomplete="current-password">
+
+    <button id="login-btn" onclick="doLogin()">Войти</button>
+    <div id="login-error" class="error"></div>
+
+    <div class="demo-creds">
+      <b>Демо-доступ для созвона:</b><br>
+      Email: <code>kurier-demo@esepkz.com</code><br>
+      Пароль: <code>DemoKurier2026!</code><br>
+      (Этот аккаунт = тариф enterprise → автоматически открывается этот кабинет)
+    </div>
+  </div>
+</div>
+
+<!-- ─── Dashboard ─────────────────────────────────────────────────────────── -->
+<div id="dashboard" style="display:none">
+  <div class="header">
+    <div class="header-inner">
+      <div style="background:rgba(255,255,255,0.15); width:42px; height:42px; border-radius:10px;
+                  display:flex; align-items:center; justify-content:center; font-size:20px;">🏢</div>
+      <div style="flex:1">
+        <h1 id="client-name">—</h1>
+        <div class="bin" id="client-bin">—</div>
+      </div>
+      <span class="badge">ENTERPRISE</span>
+      <button class="icon-btn" onclick="loadAccount()">↻ Обновить</button>
+      <button class="logout" onclick="doLogout()">Выйти</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-icon" style="background:#E0F2FE; color:#0EA5E9">📊</div>
+        <div class="stat-value" id="stat-requests">0</div>
+        <div class="stat-label">Запросов в этом месяце</div>
+        <div class="stat-sub" id="stat-quota">из ∞</div>
+      </div>
+      <div class="stat">
+        <div class="stat-icon" style="background:#DCFCE7; color:#22C55E">✓</div>
+        <div class="stat-value" id="stat-issued">0</div>
+        <div class="stat-label">Фискализировано чеков</div>
+        <div class="stat-sub" id="stat-total-receipts">из 0 всего</div>
+      </div>
+      <div class="stat">
+        <div class="stat-icon" style="background:#FEF3C7; color:#F59E0B">💰</div>
+        <div class="stat-value" id="stat-amount">0 ₸</div>
+        <div class="stat-label">Сумма всех выплат</div>
+        <div class="stat-sub">по этому месяцу</div>
+      </div>
+    </div>
+
+    <div id="welcome" class="welcome">
+      <button class="hide-btn" onclick="hideWelcome()">Скрыть</button>
+      <h3>👋 С чего начать</h3>
+      <p class="lead">
+        Это <b>центр управления</b> вашими API-сервисами Esep Platform.
+        У вас 9 модулей для compliance по НК РК 2026: проверка курьеров, фискализация
+        выплат, контроль лимита 300 МРП. Ниже — три шага чтобы быстро попробовать.
+      </p>
+      <div class="steps">
+        <div class="step">
+          <div><span class="step-num">1</span><span class="step-title">Попробуйте сервис</span></div>
+          <div class="step-text">Кликните любую карточку ниже — откроется форма с примером.
+            Самый главный — «Magic — выплата курьеру».</div>
+        </div>
+        <div class="step">
+          <div><span class="step-num">2</span><span class="step-title">Проверьте ответ</span></div>
+          <div class="step-text">Зелёный = всё ок. Жёлтый = есть нюанс. Красный = действие
+            запрещено (например, превышение лимита).</div>
+        </div>
+        <div class="step">
+          <div><span class="step-num">3</span><span class="step-title">Подключите к своей системе</span></div>
+          <div class="step-text">Скопируйте API-ключ внизу страницы — и используйте те же
+            запросы из своего бэкенда.</div>
+        </div>
+      </div>
+    </div>
+
+    <h2>Подключённые сервисы</h2>
+    <p>Кликните по карточке, чтобы попробовать сервис вживую — без риска, на ваших тестовых данных.</p>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#22C55E"></div>БОЕВОЙ — работает на проде</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#F59E0B"></div>DEMO — тестовые данные (ждём договор с КГД)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#EF4444"></div>БЛОКЕР — внешнее ограничение</div>
+    </div>
+    <div style="height: 12px"></div>
+    <div class="services" id="services-grid"></div>
+
+    <div class="integration">
+      <h3>🔌 Интеграция в вашу систему</h3>
+      <table>
+        <tr><td>API URL:</td><td><code id="int-base-url">—</code></td></tr>
+        <tr><td>Заголовок:</td><td><code>X-Platform-Key: &lt;ваш ключ&gt;</code></td></tr>
+        <tr><td>Ваш ключ:</td><td><code id="int-api-key">—</code>
+          <button class="copy-btn" onclick="copyApiKey()">Копировать</button>
+        </td></tr>
+      </table>
+      <p>Главный endpoint — <code>POST /process-payment</code>. Вызывайте на каждую выплату курьеру.
+         Внутри: валидация ИИН + проверка СНР + контроль лимита 300 МРП + фискализация через Webkassa.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Modal (test) ──────────────────────────────────────────────────────── -->
+<div id="modal-bg" class="modal-bg" style="display:none" onclick="if(event.target===this) closeModal()">
+  <div class="modal">
+    <div class="modal-head" style="display:flex; align-items:center; gap:10px">
+      <h2 id="modal-title" style="flex:1">—</h2>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section">Параметры запроса</div>
+      <div id="modal-form"></div>
+      <button id="exec-btn" onclick="executeService()">▶ Выполнить запрос</button>
+      <div id="modal-result"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = window.location.origin + '/api';
+let JWT_TOKEN = sessionStorage.getItem('jwt') || null;
+let ACCOUNT = null;
+let ACTIVE_SERVICE = null;
+
+const SERVICES = [
+  { n: 1, code: 'process_payment', title: 'Magic — выплата курьеру',
+    sub: 'Один вызов: проверка + фискализация', icon: '⚡', status: 'live',
+    when: '<b>Когда использовать:</b> перед каждой выплатой курьеру. Делаем сразу все проверки и фискализируем чек.',
+    desc: 'Это главный endpoint. Вы передаёте ИИН курьера, сумму и ID заказа — мы проверяем валидность ИИН, статус курьера, лимит 300 МРП в месяц и автоматически загружаем заказ в Webkassa для фискализации. Возвращаем единое решение: можно платить или нет.',
+    fields: [
+      { key: 'courier_iin', label: 'ИИН курьера', def: '850101100012',
+        hint: 'Например: <code>850101100012</code> — 12 цифр из удостоверения личности.' },
+      { key: 'amount',      label: 'Сумма выплаты (₸)', def: '50000', type: 'number',
+        hint: 'Сколько вы платите курьеру за этот заказ.' },
+      { key: 'order_id',    label: 'ID заказа в вашей системе', def: () => 'ORD-' + Date.now(),
+        hint: 'Уникальный идентификатор. Это должно совпадать с номером в вашей CRM/базе.' },
+      { key: 'skip_taxpayer_check', label: '⚙ Пропустить проверку реестра (быстрее)', type: 'checkbox', def: true,
+        hint: 'Stat.gov.kz отвечает медленно. Для теста можно пропустить — на лимит и валидацию не влияет.' },
+    ]
+  },
+  { n: 2, code: 'taxpayer_info', title: 'СНР и ОКЭД',
+    sub: 'Проверка по БИН/ИИН через stat.gov.kz', icon: '🔍', status: 'live',
+    when: '<b>Когда использовать:</b> при регистрации нового курьера, чтобы убедиться что у него есть нужный налоговый режим.',
+    desc: 'Запрос идёт в открытый реестр Бюро национальной статистики РК. Возвращаем ОКЭД (вид деятельности), наименование, директора, адрес. Если реестр недоступен — данные выводятся из самой структуры БИН (тип юр.формы).',
+    fields: [ { key: 'bin', label: 'БИН / ИИН (12 цифр)', def: '850101100012',
+                hint: 'Введите ИИН курьера или БИН компании. Например: <code>200940012345</code>.' } ]
+  },
+  { n: 3, code: 'taxpayer_status', title: 'Статус ИП / ФЛ / ТОО',
+    sub: 'Определяем тип юр.формы', icon: '👥', status: 'live',
+    when: '<b>Когда использовать:</b> убедиться что курьер — ИП или самозанятый, а не ТОО (платформам нельзя платить ТОО как курьерам).',
+    desc: 'Анализируем структуру БИН/ИИН и реестр КГД. Возвращаем: ИП / самозанятый / ТОО / АО / филиал / физлицо.',
+    fields: [ { key: 'bin', label: 'БИН / ИИН (12 цифр)', def: '850101100012',
+                hint: 'Тот же формат — 12 цифр.' } ]
+  },
+  { n: 4, code: 'iin_validate', title: 'Валидация ИИН',
+    sub: 'Проверка контрольной цифры', icon: '🛡', status: 'live',
+    when: '<b>Когда использовать:</b> при вводе ИИН в форму регистрации, чтобы поймать опечатки до похода в реестр.',
+    desc: 'Это математическая проверка по Постановлению Правительства РК № 853 — без обращения к сети, мгновенный ответ. Проверяет контрольную цифру, дату рождения, корректность кода века и пола.',
+    fields: [ { key: 'iin', label: 'ИИН для проверки', def: '850101100012',
+                hint: 'Если введёте <code>999999999999</code> — увидите красный отказ.' } ]
+  },
+  { n: 5, code: 'cancel_order', title: 'Аннулирование заказа',
+    sub: 'Soft cancel до фискализации', icon: '🚫', status: 'live',
+    when: '<b>Когда использовать:</b> курьер отказался / клиент отменил заказ ДО того как чек пробит.',
+    desc: 'Помечает заказ как отменённый и откатывает учёт лимита 300 МРП. Работает только если заказ ещё не фискализирован. Если фискальный чек уже выдан КГД — отмена через возвратный чек (отдельная процедура).',
+    fields: [
+      { key: 'order_id', label: 'ID заказа для отмены', def: 'ORD-...',
+        hint: 'Тот самый order_id, который вы передавали в /process-payment.' },
+      { key: 'reason',   label: 'Причина (опционально)', def: 'Курьер отказался',
+        hint: 'Для журнала аудита.' },
+    ]
+  },
+  { n: 6, code: 'receipt_status', title: 'Статус фискального чека',
+    sub: 'Проверка фискализации заказа', icon: '🧾', status: 'live',
+    when: '<b>Когда использовать:</b> курьер уже доставил заказ — проверяем, пробил ли он чек.',
+    desc: 'Возвращает текущий статус чека: ожидает / фискализирован / отменён. Если фискализирован — содержит фискальный номер и ссылку на QR-код от КГД.',
+    fields: [ { key: 'order_id', label: 'ID заказа', def: 'ORD-...',
+                hint: 'Тот самый order_id который был при создании.' } ]
+  },
+  { n: 7, code: 'income_limit', title: 'Лимит 300 МРП в месяц',
+    sub: 'Контроль превышения по самозанятому', icon: '📈', status: 'live',
+    when: '<b>Когда использовать:</b> хотите узнать «сколько ещё можно выплатить этому курьеру в этом месяце».',
+    desc: 'По НК 2026 самозанятый не может зарабатывать больше 300 МРП (1 297 500 ₸) в календарный месяц. При превышении он обязан перейти в ИП. Мы храним все выплаты и считаем нарастающим итогом.',
+    fields: [ { key: 'iin', label: 'ИИН курьера', def: '850101100012',
+                hint: 'Получите остаток лимита по этому ИИН на текущий месяц.' } ]
+  },
+  { n: 8, code: 'self_employed_registry', title: 'Реестр самозанятых',
+    sub: 'Источник: КГД ИСНА', icon: '📋', status: 'demo',
+    when: '<b>Когда использовать:</b> получить список всех самозанятых, зарегистрированных в РК (для верификации курьера).',
+    desc: '⚠ Сейчас возвращаются демо-данные. Реальный реестр доступен только после оформления договора с КГД на API ИСНА — этим занимаемся параллельно.',
+    fields: []
+  },
+  { n: 9, code: 'benefits', title: 'Льготы самозанятых',
+    sub: 'Молодёжь / многодетные / инвалиды', icon: '❤', status: 'demo',
+    when: '<b>Когда использовать:</b> проверить категорию льгот курьера (для расчёта налога с учётом скидок).',
+    desc: '⚠ Сейчас возвращаются демо-данные. Реальные льготы — через API ИСНА после договора с КГД.',
+    fields: [ { key: 'iin', label: 'ИИН для проверки', def: '850101100012',
+                hint: 'Возвращает список категорий: молодёжь, многодетные, инвалиды и т.д.' } ]
+  },
+];
+
+// Цвета для иконок сервисов
+const ICON_BG = {
+  live: { bg: '#DCFCE7', color: '#22C55E' },
+  demo: { bg: '#FEF3C7', color: '#F59E0B' },
+  block: { bg: '#FEE2E2', color: '#EF4444' },
+};
+
+// ── Login ───────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-error');
+
+  btn.disabled = true; btn.textContent = 'Входим...';
+  err.textContent = '';
+
+  try {
+    const r = await fetch(API_BASE + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Ошибка входа');
+    JWT_TOKEN = data.token;
+    sessionStorage.setItem('jwt', JWT_TOKEN);
+    await loadAccount();
+  } catch (e) {
+    err.textContent = e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Войти';
+  }
+}
+
+function doLogout() {
+  JWT_TOKEN = null;
+  sessionStorage.removeItem('jwt');
+  ACCOUNT = null;
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+// ── Load account ────────────────────────────────────────────────────────────
+async function loadAccount() {
+  if (!JWT_TOKEN) return;
+  try {
+    const r = await fetch(API_BASE + '/platform/my-account', {
+      headers: { 'Authorization': 'Bearer ' + JWT_TOKEN },
+    });
+    if (r.status === 401) { doLogout(); return; }
+    const data = await r.json();
+    if (!r.ok || !data.has_platform_access) {
+      document.getElementById('login-error').textContent =
+        data.message || 'У этого аккаунта нет доступа к Platform API';
+      doLogout();
+      return;
+    }
+    ACCOUNT = data;
+    renderDashboard();
+  } catch (e) {
+    alert('Ошибка загрузки аккаунта: ' + e.message);
+  }
+}
+
+// ── Render ──────────────────────────────────────────────────────────────────
+function renderDashboard() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+
+  document.getElementById('client-name').textContent = ACCOUNT.client_name;
+  document.getElementById('client-bin').textContent =
+    ACCOUNT.client_bin ? 'БИН: ' + ACCOUNT.client_bin : 'Enterprise клиент';
+  document.getElementById('stat-requests').textContent = ACCOUNT.requests_this_month;
+  const quotaTxt = ACCOUNT.monthly_quota > 0
+    ? 'из ' + ACCOUNT.monthly_quota.toLocaleString('ru') + ' лимит'
+    : 'безлимит';
+  document.getElementById('stat-quota').textContent = quotaTxt;
+  document.getElementById('stat-issued').textContent = ACCOUNT.receipts.issued;
+  const tot = ACCOUNT.receipts.issued + ACCOUNT.receipts.awaiting +
+              ACCOUNT.receipts.pending + ACCOUNT.receipts.cancelled +
+              ACCOUNT.receipts.failed;
+  document.getElementById('stat-total-receipts').textContent = 'из ' + tot + ' всего';
+  document.getElementById('stat-amount').textContent =
+    Math.round(ACCOUNT.receipts.total_amount).toLocaleString('ru') + ' ₸';
+  document.getElementById('int-base-url').textContent = ACCOUNT.api_base_url;
+  document.getElementById('int-api-key').textContent = ACCOUNT.api_key;
+
+  // Маппинг card.code → feature на сервере (имена не везде совпадают)
+  const FEATURE_MAP = {
+    'process_payment':         ['process_payment'],
+    'taxpayer_info':           ['taxpayer_info'],
+    'taxpayer_status':         ['taxpayer_info'],   // используем тот же endpoint
+    'iin_validate':            ['iin_validate'],
+    'cancel_order':            ['cancel_receipt'],  // сервер называет фичу так
+    'receipt_status':          ['receipt_status'],
+    'income_limit':            ['income_limit'],
+    'self_employed_registry':  ['self_employed_registry'],
+    'benefits':                ['benefits'],
+  };
+
+  const grid = document.getElementById('services-grid');
+  grid.innerHTML = '';
+  for (const s of SERVICES) {
+    const required = FEATURE_MAP[s.code] || [s.code];
+    const enabled = required.some(f => ACCOUNT.features.includes(f));
+    const card = document.createElement('div');
+    const c = ICON_BG[s.status];
+    card.className = 'service' + (enabled ? '' : ' disabled');
+    card.innerHTML = `
+      <div class="service-header">
+        <div class="service-icon" style="background:${c.bg}; color:${c.color}">${s.icon}</div>
+        <div class="service-status ${s.status === 'live' ? 'live' : s.status === 'demo' ? 'demo' : 'block'}">
+          ${s.status === 'live' ? 'БОЕВОЙ' : s.status === 'demo' ? 'DEMO' : 'БЛОКЕР'}
+        </div>
+      </div>
+      <div>
+        <div class="service-title">${s.n}. ${s.title}</div>
+        <div class="service-sub">${s.sub}</div>
+        ${s.when ? `<div class="service-when">${s.when}</div>` : ''}
+      </div>
+      ${enabled ? `<div class="service-cta" style="color:${c.color}">Попробовать →</div>` : ''}
+    `;
+    if (enabled) card.onclick = () => openModal(s);
+    grid.appendChild(card);
+  }
+}
+
+// ── Modal ───────────────────────────────────────────────────────────────────
+function openModal(service) {
+  ACTIVE_SERVICE = service;
+  document.getElementById('modal-title').textContent = service.title;
+  const form = document.getElementById('modal-form');
+
+  // Описание сервиса — сверху, выше формы
+  let html = '';
+  if (service.desc) {
+    html += `<div class="service-desc">${service.desc}</div>`;
+  }
+
+  // Поля формы
+  for (const f of service.fields) {
+    if (f.type === 'checkbox') {
+      html += `<label style="display:flex; align-items:center; gap:8px; margin-top:10px">
+                 <input type="checkbox" id="f_${f.key}" ${f.def ? 'checked' : ''} style="width:auto">
+                 <span>${f.label}</span>
+               </label>`;
+      if (f.hint) html += `<div class="field-hint" style="margin-left:26px">${f.hint}</div>`;
+    } else {
+      const def = typeof f.def === 'function' ? f.def() : f.def;
+      html += `<label>${f.label}</label>
+               <input id="f_${f.key}" type="${f.type || 'text'}" value="${def}">`;
+      if (f.hint) html += `<div class="field-hint">${f.hint}</div>`;
+    }
+  }
+  if (service.fields.length === 0) {
+    html += `<div style="background:#FEF3C7; padding:12px; border-radius:8px; font-size:13px">
+      ⚠ Параметры не нужны. Нажмите «Выполнить» чтобы увидеть demo-ответ.
+    </div>`;
+  }
+  form.innerHTML = html;
+  document.getElementById('modal-result').innerHTML = '';
+  document.getElementById('modal-bg').style.display = 'flex';
+}
+function closeModal() {
+  document.getElementById('modal-bg').style.display = 'none';
+  loadAccount(); // обновим статистику
+}
+
+// ── Execute ─────────────────────────────────────────────────────────────────
+async function executeService() {
+  const s = ACTIVE_SERVICE;
+  const btn = document.getElementById('exec-btn');
+  const out = document.getElementById('modal-result');
+  btn.disabled = true; btn.textContent = '⏳ Выполняем...';
+  out.innerHTML = '';
+
+  // Сбор полей
+  const vals = {};
+  for (const f of s.fields) {
+    const el = document.getElementById('f_' + f.key);
+    vals[f.key] = f.type === 'checkbox' ? el.checked :
+                  f.type === 'number' ? parseFloat(el.value) : el.value.trim();
+  }
+
+  let url, method = 'GET', body = null;
+  switch (s.code) {
+    case 'iin_validate':
+      url = '/platform/iin/validate/' + encodeURIComponent(vals.iin); break;
+    case 'taxpayer_info':
+    case 'taxpayer_status':
+      url = '/platform/taxpayer/' + encodeURIComponent(vals.bin); break;
+    case 'income_limit':
+      url = '/platform/income-limit/status/' + encodeURIComponent(vals.iin); break;
+    case 'process_payment':
+      url = '/platform/process-payment'; method = 'POST'; body = vals; break;
+    case 'cancel_order':
+      url = '/platform/cancel-order'; method = 'POST'; body = vals; break;
+    case 'receipt_status':
+      // Используем те же данные что в process-payment — но просто покажем последний чек
+      url = '/platform/process-payment'; method = 'POST';
+      body = { courier_iin: '850101100012', amount: 1, order_id: vals.order_id, skip_taxpayer_check: true };
+      break;
+    case 'self_employed_registry':
+      url = '/platform/self-employed/registry'; break;
+    case 'benefits':
+      url = '/platform/self-employed/benefits/' + encodeURIComponent(vals.iin || '850101100012'); break;
+  }
+
+  try {
+    const r = await fetch(API_BASE + url, {
+      method,
+      headers: {
+        'X-Platform-Key': ACCOUNT.api_key,
+        'Content-Type': 'application/json',
+      },
+      body: body ? JSON.stringify(body) : null,
+    });
+    const data = await r.json();
+    renderResult(data, r.status);
+  } catch (e) {
+    renderResult({ error: e.message }, 500);
+  } finally {
+    btn.disabled = false; btn.textContent = '▶ Выполнить запрос';
+  }
+}
+
+function renderResult(data, status) {
+  const out = document.getElementById('modal-result');
+  const decision = data.decision;
+  const httpOk = status >= 200 && status < 300;
+  const hasError = !!data.error;
+  const explicitFail = data.valid === false || data.can_pay === false ||
+                       decision === 'BLOCK' || data.ok === false;
+
+  // WARNING — есть предупреждения но не критично
+  const warn = decision === 'WARNING' ||
+               data.mode === 'demo' ||
+               (Array.isArray(data.warnings) && data.warnings.length > 0) ||
+               (typeof data.warning === 'string' && data.warning.length > 0) ||
+               data.source === 'fallback' ||
+               (status === 502 && !!data.bin);
+
+  // OK — HTTP 2xx + нет error + нет явного отказа
+  const ok = httpOk && !hasError && !explicitFail && !warn;
+
+  // Иначе ошибка
+  const cls = warn ? 'warn' : ok ? 'ok' : 'error';
+  const icon = warn ? '⚠' : ok ? '✓' : '✕';
+  const label = warn ? 'Выполнено с предупреждением' :
+                ok   ? 'Запрос выполнен успешно' :
+                hasError ? 'Ошибка: ' + data.error :
+                explicitFail ? 'Проверка не пройдена' :
+                       'Ошибка / отказ (HTTP ' + status + ')';
+  const json = JSON.stringify(data, null, 2);
+  const human = humanReadable(ACTIVE_SERVICE?.code, data);
+  out.innerHTML = `
+    <div class="result">
+      <div class="result-head ${cls}">
+        <span>${icon}</span><span>${label}</span>
+        <div style="flex:1"></div>
+      </div>
+      ${human ? `<div class="human-result">${human}</div>` : ''}
+      <details ${human ? '' : 'open'}>
+        <summary style="cursor:pointer; padding:8px 14px; font-size:12px; color:#0EA5E9; background:#F8FAFC; border-top:1px solid #E2E8F0">
+          📄 Показать ответ сервера (JSON) — для разработчика
+          <button class="copy-btn" onclick="event.preventDefault(); copyJson(this)" style="float:right">Копировать</button>
+        </summary>
+        <pre id="result-json">${escapeHtml(json)}</pre>
+      </details>
+    </div>
+  `;
+}
+
+// ── Человеко-понятное объяснение результата ─────────────────────────────────
+function humanReadable(code, d) {
+  if (!d || typeof d !== 'object') return null;
+
+  // Универсальные блоки
+  const row = (icon, text) => `<div class="rrow"><div class="ricon">${icon}</div><div class="rtext">${text}</div></div>`;
+  const fmt = (n) => Math.round(n).toLocaleString('ru');
+  const out = [];
+
+  // ── По коду сервиса ────────────────────────────────────────────────────
+  if (code === 'iin_validate') {
+    if (d.valid === true) {
+      out.push(row('✅', `Этот ИИН — <b>валиден</b>.`));
+      if (d.details) {
+        const g = d.details.gender === 'male' ? 'мужчина' : 'женщина';
+        out.push(row('🎂', `Дата рождения: <b>${d.details.birthDate}</b>, ${g}`));
+      }
+    } else {
+      out.push(row('❌', `ИИН <b>не прошёл проверку</b>: ${d.reason || 'неверная контрольная цифра'}`));
+      out.push(row('💡', `Проверьте опечатки — это математическая проверка, выявляет 99% ошибок ввода.`));
+    }
+  }
+
+  if (code === 'taxpayer_info' || code === 'taxpayer_status') {
+    if (d.found_in_registry) {
+      out.push(row('✅', `Налогоплательщик найден в реестре.`));
+      if (d.name) out.push(row('🏢', `<b>${d.name}</b>`));
+      if (d.entity_type?.name) out.push(row('🏷', `Тип: <b>${d.entity_type.name}</b>${d.entity_type.is_ip ? ' (это ИП — можно платить как самозанятому)' : ''}`));
+      if (d.oked?.main_name) out.push(row('💼', `Деятельность: ${d.oked.main_code} — ${d.oked.main_name}`));
+    } else if (d.entity_type) {
+      out.push(row('⚠', `Реестр stat.gov.kz недоступен, но мы определили <b>${d.entity_type.name}</b> из структуры БИН.`));
+      out.push(row('💡', `Это нормально для тестового стенда — на проде stat.gov.kz отдаёт полные данные.`));
+    }
+  }
+
+  if (code === 'income_limit') {
+    if (d.limit) {
+      const used = d.used_tenge || 0;
+      const remaining = d.remaining_tenge || 0;
+      const pct = d.percent_used || 0;
+      out.push(row('💰', `Уже выплачено в ${d.month}: <b>${fmt(used)} ₸</b> из ${fmt(d.limit.tenge)} ₸ (${pct}%)`));
+      out.push(row('✅', `Осталось до лимита: <b>${fmt(remaining)} ₸</b>`));
+      if (pct >= 80) {
+        out.push(row('⚠', `<b>Внимание:</b> курьер близок к лимиту 300 МРП. После превышения он обязан перейти в ИП.`));
+      } else {
+        out.push(row('👍', `Лимит не превышен — можно продолжать выплаты.`));
+      }
+    }
+  }
+
+  if (code === 'process_payment') {
+    if (d.decision === 'PROCEED') {
+      out.push(row('✅', `<b>Можно платить курьеру.</b> Все проверки пройдены, чек поставлен в очередь на фискализацию.`));
+    } else if (d.decision === 'WARNING') {
+      out.push(row('⚠', `Платить <b>можно, но обратите внимание</b>:`));
+      (d.warnings || []).forEach(w => out.push(row('•', w)));
+    } else if (d.decision === 'BLOCK') {
+      out.push(row('🛑', `<b>Платить нельзя.</b> Причина:`));
+      (d.errors || []).forEach(e => out.push(row('•', e)));
+    }
+    if (d.income_limit) {
+      out.push(row('📊', `После этой выплаты: ${fmt(d.income_limit.would_be_total)} ₸ из ${fmt(d.income_limit.limit)} ₸`));
+    }
+    if (d.fiscal_status === 'awaiting_courier_fiscalization') {
+      out.push(row('🧾', `Заказ загружен в Webkassa. Курьер пробьёт чек через мобильное приложение.`));
+    } else if (d.fiscal_status === 'queued') {
+      out.push(row('⏳', `Чек в очереди (фискализация временно выключена флагом).`));
+    } else if (d.fiscal_status === 'upload_failed') {
+      out.push(row('❗', `Не удалось загрузить в Webkassa — заказ помечен у нас, фискализация будет позже.`));
+    }
+  }
+
+  if (code === 'cancel_order') {
+    if (d.ok && d.new_status === 'cancelled') {
+      out.push(row('✅', `Заказ <b>${d.order_id}</b> помечен как отменённый.`));
+      if (d.previous_status) out.push(row('ℹ', `Был статус: ${d.previous_status}`));
+    } else if (d.idempotent) {
+      out.push(row('ℹ', `Заказ <b>уже был отменён ранее.</b> Повторный вызов не изменил ничего.`));
+    } else if (d.error === 'CANNOT_SOFT_CANCEL') {
+      out.push(row('🛑', `Заказ уже фискализирован — soft cancel невозможен. Нужен возвратный чек.`));
+    } else if (d.error) {
+      out.push(row('❌', d.error));
+    }
+  }
+
+  if (code === 'self_employed_registry' && d.mode === 'demo') {
+    out.push(row('⚠', `Это <b>демонстрационные данные</b> — не реальный реестр КГД.`));
+    if (Array.isArray(d.data)) out.push(row('📋', `В демо-реестре <b>${d.data.length}</b> курьеров.`));
+    out.push(row('💡', `На проде источник — API ИСНА (knp.kgd.gov.kz). Договор с КГД оформляется параллельно.`));
+  }
+
+  if (code === 'benefits' && d.mode === 'demo') {
+    out.push(row('⚠', `Это <b>демонстрационные данные</b>.`));
+    out.push(row('🏷', `Возможные категории: молодёжь, многодетная семья, инвалидность, многодетная мать.`));
+    out.push(row('💡', `Реальное определение льгот — через API ИСНА КГД (в работе).`));
+  }
+
+  if (out.length === 0) return null;
+  return `<h4>📖 Что это значит:</h4>${out.join('')}<button class="json-toggle" onclick="this.previousElementSibling.scrollIntoView()">показать технические детали ниже ↓</button>`;
+}
+
+function copyJson(btn) {
+  const txt = document.getElementById('result-json').textContent;
+  navigator.clipboard.writeText(txt);
+  btn.textContent = '✓ Скопировано';
+  setTimeout(() => { btn.textContent = 'Копировать JSON'; }, 1500);
+}
+function copyApiKey() {
+  navigator.clipboard.writeText(ACCOUNT.api_key);
+  alert('Ключ скопирован');
+}
+function hideWelcome() {
+  document.getElementById('welcome').style.display = 'none';
+  localStorage.setItem('welcome_hidden', '1');
+}
+// Если ранее уже прятали — не показываем
+if (localStorage.getItem('welcome_hidden') === '1') {
+  document.addEventListener('DOMContentLoaded', () => {
+    const w = document.getElementById('welcome');
+    if (w) w.style.display = 'none';
+  });
+}
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── Auto-login if token exists ─────────────────────────────────────────────
+if (JWT_TOKEN) loadAccount();
+</script>
+</body>
+</html>

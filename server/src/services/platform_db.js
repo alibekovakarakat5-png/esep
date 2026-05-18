@@ -19,12 +19,13 @@ async function migratePlatform() {
     -- ════════════════════════════════════════════════════════════════════════
     CREATE TABLE IF NOT EXISTS platform_api_keys (
       id                    UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id               UUID        REFERENCES users(id) ON DELETE SET NULL,  -- владелец-пользователь Esep
       api_key               TEXT        UNIQUE NOT NULL,
       client_name           TEXT        NOT NULL,
-      client_bin            TEXT,        -- БИН клиента (курьерской службы)
+      client_bin            TEXT,
       tier                  TEXT        NOT NULL DEFAULT 'enterprise',
-      features              JSONB       NOT NULL DEFAULT '[]',  -- массив ['iin_validate', 'fiscalize', ...]
-      monthly_quota         INT         NOT NULL DEFAULT 0,     -- 0 = безлимит
+      features              JSONB       NOT NULL DEFAULT '[]',
+      monthly_quota         INT         NOT NULL DEFAULT 0,
       requests_this_month   INT         NOT NULL DEFAULT 0,
       requests_total        BIGINT      NOT NULL DEFAULT 0,
       monthly_reset_at      DATE        NOT NULL DEFAULT (DATE_TRUNC('month', NOW()) + INTERVAL '1 month')::DATE,
@@ -35,7 +36,10 @@ async function migratePlatform() {
       last_used_at          TIMESTAMPTZ,
       created_at            TIMESTAMPTZ DEFAULT NOW()
     );
+    -- Миграция для существующих БД (если колонки нет)
+    ALTER TABLE platform_api_keys ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;
     CREATE INDEX IF NOT EXISTS idx_platform_keys_active ON platform_api_keys(is_active);
+    CREATE INDEX IF NOT EXISTS idx_platform_keys_user ON platform_api_keys(user_id);
 
     -- ════════════════════════════════════════════════════════════════════════
     -- 2) Учёт дохода самозанятых для проверки лимита 300 МРП в месяц

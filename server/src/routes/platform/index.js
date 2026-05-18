@@ -32,6 +32,7 @@ const incomeLimit = require('./income_limit');
 const processPayment = require('./process_payment');
 const cancelOrder = require('./cancel_order');
 const webhooks = require('./webhooks');
+const myAccount = require('./my_account');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/platform — описание API
@@ -85,6 +86,7 @@ router.use('/income-limit', incomeLimit);
 router.use('/process-payment', processPayment);  // ← MAGIC endpoint для курьерки
 router.use('/cancel-order', cancelOrder);        // ← Сервис #5 аннулирование
 router.use('/webhooks', webhooks);               // ← приём уведомлений от Webkassa
+router.use('/my-account', myAccount);            // ← для Flutter — JWT auth, не X-Platform-Key
 
 // TODO: подключим когда напишу
 // router.use('/fiscalize', fiscalize);
