@@ -383,6 +383,22 @@ if (staticPath) {
   console.warn('[static] public folder NOT FOUND, tried:', possiblePublicPaths);
 }
 
+// Явный fallback-роут — гарантированно работает если файл есть где угодно
+app.get('/platform.html', (_req, res) => {
+  for (const p of possiblePublicPaths) {
+    const full = path.join(p, 'platform.html');
+    if (fs.existsSync(full)) {
+      return res.sendFile(full);
+    }
+  }
+  res.status(500).type('text/plain').send(
+    'platform.html not found. Tried:\n  ' +
+    possiblePublicPaths.map(p => path.join(p, 'platform.html')).join('\n  ') +
+    '\n\n__dirname=' + __dirname +
+    '\ncwd=' + process.cwd()
+  );
+});
+
 // Auth recovery: только привязка Telegram (всё под авторизацией).
 // Восстановление пароля идёт через TG-бота (команда /reset email).
 app.use('/api/auth', authMiddleware, authRecoveryRoutes);
