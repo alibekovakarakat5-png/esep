@@ -2,6 +2,9 @@
 
 Чтобы не перечитывать одни и те же файлы. Здесь — карта проектов и где что лежит.
 
+> **Дата актуальности этого файла:** 2026-05-18.
+> Свежие разделы внизу — Platform API + Enterprise клиенты (раздел 14).
+
 ---
 
 ## 1. Два проекта (продаются по отдельности)
@@ -396,3 +399,240 @@ PNG-кадры в `out/Esep<Name>/`, encoder на http://localhost:3099 прео
 - Раздел 10 (история коммитов) — после каждой крупной серии правок
 - Раздел 11 (TODO) — отмечать сделанное, добавлять новое
 - Раздел 9 (статус курса) — при изменениях в проверке/публикации
+- Раздел 14 (Platform API + enterprise клиенты) — добавлять новых клиентов и сервисы
+
+---
+
+## 14. Platform API — enterprise клиенты с кастомным набором сервисов
+
+**Дата создания раздела:** 2026-05-18.
+
+С мая 2026 у Esep появился **новый класс клиентов** — крупные платформы (курьерские службы,
+маркетплейсы, агрегаторы), которым нужны не классические бухгалтерские фичи, а
+**B2B API-сервисы** для compliance-задач по НК 2026 (платформенная экономика).
+
+Под них в Esep построен отдельный модуль **Platform API** — мульти-тенантный API с
+авторизацией по `X-Platform-Key`, feature flags на каждого клиента и подключаемым
+набором ОФД-провайдеров.
+
+### 14.1. Архитектура Platform API
+
+```
+КЛИЕНТ-ПЛАТФОРМА             ESEP PLATFORM API              ВНЕШНИЕ СИСТЕМЫ
+                  HTTPS                          HTTPS
+[курьерка/мп] ───────►  /api/platform/*  ──────────►  stat.gov.kz (СНР/ОКЭД)
+                          │                            Webkassa (фискализация)
+                          │                            КГД ИСНА (реестр, льготы)
+                  POST /webhook        ◄──────────  Webkassa (фискализация курьером)
+```
+
+- **БД:** Postgres, 4 новые таблицы (`platform_api_keys`, `platform_self_employed_income`,
+  `platform_receipts`, `platform_audit_log`) — см. `server/src/services/platform_db.js`
+- **Tier:** новый `enterprise` в `server/src/tiers.js` (раньше было только free/solo/
+  accountant/accountant_pro)
+- **Auth:** middleware `server/src/middleware/platform_api_key.js` — проверяет ключ,
+  фичи в `features[]`, месячный лимит запросов, ведёт счётчик
+- **Featured flags на ключ:** не все клиенты получают все сервисы — каждому даём
+  персональный набор фич в `platform_api_keys.features` JSON
+
+### 14.2. Первый клиент — курьерская служба
+
+**Кейс:** курьерская служба платит курьерам-самозанятым. По НК 2026 (Закон 214-VIII)
+платформа выступает налоговым агентом и обязана:
+1. Проверять статус курьера (ИП/ФЛ/самозанятый)
+2. Фискализировать каждую выплату
+3. Следить за лимитом 300 МРП в месяц на каждого курьера
+4. Удерживать налог 4% (для самозанятых)
+
+**Без нашего сервиса** клиенту пришлось бы: договор с КГД, договор с ОФД, своя
+интеграция, штат compliance. **Через нас** — один API-вызов с одним заголовком.
+
+**Статус сделки:** обсуждение, demo показывается.
+
+### 14.3. 9 сервисов в Platform API
+
+Все доступны по URL префиксу `/api/platform/*`, авторизация `X-Platform-Key: <ключ>`.
+
+| # | Endpoint | Источник данных | Статус | Что делает |
+|---|---|---|---|---|
+| 1 | `POST /process-payment` | алгоритм + БД + Webkassa | 🟢 **MAGIC** | Один вызов = вся логика (валидация ИИН + ОКЭД + лимит + Webkassa + БД) |
+| 2 | `GET /taxpayer/:bin` | stat.gov.kz | 🟢 Live | СНР, ОКЭД, статус ИП/ФЛ/ТОО |
+| 3 | `GET /taxpayer/:bin` (тот же) | stat.gov.kz | 🟢 Live | Поле `entity_type.is_ip` |
+| 4 | `POST /iin/validate` | алгоритм | 🟢 Live | Валидация ИИН по контрольной цифре (ПП РК № 853) |
+| 5 | `POST /cancel-order` | наша БД + Webkassa | 🟢 Live | Soft cancel + откат учёта лимита |
+| 6 | (вшито в платёж/webhook) | Webkassa Check/HistoryByNumber | 🟢 Live | Статус фискализации через webhook |
+| 7 | `GET /income-limit/*` | наша БД + НК 2026 | 🟢 Live | Лимит 300 МРП в месяц, прогресс-бар |
+| 8 | `GET /self-employed/registry` | КГД ИСНА | ⚠ Demo | Заглушка до договора с КГД |
+| 9 | `GET /self-employed/benefits/:iin` | КГД ИСНА | ⚠ Demo | Заглушка до договора с КГД |
+| + | `POST /webhooks/webkassa-courier` | Webkassa → нам | 🟢 Live | Принимает уведомление о фискализации курьером, обновляет статус чека |
+
+**Магический endpoint `/process-payment`** объединяет шаги 1-7 в один вызов и
+возвращает `decision: PROCEED | BLOCK | WARNING`.
+
+### 14.4. Файлы Platform API
+
+```
+server/src/
+├── tiers.js                              # ← добавлен 'enterprise'
+├── middleware/
+│   └── platform_api_key.js               # API-key + feature flags + квоты
+├── services/
+│   ├── iin_algorithm.js                  # валидация ИИН (Постановление № 853)
+│   ├── platform_db.js                    # миграции 4 таблиц + helpers
+│   ├── taxpayer_lookup.js                # каскад stat.gov.kz + fallback
+│   └── webkassa_client.js                # клиент Webkassa Integrators API v4
+└── routes/platform/
+    ├── index.js                          # главный роутер + /me + описание
+    ├── iin_validate.js                   # сервис #4
+    ├── taxpayer_info.js                  # сервисы #2, #3
+    ├── income_limit.js                   # сервис #7
+    ├── process_payment.js                # ← MAGIC сервис #1
+    ├── cancel_order.js                   # сервис #5
+    └── webhooks.js                       # приём от Webkassa
+
+server/scripts/
+├── seed_demo_courier_client.js           # генератор API-ключа для клиента
+├── test_platform_e2e.js                  # автоматический e2e (24 проверки)
+└── test_webkassa_smoke.js                # smoke против реальной Webkassa
+
+docs/webkassa/
+├── api_v4_2.0.3_notes.md                 # выжимка из Postman docs
+└── webkassa_docs.html                    # сохранённая копия
+
+server/.env.platform.example              # шаблон env-переменных
+```
+
+### 14.5. Webkassa интеграция
+
+ОФД-провайдер для фискализации платформенных выплат.
+
+- **Тип аккаунта:** интегратор (ТОО Ибрагимова К.М, БИН 241040036923)
+- **Тестовая среда:** `https://devkkm.webkassa.kz`
+- **Касса (тест):** `SWK00035492` (Тестовая касса 18.05.26 16:45)
+- **Документация:** Postman Integrators v4-2.0.3 — https://documenter.getpostman.com/view/48749526/2sBXc8o3JF
+
+**Использованные методы:**
+
+| Метод | URL | Назначение |
+|---|---|---|
+| `POST /api/v4/Authorize` | авторизация | Получить токен (hex, ~32 символа) |
+| `POST /api-portal/v4/cashbox/client-info` | информация о кассе | CashboxStatus, лицензия, ОФД |
+| `POST /api/Courier/UploadExternalOrder` | загрузка курьерского заказа | ⚠ URL **без /v4/** — это критично |
+| `POST /api/v4/Check/HistoryByNumber` | статус чека | Сервис #6 |
+| `POST /api/v4/Ticket/PrintFormat` | печатная форма | Для PDF/принтера |
+
+**Архитектура «платформенная экономика»:**
+
+```
+1. Курьерка → нам /process-payment
+2. Мы → Webkassa /api/Courier/UploadExternalOrder (загружаем заказ)
+3. Курьер на телефоне видит заказ в приложении Webkassa
+4. Курьер пробивает чек при доставке (Webkassa регистрирует в КГД сама)
+5. Webkassa → нам webhook /webhooks/webkassa-courier
+6. Мы обновляем status='issued', сохраняем фискальный №
+7. Курьерка читает статус через GET /receipts/:order_id
+```
+
+**ВАЖНЫЕ нюансы Webkassa API:**
+
+1. **Все методы POST** — даже информационные
+2. **HTTP 200 при ошибках** — ошибки в `body.Errors[]`, не в HTTP-статусе.
+   Клиент `webkassa_client.js` корректно ловит это в `_request()` и бросает exception.
+3. **Casing непостоянен** — где-то `CashboxUniqueNumber` (Pascal), где-то
+   `cashboxUniqueNumber` (camel). Сверяться с curl-примером в docs, не с шапкой метода.
+4. **Failover** — при коде 505 Webkassa возвращает в HTTP-заголовке
+   `AlternativeDomainNames` список запасных хостов через запятую. Клиент это
+   парсит и повторяет запрос автоматически.
+5. **72 часа автономный режим** — если касса 72ч без связи с ОФД → код 18.
+6. **OrderNumber должен быть уникален в рамках организации** — иначе ошибка дубликата.
+
+### 14.6. Известные блокеры (внешние)
+
+| Блокер | Что это | Что делать | Срок |
+|---|---|---|---|
+| **Webkassa Code 4** | «Пользователь не имеет прав доступа к функционалу Курьеры» | Активировать модуль через ЛК (Кабинет интегратора) или через саппорт | 1-2 дня |
+| **Договор с КГД (ИСНА API)** | Для сервисов #8 (реестр), #9 (льготы) | Запрос через клиента-маркетплейса либо через `knpsd@ecc.kz` | 2-4 недели |
+| **Webhook URL в Webkassa** | Куда Webkassa шлёт уведомление о фискализации | Настроить в ЛК Webkassa после деплоя на прод. URL: `https://api.esepkz.com/api/platform/webhooks/webkassa-courier` | После деплоя |
+
+### 14.7. Что протестировано
+
+**Локально (на машине разработчика, port 4123, Postgres в Docker):**
+- ✅ E2E автотест: 24/24 прохода (`test_platform_e2e.js`)
+- ✅ Ручное прокликивание: 18/18 endpoint'ов
+- ✅ Webhook от Webkassa симулирован, БД обновляется, ответ `0` возвращается
+- ✅ Авторизация Webkassa (реальная) — токен получается
+- ✅ Информация о кассе (реальная) — CashboxStatus=1
+- ✅ Лимит 300 МРП — корректно блокирует на 6-й выплате по 250к
+- ✅ Soft cancel — идемпотентность, защита от чужого order_id
+- ✅ Безопасность: 401 без ключа, 403 невалидный ключ, 403 нет фичи
+
+**Не работает в Webkassa (внешний блокер):**
+- ❌ `POST /api/Courier/UploadExternalOrder` → Code 4 (нет прав)
+
+### 14.8. Конфигурация env
+
+В `.env` (или Railway переменные):
+
+```
+# Обязательные (БД и аутентификация Esep)
+DATABASE_URL=postgres://...
+JWT_SECRET=<32+ chars>
+
+# Webkassa (для enterprise-клиентов с фискализацией)
+WEBKASSA_BASE_URL=https://devkkm.webkassa.kz    # или прод когда выпустят
+WEBKASSA_API_KEY=WKD-XXXX-XXXX-XXXX
+WEBKASSA_LOGIN=<email>
+WEBKASSA_PASSWORD=<password>
+WEBKASSA_KASSA_NUMBER=SWK00035492
+
+# Флаг включения реальной фискализации (false = только сохранение в БД)
+PLATFORM_FISCALIZATION_ENABLED=false
+```
+
+### 14.9. Скрипты для тестирования
+
+```bash
+# Локально (Postgres в Docker):
+docker run -d --name esep-test-pg -e POSTGRES_PASSWORD=test123 \
+  -e POSTGRES_USER=esep -e POSTGRES_DB=esep_test \
+  -p 5439:5432 postgres:16-alpine
+
+# Запуск сервера с env (нет dotenv в index.js, передаём inline):
+cd server
+DATABASE_URL='postgres://esep:test123@localhost:5439/esep_test' \
+JWT_SECRET='test_secret_xxxxxxxxxxxxxxxxxxxxxxxxxx' \
+PORT=4123 node src/index.js
+
+# Создать тестового enterprise-клиента (получить API-ключ для презентации):
+node scripts/seed_demo_courier_client.js
+
+# Прогон полного e2e теста:
+node scripts/test_platform_e2e.js
+
+# Smoke реальной Webkassa (после заполнения WEBKASSA_* в env):
+node scripts/test_webkassa_smoke.js
+```
+
+### 14.10. План на ближайшее
+
+- [ ] Получить от Webkassa активацию курьерского модуля (Code 4)
+- [ ] Настроить webhook URL в ЛК Webkassa после деплоя
+- [ ] Подготовить Flutter-UI: кастомный дашборд для enterprise клиентов
+      (просмотр статуса чеков, лимит курьеров, история операций)
+- [ ] Сделать `GET /api/platform/receipts/:order_id` (статус чека для клиента)
+- [ ] Письмо в `knpsd@ecc.kz` на ИСНА API (для сервисов #8, #9)
+- [ ] Коммерческое предложение (3 этапа: pilot → pre-production → production)
+- [ ] Запросить у клиента тестовые данные курьеров для прогона полного потока
+
+### 14.11. Бизнес-логика выбора клиентов
+
+- **Обычные клиенты (free/solo/accountant/accountant_pro)** — пользуются классическим
+  Esep: учёт, счета, налоги, ЭСФ, дашборд.
+- **Enterprise клиенты** — НЕ используют Flutter-приложение Esep как пользователь.
+  Они интегрируют наш Platform API в **свою** систему через REST. Каждому
+  enterprise-клиенту даём **кастомный набор фич** (определяется в admin-панели или
+  через скрипт `seed_demo_courier_client.js`).
+
+  Тарификация enterprise — индивидуально, не через стандартные тарифы
+  free/solo/etc. Биллинг — по `monthly_quota` запросов или per-transaction
+  через `platform_audit_log`.

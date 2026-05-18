@@ -31,6 +31,8 @@ const taxProfileRoutes                    = require('./routes/tax-profile');
 const kbkRoutes                           = require('./routes/kbk');
 const { migrateAuthRecovery }             = require('./services/auth_recovery_db');
 const authRecoveryRoutes                  = require('./routes/auth-recovery');
+const { migratePlatform }                 = require('./services/platform_db');
+const platformRoutes                      = require('./routes/platform');
 
 // ── Env validation ───────────────────────────────────────────────────────────
 const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET'];
@@ -286,6 +288,13 @@ async function migrate() {
   } catch (err) {
     console.error('[auth-recovery] migration failed:', err.message);
   }
+
+  // Platform API (enterprise клиенты — курьерская служба, маркетплейсы)
+  try {
+    await migratePlatform();
+  } catch (err) {
+    console.error('[platform] migration failed:', err.message);
+  }
 }
 
 // ── Middleware ────────────────────────────────────────────────────────────────
@@ -349,6 +358,7 @@ app.use('/api/esf-recon',    authMiddleware, esfReconRoutes);
 app.use('/api/account',      authMiddleware, accountRoutes);
 app.use('/api/tax-profile',  authMiddleware, taxProfileRoutes);
 app.use('/api/kbk',          authMiddleware, kbkRoutes);
+app.use('/api/platform',     platformRoutes);    // Enterprise Platform API — auth внутри (X-Platform-Key)
 
 // Auth recovery: только привязка Telegram (всё под авторизацией).
 // Восстановление пароля идёт через TG-бота (команда /reset email).
