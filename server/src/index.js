@@ -364,13 +364,14 @@ app.use('/api/platform',     platformRoutes);    // Enterprise Platform API — 
 const path = require('path');
 const fs = require('fs');
 
-// Пробуем несколько возможных путей (зависит от того, как Railway копирует проект)
+// Пробуем несколько возможных путей. На Railway работает src/public/
+// (NIXPACKS копирует src/, но не корневой public/ или server/public/).
 const possiblePublicPaths = [
-  path.join(__dirname, '..', 'public'),        // обычный путь: server/public/
+  path.join(__dirname, 'public'),               // src/public/ — основной путь
+  path.join(__dirname, '..', 'public'),         // обычный путь: server/public/ (локально)
   path.join(process.cwd(), 'public'),           // если CWD=server/
+  path.join(process.cwd(), 'src', 'public'),    // если CWD=server/, public в src/
   path.join(process.cwd(), 'server', 'public'), // если CWD=repo root
-  '/app/server/public',                         // Railway, если копируется весь репо
-  '/app/public',                                // Railway, если server/ = root
 ];
 let staticPath = null;
 for (const p of possiblePublicPaths) {
