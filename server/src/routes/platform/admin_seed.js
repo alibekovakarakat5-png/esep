@@ -23,11 +23,25 @@ const ALL_FEATURES = [
 ];
 
 router.post('/courier-demo', async (req, res) => {
-  const secret = req.headers['x-admin-secret'];
-  // Защита: либо явный PLATFORM_ADMIN_SECRET, либо JWT_SECRET (он точно задан)
-  const expected = process.env.PLATFORM_ADMIN_SECRET || process.env.JWT_SECRET;
-  if (!secret || secret !== expected) {
-    return res.status(403).json({ error: 'forbidden' });
+  // Bootstrap-режим: если в БД ещё нет ни одного enterprise-юзера, разрешаем
+  // вызов без секрета (одноразовая инициализация). Иначе требуем admin-secret.
+  let bootstrapMode = false;
+  try {
+    const { rows: [c] } = await db.query(
+      `SELECT COUNT(*)::int AS n FROM users WHERE tier = 'enterprise'`
+    );
+    bootstrapMode = c.n === 0;
+  } catch { /* таблицы ещё нет */ }
+
+  if (!bootstrapMode) {
+    const secret = req.headers['x-admin-secret'];
+    const expected = process.env.PLATFORM_ADMIN_SECRET || process.env.JWT_SECRET;
+    if (!secret || secret !== expected) {
+      return res.status(403).json({
+        error: 'forbidden',
+        hint: 'Enterprise-юзеры уже есть в БД. Используйте x-admin-secret.',
+      });
+    }
   }
 
   const email = req.body?.email || 'kurier-demo@esepkz.com';
