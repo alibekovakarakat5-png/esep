@@ -81,8 +81,17 @@ function validateIinChecksum(iin) {
     century = 2000;
     gender = centuryCode === 3 ? 'male' : 'female';
   } else if (centuryCode === 5 || centuryCode === 6) {
+    // Коды 5/6 встречаются для актуальных ИИН в РК. Официальная трактовка
+    // (XXII век) даёт год в будущем — это нормально только для будущих
+    // поколений. В реальности же 5/6 используют для XXI века тоже.
+    // Логика: пробуем XXII → если в будущем → fallback на XXI.
     century = 2100;
     gender = centuryCode === 5 ? 'male' : 'female';
+    const tryYear = 2100 + yy;
+    const now = new Date();
+    if (tryYear > now.getFullYear()) {
+      century = 2000; // fallback на XXI век
+    }
   } else {
     return {
       valid: false,
