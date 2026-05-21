@@ -3,261 +3,398 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Esep Platform API — Корпоративный кабинет</title>
+<title>Esep для бизнеса — Корпоративный кабинет</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background: #F8FAFC;
-    color: #0F172A;
-    min-height: 100vh;
+  :root {
+    --navy: #0F2B46;
+    --navy-700: #1E3A5F;
+    --sky: #0EA5E9;
+    --green: #22C55E;
+    --amber: #F59E0B;
+    --rose: #EF4444;
+    --bg: #FAFCFF;
+    --ink: #0F172A;
+    --slate: #64748B;
+    --slate-d: #334155;
+    --border: #E2E8F0;
+    --border-l: #EEF2F6;
   }
-  /* === Login screen === */
+  * { box-sizing: border-box; margin: 0; padding: 0;
+      -webkit-font-smoothing: antialiased; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    font-feature-settings: 'cv11','ss01';
+  }
+  code {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 0.85em;
+  }
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(15,43,70,.18); border-radius: 9px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(15,43,70,.34); }
+
+  @keyframes aurora {
+    0%,100% { transform: translate(0,0) rotate(0deg); }
+    33% { transform: translate(40px,-30px) rotate(120deg); }
+    66% { transform: translate(-30px,25px) rotate(240deg); }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ════════ LOGIN ════════ */
   .login {
-    min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    padding: 20px;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+    background: linear-gradient(135deg,#0F2B46 0%,#1E3A5F 50%,#0F2B46 100%);
+    position: relative; overflow: hidden;
+  }
+  .login::before, .login::after {
+    content: ''; position: absolute; border-radius: 50%;
+    filter: blur(80px); pointer-events: none;
+  }
+  .login::before {
+    width: 480px; height: 480px; top: -120px; left: -120px;
+    background: rgba(14,165,233,.25); animation: aurora 22s ease-in-out infinite;
+  }
+  .login::after {
+    width: 460px; height: 460px; bottom: -140px; right: -100px;
+    background: rgba(34,197,94,.18); animation: aurora 28s ease-in-out infinite reverse;
   }
   .login-card {
-    background: white; padding: 32px; border-radius: 16px;
-    box-shadow: 0 4px 24px rgba(15,42,70,0.1); width: 100%; max-width: 420px;
+    position: relative; z-index: 1;
+    background: rgba(255,255,255,.97);
+    backdrop-filter: blur(20px);
+    padding: 40px; border-radius: 24px;
+    width: 100%; max-width: 440px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.4);
+    animation: fade-up .6s ease-out;
   }
-  .login h1 { color: #0F2B46; font-size: 24px; margin-bottom: 6px; }
-  .login p.sub { color: #64748B; font-size: 13px; margin-bottom: 20px; }
+  .login-logo {
+    display: flex; align-items: center; gap: 11px; margin-bottom: 26px;
+  }
+  .login-logo .mark {
+    width: 44px; height: 44px; border-radius: 13px;
+    background: linear-gradient(135deg,var(--sky),var(--green));
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 22px;
+    box-shadow: 0 8px 20px rgba(14,165,233,.3);
+  }
+  .login-logo .name { font-weight: 800; font-size: 19px; color: var(--navy); line-height: 1.1; }
+  .login-logo .tag {
+    font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--slate); font-weight: 600;
+  }
+  .login-card h1 { font-size: 24px; font-weight: 800; color: var(--navy); letter-spacing: -.02em; }
+  .login-card .sub { color: var(--slate); font-size: 14px; margin: 6px 0 24px; line-height: 1.5; }
+  label { display: block; font-size: 12px; font-weight: 600; color: var(--slate-d);
+          margin: 16px 0 6px; }
   input, select, textarea {
-    width: 100%; padding: 10px 12px; border: 1px solid #CBD5E1;
-    border-radius: 8px; font-size: 14px; font-family: inherit;
-    transition: border-color 0.15s;
+    width: 100%; padding: 12px 14px; border: 1.5px solid var(--border);
+    border-radius: 12px; font-size: 14px; font-family: inherit; color: var(--ink);
+    transition: border-color .15s, box-shadow .15s; background: #fff;
   }
-  input:focus { outline: none; border-color: #0EA5E9; }
-  label { display: block; font-size: 12px; font-weight: 500; margin: 12px 0 4px; color: #334155; }
-  button {
-    background: #0EA5E9; color: white; border: none; padding: 11px 20px;
-    border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
-    width: 100%; margin-top: 16px; transition: background 0.15s;
+  input:focus, select:focus, textarea:focus {
+    outline: none; border-color: var(--sky);
+    box-shadow: 0 0 0 4px rgba(14,165,233,.1);
   }
-  button:hover { background: #0284C7; }
-  button:disabled { background: #94A3B8; cursor: not-allowed; }
-  button.secondary { background: white; color: #0EA5E9; border: 1px solid #0EA5E9; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    border: none; border-radius: 12px; font-family: inherit;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: transform .12s, box-shadow .15s, background .15s;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn-primary {
+    background: var(--navy); color: #fff; padding: 13px 22px;
+    box-shadow: 0 8px 22px rgba(15,43,70,.22);
+  }
+  .btn-primary:hover { background: var(--navy-700); box-shadow: 0 10px 28px rgba(15,43,70,.34); }
+  .btn-primary:disabled { background: #94A3B8; cursor: not-allowed; box-shadow: none; }
+  .btn-block { width: 100%; margin-top: 22px; padding: 14px; font-size: 15px; }
+  .error { color: var(--rose); font-size: 13px; margin-top: 10px; min-height: 18px; }
   .demo-creds {
-    margin-top: 16px; padding: 12px; background: #F0F9FF;
-    border-left: 3px solid #0EA5E9; border-radius: 4px; font-size: 12px;
+    margin-top: 22px; padding: 14px 16px;
+    background: linear-gradient(135deg,#F0F9FF,#ECFDF5);
+    border: 1px solid #BAE6FD; border-radius: 14px;
+    font-size: 12px; line-height: 1.7; color: var(--slate-d);
   }
-  .demo-creds code { font-family: ui-monospace, monospace; font-size: 11px; }
-  .error { color: #DC2626; margin-top: 8px; font-size: 13px; }
+  .demo-creds b { color: var(--navy); }
+  .demo-creds code {
+    background: #fff; padding: 2px 7px; border-radius: 6px;
+    border: 1px solid #BAE6FD; color: var(--sky); font-weight: 600;
+  }
 
-  /* === Dashboard === */
+  /* ════════ HEADER ════════ */
   .header {
-    background: linear-gradient(135deg, #0F2B46 0%, #1E3A5F 100%);
-    color: white; padding: 20px;
+    background: linear-gradient(135deg,#0F2B46,#1E3A5F);
+    position: sticky; top: 0; z-index: 40;
+    box-shadow: 0 4px 24px rgba(15,43,70,.18);
   }
   .header-inner {
-    max-width: 1280px; margin: 0 auto;
+    max-width: 1240px; margin: 0 auto; padding: 16px 24px;
     display: flex; align-items: center; gap: 16px;
   }
-  .header h1 { font-size: 18px; font-weight: 700; }
-  .header .bin { color: rgba(255,255,255,0.7); font-size: 12px; margin-top: 2px; }
+  .header .mark {
+    width: 42px; height: 42px; border-radius: 12px;
+    background: linear-gradient(135deg,var(--sky),var(--green));
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 20px; flex-shrink: 0;
+  }
+  .header h1 { font-size: 17px; font-weight: 700; color: #fff; letter-spacing: -.01em; }
+  .header .bin { color: rgba(255,255,255,.55); font-size: 12px; margin-top: 1px; }
   .badge {
-    background: #22C55E; color: white; padding: 4px 10px; border-radius: 20px;
-    font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+    background: var(--green); color: #fff; padding: 5px 12px;
+    border-radius: 20px; font-size: 10px; font-weight: 800;
+    letter-spacing: .08em;
   }
-  .header .icon-btn {
-    width: auto; padding: 8px 12px; background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.2);
-    color: white; margin: 0; font-size: 12px;
+  .header .ghost {
+    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14);
+    color: rgba(255,255,255,.9); padding: 8px 14px; border-radius: 10px;
+    font-size: 12px; font-weight: 600;
   }
-  .header .icon-btn:hover { background: rgba(255,255,255,0.2); }
-  .container {
-    max-width: 1280px; margin: 0 auto; padding: 20px;
+  .header .ghost:hover { background: rgba(255,255,255,.16); }
+
+  .container { max-width: 1240px; margin: 0 auto; padding: 28px 24px 60px; }
+
+  /* ════════ STATS ════════ */
+  .stats {
+    display: grid; grid-template-columns: repeat(auto-fit,minmax(230px,1fr));
+    gap: 14px; margin-bottom: 26px;
   }
-  /* Stats */
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-           gap: 12px; margin-bottom: 24px; }
   .stat {
-    background: white; padding: 14px; border-radius: 12px;
-    border: 1px solid #E2E8F0;
+    background: #fff; padding: 18px; border-radius: 18px;
+    border: 1px solid var(--border);
+    transition: transform .15s, box-shadow .15s;
+    animation: fade-up .5s ease-out backwards;
   }
-  .stat-value { font-size: 24px; font-weight: 700; color: #0F2B46; margin: 6px 0 2px; }
-  .stat-label { font-size: 12px; color: #475569; }
-  .stat-sub { font-size: 11px; color: #94A3B8; margin-top: 1px; }
+  .stat:nth-child(2) { animation-delay: .07s; }
+  .stat:nth-child(3) { animation-delay: .14s; }
+  .stat:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(15,43,70,.08); }
   .stat-icon {
-    width: 32px; height: 32px; border-radius: 8px; display: flex;
-    align-items: center; justify-content: center; font-size: 16px;
+    width: 38px; height: 38px; border-radius: 11px;
+    display: flex; align-items: center; justify-content: center; font-size: 18px;
   }
-  /* Services grid */
-  h2 { color: #0F2B46; font-size: 18px; margin: 16px 0 4px; }
-  h2 + p { color: #64748B; font-size: 13px; margin-bottom: 12px; }
-  .services {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 12px;
-  }
-  .service {
-    background: white; border: 1px solid #E2E8F0; border-radius: 14px;
-    padding: 14px; cursor: pointer; transition: all 0.15s;
-    display: flex; flex-direction: column; gap: 8px; min-height: 130px;
-  }
-  .service:hover { border-color: #0EA5E9; transform: translateY(-2px);
-                   box-shadow: 0 4px 12px rgba(14,165,233,0.15); }
-  .service.disabled { opacity: 0.5; cursor: not-allowed; }
-  .service.disabled:hover { transform: none; box-shadow: none; border-color: #E2E8F0; }
-  .service-header { display: flex; justify-content: space-between; align-items: start; }
-  .service-icon {
-    width: 36px; height: 36px; border-radius: 10px; display: flex;
-    align-items: center; justify-content: center; font-size: 18px;
-  }
-  .service-status {
-    font-size: 9px; padding: 3px 8px; border-radius: 20px; font-weight: 700;
-    letter-spacing: 0.3px;
-  }
-  .service-status.live { background: #DCFCE7; color: #166534; }
-  .service-status.demo { background: #FEF3C7; color: #92400E; }
-  .service-status.block { background: #FEE2E2; color: #991B1B; }
-  .service-title { font-size: 14px; font-weight: 700; color: #0F172A; line-height: 1.3; }
-  .service-sub { font-size: 11px; color: #64748B; line-height: 1.4; }
-  .service-cta { text-align: right; font-size: 11px; font-weight: 600; }
+  .stat-value { font-size: 28px; font-weight: 800; color: var(--navy);
+                margin: 12px 0 3px; letter-spacing: -.02em; }
+  .stat-label { font-size: 13px; color: var(--slate-d); font-weight: 500; }
+  .stat-sub { font-size: 11px; color: var(--slate); margin-top: 2px; }
 
-  /* Integration card */
-  .integration {
-    margin-top: 24px; background: white; padding: 16px;
-    border-radius: 12px; border: 1px solid #E2E8F0;
-  }
-  .integration h3 { font-size: 15px; color: #0F2B46; margin-bottom: 8px; }
-  .integration table { font-size: 12px; width: 100%; }
-  .integration td { padding: 3px 0; vertical-align: top; }
-  .integration td:first-child { color: #475569; width: 120px; }
-  .integration code {
-    background: #F1F5F9; padding: 2px 6px; border-radius: 4px;
-    font-size: 11px; font-family: ui-monospace, monospace; color: #334155;
-  }
-  .integration p { margin-top: 8px; font-size: 12px; color: #64748B; line-height: 1.5; }
-
-  /* ─── Welcome banner ────────────────────────────────────────────── */
+  /* ════════ WELCOME ════════ */
   .welcome {
-    background: linear-gradient(135deg, #E0F2FE 0%, #DBEAFE 100%);
-    border: 1px solid #BAE6FD;
-    border-radius: 14px; padding: 18px; margin-bottom: 16px;
     position: relative;
+    background: linear-gradient(135deg,#E0F2FE 0%,#DBEAFE 100%);
+    border: 1px solid #BAE6FD; border-radius: 20px;
+    padding: 22px; margin-bottom: 24px;
+    animation: fade-up .5s ease-out .1s backwards;
   }
-  .welcome h3 { color: #0F2B46; font-size: 16px; margin-bottom: 6px; }
-  .welcome .lead { color: #475569; font-size: 13px; line-height: 1.5; margin-bottom: 12px; }
-  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .welcome h3 { color: var(--navy); font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+  .welcome .lead { color: var(--slate-d); font-size: 13px; line-height: 1.6;
+                   margin-bottom: 14px; max-width: 780px; }
+  .welcome .hide-btn {
+    position: absolute; top: 16px; right: 16px;
+    background: rgba(255,255,255,.7); border: 1px solid #BAE6FD;
+    color: var(--slate); padding: 5px 12px; border-radius: 9px;
+    font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .welcome .hide-btn:hover { background: #fff; }
+  .steps { display: grid; grid-template-columns: repeat(auto-fit,minmax(230px,1fr)); gap: 11px; }
   .step {
-    background: white; padding: 10px 12px; border-radius: 10px;
-    border: 1px solid #BAE6FD;
+    background: rgba(255,255,255,.75); padding: 13px 15px;
+    border-radius: 13px; border: 1px solid rgba(255,255,255,.9);
   }
   .step-num {
-    display: inline-block; background: #0EA5E9; color: white;
-    width: 22px; height: 22px; border-radius: 50%; text-align: center;
-    line-height: 22px; font-size: 12px; font-weight: 700; margin-right: 6px;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--sky); color: #fff; font-size: 12px; font-weight: 800;
+    margin-right: 8px;
   }
-  .step-title { font-weight: 600; font-size: 13px; color: #0F2B46; }
-  .step-text { font-size: 11px; color: #64748B; margin-top: 2px; line-height: 1.4; }
-  .welcome .hide-btn {
-    position: absolute; top: 12px; right: 12px;
-    background: transparent; color: #64748B; padding: 4px 10px;
-    margin: 0; width: auto; font-size: 11px; border: 1px solid #CBD5E1;
-  }
+  .step-title { font-weight: 700; font-size: 13px; color: var(--navy); }
+  .step-text { font-size: 11.5px; color: var(--slate); margin-top: 5px; line-height: 1.5; }
 
-  /* ─── Service "use case" hint ───────────────────────────────────── */
-  .service-when {
-    background: #F8FAFC; border-radius: 6px;
-    padding: 6px 8px; font-size: 10px; color: #475569;
-    line-height: 1.4; margin-top: 4px;
-  }
-  .service-when b { color: #0F2B46; }
+  /* ════════ SECTION TITLES ════════ */
+  h2 { color: var(--navy); font-size: 22px; font-weight: 800;
+       letter-spacing: -.02em; margin: 8px 0 4px; }
+  h2 + p { color: var(--slate); font-size: 13.5px; margin-bottom: 14px; }
 
-  /* ─── Human-readable result ─────────────────────────────────────── */
-  .human-result {
-    margin: 12px 0; padding: 14px; border-radius: 10px;
-    border: 1px solid #E2E8F0; background: #F8FAFC;
-  }
-  .human-result h4 {
-    font-size: 13px; color: #0F2B46; margin-bottom: 8px;
-    display: flex; align-items: center; gap: 6px;
-  }
-  .human-result .rrow { display: flex; gap: 8px; padding: 4px 0; font-size: 13px; }
-  .human-result .rrow .ricon {
-    flex-shrink: 0; width: 18px; text-align: center;
-  }
-  .human-result .rrow .rtext { color: #334155; line-height: 1.5; }
-  .human-result .rtext b { color: #0F2B46; }
-  .json-toggle {
-    background: transparent; color: #0EA5E9; padding: 4px 10px;
-    margin: 6px 0 0; width: auto; font-size: 11px; border: none;
-    text-decoration: underline; cursor: pointer;
-  }
-
-  /* ─── Field hint ────────────────────────────────────────────────── */
-  .field-hint {
-    font-size: 10px; color: #64748B; margin-top: 2px; line-height: 1.3;
-  }
-  .field-hint code {
-    background: #F1F5F9; padding: 1px 5px; border-radius: 3px;
-    font-family: ui-monospace, monospace; font-size: 10px;
-  }
-
-  /* ─── Service description inside modal ──────────────────────────── */
-  .service-desc {
-    background: #FEF3C7; border-left: 3px solid #F59E0B;
-    padding: 10px 12px; border-radius: 4px; font-size: 12px;
-    color: #78350F; line-height: 1.5; margin-bottom: 14px;
-  }
-  .service-desc b { color: #92400E; }
-
-  /* ─── Legend (status badges) ────────────────────────────────────── */
-  .legend {
-    display: flex; gap: 12px; margin-top: 8px; font-size: 11px; color: #64748B;
-    flex-wrap: wrap;
-  }
-  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 4px; }
+  .legend-item { display: flex; align-items: center; gap: 6px;
+                 font-size: 11.5px; color: var(--slate); }
   .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
 
-  /* Modal (service test) */
+  /* ════════ SERVICES GRID ════════ */
+  .services {
+    display: grid; grid-template-columns: repeat(auto-fill,minmax(290px,1fr));
+    gap: 14px;
+  }
+  .service {
+    background: #fff; border: 1px solid var(--border); border-radius: 18px;
+    padding: 18px; cursor: pointer; min-height: 168px;
+    display: flex; flex-direction: column; gap: 9px;
+    transition: transform .16s, box-shadow .16s, border-color .16s;
+    animation: fade-up .45s ease-out backwards;
+  }
+  .service:hover {
+    transform: translateY(-3px); border-color: var(--sky);
+    box-shadow: 0 16px 36px rgba(14,165,233,.14);
+  }
+  .service.disabled { opacity: .55; cursor: not-allowed; }
+  .service.disabled:hover { transform: none; box-shadow: none; border-color: var(--border); }
+  .service-header { display: flex; justify-content: space-between; align-items: flex-start; }
+  .service-icon {
+    width: 42px; height: 42px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; font-size: 20px;
+  }
+  .service-status {
+    font-size: 9px; padding: 4px 9px; border-radius: 20px;
+    font-weight: 800; letter-spacing: .05em;
+  }
+  .service-status.live { background: #DCFCE7; color: #15803D; }
+  .service-status.demo { background: #FEF3C7; color: #B45309; }
+  .service-status.block { background: #FEE2E2; color: #B91C1C; }
+  .service-title { font-size: 15px; font-weight: 700; color: var(--ink); line-height: 1.3; }
+  .service-sub { font-size: 12px; color: var(--slate); line-height: 1.45; }
+  .service-when {
+    font-size: 11px; color: var(--slate-d); line-height: 1.5;
+    background: #F8FAFC; border-radius: 9px; padding: 8px 10px; margin-top: 2px;
+  }
+  .service-when b { color: var(--navy); }
+  .service-cta { margin-top: auto; text-align: right;
+                 font-size: 12px; font-weight: 700; }
+
+  /* ════════ INTEGRATION ════════ */
+  .integration {
+    margin-top: 28px; background: #fff; border: 1px solid var(--border);
+    border-radius: 20px; padding: 22px;
+  }
+  .integration h3 { font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 12px; }
+  .integration table { width: 100%; font-size: 13px; border-collapse: collapse; }
+  .integration td { padding: 6px 0; vertical-align: top; }
+  .integration td:first-child { color: var(--slate); width: 130px; font-weight: 500; }
+  .integration code {
+    background: #F1F5F9; padding: 3px 9px; border-radius: 7px;
+    color: var(--slate-d); border: 1px solid var(--border-l);
+  }
+  .integration p { margin-top: 12px; font-size: 12.5px; color: var(--slate);
+                   line-height: 1.6; }
+  .copy-btn {
+    background: transparent; color: var(--sky); border: 1px solid var(--sky);
+    padding: 4px 11px; border-radius: 8px; font-size: 11px; font-weight: 600;
+    cursor: pointer; font-family: inherit; margin-left: 8px;
+  }
+  .copy-btn:hover { background: rgba(14,165,233,.08); }
+
+  /* ════════ MODAL ════════ */
   .modal-bg {
-    position: fixed; inset: 0; background: rgba(15,42,70,0.5);
-    display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 100;
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(15,43,70,.55); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
   }
   .modal {
-    background: white; border-radius: 16px; max-width: 720px;
-    width: 100%; max-height: 92vh; overflow: hidden; display: flex; flex-direction: column;
+    background: #fff; border-radius: 22px; width: 100%; max-width: 720px;
+    max-height: 92vh; overflow: hidden; display: flex; flex-direction: column;
+    box-shadow: 0 40px 90px rgba(0,0,0,.4);
+    animation: fade-up .3s ease-out;
   }
-  .modal-head { padding: 16px 20px; border-bottom: 1px solid #E2E8F0; background: #0F2B46; color: white; }
-  .modal-head h2 { color: white; margin: 0; }
+  .modal-head {
+    padding: 18px 22px; background: linear-gradient(135deg,#0F2B46,#1E3A5F);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .modal-head h2 { color: #fff; font-size: 17px; margin: 0; flex: 1; }
   .modal-close {
-    background: rgba(255,255,255,0.1); padding: 6px 10px; font-size: 14px; width: auto; margin: 0;
+    background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.16);
+    color: #fff; width: 32px; height: 32px; border-radius: 9px;
+    font-size: 15px; cursor: pointer; font-family: inherit;
   }
-  .modal-body { padding: 20px; overflow-y: auto; }
-  .modal-section { font-weight: 700; font-size: 13px; color: #475569; margin: 16px 0 4px; }
+  .modal-close:hover { background: rgba(255,255,255,.2); }
+  .modal-body { padding: 22px; overflow-y: auto; }
+  .modal-section {
+    font-size: 12px; font-weight: 700; color: var(--slate);
+    text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px;
+  }
+  .service-desc {
+    background: linear-gradient(135deg,#FEF9E7,#FEF3C7);
+    border-left: 3px solid var(--amber);
+    padding: 12px 14px; border-radius: 10px;
+    font-size: 12.5px; color: #78350F; line-height: 1.6; margin-bottom: 16px;
+  }
+  .service-desc b { color: #92400E; }
+  .field-hint { font-size: 11px; color: var(--slate); margin-top: 4px; line-height: 1.45; }
+  .field-hint code {
+    background: #F1F5F9; padding: 1px 6px; border-radius: 5px; font-size: 10.5px;
+  }
+  #modal-form label:not(:first-child) { margin-top: 14px; }
+
+  /* ════════ RESULT ════════ */
   .result {
-    margin-top: 12px; padding: 0;
-    border: 1px solid #E2E8F0; border-radius: 10px; overflow: hidden;
+    margin-top: 18px; border: 1px solid var(--border);
+    border-radius: 14px; overflow: hidden;
   }
-  .result-head { padding: 10px 14px; font-size: 13px; font-weight: 700;
-                 display: flex; align-items: center; gap: 8px; }
-  .result-head.ok    { background: #DCFCE7; color: #166534; }
-  .result-head.warn  { background: #FEF3C7; color: #92400E; }
-  .result-head.error { background: #FEE2E2; color: #991B1B; }
+  .result-head {
+    padding: 12px 16px; font-size: 14px; font-weight: 700;
+    display: flex; align-items: center; gap: 9px;
+  }
+  .result-head.ok { background: #DCFCE7; color: #15803D; }
+  .result-head.warn { background: #FEF3C7; color: #B45309; }
+  .result-head.error { background: #FEE2E2; color: #B91C1C; }
+  .human-result { padding: 16px; background: #F8FAFC; }
+  .human-result h4 {
+    font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 10px;
+  }
+  .rrow { display: flex; gap: 9px; padding: 5px 0; font-size: 13px; }
+  .ricon { flex-shrink: 0; width: 20px; text-align: center; }
+  .rtext { color: var(--slate-d); line-height: 1.55; }
+  .rtext b { color: var(--navy); }
+  .json-toggle {
+    background: transparent; border: none; color: var(--sky);
+    font-size: 11px; text-decoration: underline; cursor: pointer;
+    font-family: inherit; margin-top: 8px; padding: 0;
+  }
+  details summary {
+    cursor: pointer; padding: 10px 16px; font-size: 12px; color: var(--sky);
+    background: #F8FAFC; border-top: 1px solid var(--border); font-weight: 600;
+    list-style: none;
+  }
+  details summary::-webkit-details-marker { display: none; }
   .result pre {
-    padding: 12px; font-family: ui-monospace, "SF Mono", Consolas, monospace;
-    font-size: 11px; line-height: 1.6; color: #334155; overflow-x: auto;
-    background: #F8FAFC; max-height: 360px;
+    margin: 0; padding: 14px 16px; font-size: 11.5px; line-height: 1.6;
+    font-family: ui-monospace,'SF Mono',Menlo,monospace;
+    color: var(--slate-d); background: #fff; overflow-x: auto; max-height: 340px;
   }
-  .logout {
-    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-    color: white; font-size: 11px; padding: 6px 12px; margin: 0; width: auto;
-  }
-  .copy-btn {
-    background: transparent; color: #0EA5E9; padding: 4px 10px;
-    margin: 0; width: auto; font-size: 11px; border: 1px solid #0EA5E9;
+  /* spinner */
+  .spin {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+    border-radius: 50%; animation: spin .7s linear infinite;
   }
 </style>
 </head>
 <body>
 
-<!-- ─── Login screen ─────────────────────────────────────────────────────── -->
+<!-- ─── LOGIN ─────────────────────────────────────────────────────────────── -->
 <div id="login-screen" class="login">
   <div class="login-card">
-    <h1>Esep Platform API</h1>
-    <p class="sub">Корпоративный кабинет для платформ и маркетплейсов</p>
+    <div class="login-logo">
+      <div class="mark">E</div>
+      <div>
+        <div class="name">Esep</div>
+        <div class="tag">Для бизнеса</div>
+      </div>
+    </div>
+    <h1>Корпоративный кабинет</h1>
+    <p class="sub">Платформа налогового сопровождения для курьерских служб,
+      маркетплейсов и агрегаторов.</p>
 
     <label>Email</label>
     <input type="email" id="email" value="kurier-demo@esepkz.com" autocomplete="username">
@@ -265,119 +402,118 @@
     <label>Пароль</label>
     <input type="password" id="password" value="DemoKurier2026!" autocomplete="current-password">
 
-    <button id="login-btn" onclick="doLogin()">Войти</button>
+    <button id="login-btn" class="btn btn-primary btn-block" onclick="doLogin()">Войти в кабинет</button>
     <div id="login-error" class="error"></div>
 
     <div class="demo-creds">
-      <b>Демо-доступ для созвона:</b><br>
+      <b>Демо-доступ для ознакомления:</b><br>
       Email: <code>kurier-demo@esepkz.com</code><br>
       Пароль: <code>DemoKurier2026!</code><br>
-      (Этот аккаунт = тариф enterprise → автоматически открывается этот кабинет)
+      Аккаунт с корпоративным тарифом — открывается этот кабинет.
     </div>
   </div>
 </div>
 
-<!-- ─── Dashboard ─────────────────────────────────────────────────────────── -->
+<!-- ─── DASHBOARD ─────────────────────────────────────────────────────────── -->
 <div id="dashboard" style="display:none">
   <div class="header">
     <div class="header-inner">
-      <div style="background:rgba(255,255,255,0.15); width:42px; height:42px; border-radius:10px;
-                  display:flex; align-items:center; justify-content:center; font-size:20px;">🏢</div>
+      <div class="mark">E</div>
       <div style="flex:1">
         <h1 id="client-name">—</h1>
         <div class="bin" id="client-bin">—</div>
       </div>
-      <span class="badge">ENTERPRISE</span>
-      <button class="icon-btn" onclick="loadAccount()">↻ Обновить</button>
-      <button class="logout" onclick="doLogout()">Выйти</button>
+      <span class="badge">КОРПОРАТИВНЫЙ</span>
+      <button class="btn ghost" onclick="loadAccount()">Обновить</button>
+      <button class="btn ghost" onclick="doLogout()">Выйти</button>
     </div>
   </div>
 
   <div class="container">
     <div class="stats">
       <div class="stat">
-        <div class="stat-icon" style="background:#E0F2FE; color:#0EA5E9">📊</div>
+        <div class="stat-icon" style="background:#E0F2FE;color:#0EA5E9">📊</div>
         <div class="stat-value" id="stat-requests">0</div>
         <div class="stat-label">Запросов в этом месяце</div>
         <div class="stat-sub" id="stat-quota">из ∞</div>
       </div>
       <div class="stat">
-        <div class="stat-icon" style="background:#DCFCE7; color:#22C55E">✓</div>
+        <div class="stat-icon" style="background:#DCFCE7;color:#22C55E">✓</div>
         <div class="stat-value" id="stat-issued">0</div>
         <div class="stat-label">Фискализировано чеков</div>
         <div class="stat-sub" id="stat-total-receipts">из 0 всего</div>
       </div>
       <div class="stat">
-        <div class="stat-icon" style="background:#FEF3C7; color:#F59E0B">💰</div>
+        <div class="stat-icon" style="background:#FEF3C7;color:#F59E0B">₸</div>
         <div class="stat-value" id="stat-amount">0 ₸</div>
         <div class="stat-label">Сумма всех выплат</div>
-        <div class="stat-sub">по этому месяцу</div>
+        <div class="stat-sub">за этот месяц</div>
       </div>
     </div>
 
     <div id="welcome" class="welcome">
       <button class="hide-btn" onclick="hideWelcome()">Скрыть</button>
-      <h3>👋 С чего начать</h3>
+      <h3>С чего начать</h3>
       <p class="lead">
-        Это <b>центр управления</b> вашими API-сервисами Esep Platform.
-        У вас 9 модулей для compliance по НК РК 2026: проверка курьеров, фискализация
-        выплат, контроль лимита 300 МРП. Ниже — три шага чтобы быстро попробовать.
+        Это центр управления вашими сервисами Esep. 9 модулей для
+        налогового сопровождения по НК РК 2026: проверка курьеров,
+        фискализация выплат, контроль лимита 300 МРП. Три простых шага.
       </p>
       <div class="steps">
         <div class="step">
           <div><span class="step-num">1</span><span class="step-title">Попробуйте сервис</span></div>
-          <div class="step-text">Кликните любую карточку ниже — откроется форма с примером.
-            Самый главный — «Magic — выплата курьеру».</div>
+          <div class="step-text">Кликните карточку ниже — откроется форма с готовым
+            примером. Начните с «Выплата курьеру».</div>
         </div>
         <div class="step">
           <div><span class="step-num">2</span><span class="step-title">Проверьте ответ</span></div>
-          <div class="step-text">Зелёный = всё ок. Жёлтый = есть нюанс. Красный = действие
-            запрещено (например, превышение лимита).</div>
+          <div class="step-text">Зелёный — всё хорошо. Жёлтый — есть нюанс.
+            Красный — действие запрещено.</div>
         </div>
         <div class="step">
-          <div><span class="step-num">3</span><span class="step-title">Подключите к своей системе</span></div>
-          <div class="step-text">Скопируйте API-ключ внизу страницы — и используйте те же
+          <div><span class="step-num">3</span><span class="step-title">Подключите систему</span></div>
+          <div class="step-text">Скопируйте ключ внизу — и вызывайте те же
             запросы из своего бэкенда.</div>
         </div>
       </div>
     </div>
 
     <h2>Подключённые сервисы</h2>
-    <p>Кликните по карточке, чтобы попробовать сервис вживую — без риска, на ваших тестовых данных.</p>
+    <p>Кликните по карточке, чтобы попробовать сервис вживую — без риска, на тестовых данных.</p>
     <div class="legend">
       <div class="legend-item"><div class="legend-dot" style="background:#22C55E"></div>БОЕВОЙ — работает на проде</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#F59E0B"></div>DEMO — тестовые данные (ждём договор с КГД)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#F59E0B"></div>DEMO — тестовые данные, ждём договор с КГД</div>
       <div class="legend-item"><div class="legend-dot" style="background:#EF4444"></div>БЛОКЕР — внешнее ограничение</div>
     </div>
-    <div style="height: 12px"></div>
+    <div style="height:14px"></div>
     <div class="services" id="services-grid"></div>
 
     <div class="integration">
-      <h3>🔌 Интеграция в вашу систему</h3>
+      <h3>Интеграция в вашу систему</h3>
       <table>
         <tr><td>API URL:</td><td><code id="int-base-url">—</code></td></tr>
         <tr><td>Заголовок:</td><td><code>X-Platform-Key: &lt;ваш ключ&gt;</code></td></tr>
         <tr><td>Ваш ключ:</td><td><code id="int-api-key">—</code>
-          <button class="copy-btn" onclick="copyApiKey()">Копировать</button>
-        </td></tr>
+          <button class="copy-btn" onclick="copyApiKey()">Копировать</button></td></tr>
       </table>
-      <p>Главный endpoint — <code>POST /process-payment</code>. Вызывайте на каждую выплату курьеру.
-         Внутри: валидация ИИН + проверка СНР + контроль лимита 300 МРП + фискализация через Webkassa.</p>
+      <p>Главный endpoint — <code>POST /process-payment</code>. Вызывайте на
+        каждую выплату курьеру. Внутри: проверка ИИН, проверка СНР,
+        контроль лимита 300 МРП и фискализация через Webkassa.</p>
     </div>
   </div>
 </div>
 
-<!-- ─── Modal (test) ──────────────────────────────────────────────────────── -->
+<!-- ─── MODAL ─────────────────────────────────────────────────────────────── -->
 <div id="modal-bg" class="modal-bg" style="display:none" onclick="if(event.target===this) closeModal()">
   <div class="modal">
-    <div class="modal-head" style="display:flex; align-items:center; gap:10px">
-      <h2 id="modal-title" style="flex:1">—</h2>
+    <div class="modal-head">
+      <h2 id="modal-title">—</h2>
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
     <div class="modal-body">
       <div class="modal-section">Параметры запроса</div>
       <div id="modal-form"></div>
-      <button id="exec-btn" onclick="executeService()">▶ Выполнить запрос</button>
+      <button id="exec-btn" class="btn btn-primary btn-block" onclick="executeService()">Выполнить запрос</button>
       <div id="modal-result"></div>
     </div>
   </div>
@@ -390,10 +526,10 @@ let ACCOUNT = null;
 let ACTIVE_SERVICE = null;
 
 const SERVICES = [
-  { n: 1, code: 'process_payment', title: 'Magic — выплата курьеру',
+  { n: 1, code: 'process_payment', title: 'Выплата курьеру',
     sub: 'Один вызов: проверка + фискализация', icon: '⚡', status: 'live',
     when: '<b>Когда использовать:</b> перед каждой выплатой курьеру. Делаем сразу все проверки и фискализируем чек.',
-    desc: 'Это главный endpoint. Вы передаёте ИИН курьера, сумму и ID заказа — мы проверяем валидность ИИН, статус курьера, лимит 300 МРП в месяц и автоматически загружаем заказ в Webkassa для фискализации. Возвращаем единое решение: можно платить или нет.',
+    desc: 'Это главный сервис. Вы передаёте ИИН курьера, сумму и ID заказа — мы проверяем валидность ИИН, статус курьера, лимит 300 МРП в месяц и автоматически загружаем заказ в Webkassa для фискализации. Возвращаем единое решение: можно платить или нет.',
     fields: [
       { key: 'courier_iin', label: 'ИИН курьера', def: '850101100012',
         hint: 'Например: <code>850101100012</code> — 12 цифр из удостоверения личности.' },
@@ -401,7 +537,7 @@ const SERVICES = [
         hint: 'Сколько вы платите курьеру за этот заказ.' },
       { key: 'order_id',    label: 'ID заказа в вашей системе', def: () => 'ORD-' + Date.now(),
         hint: 'Уникальный идентификатор. Это должно совпадать с номером в вашей CRM/базе.' },
-      { key: 'skip_taxpayer_check', label: '⚙ Пропустить проверку реестра (быстрее)', type: 'checkbox', def: true,
+      { key: 'skip_taxpayer_check', label: 'Пропустить проверку реестра (быстрее)', type: 'checkbox', def: true,
         hint: 'Stat.gov.kz отвечает медленно. Для теста можно пропустить — на лимит и валидацию не влияет.' },
     ]
   },
@@ -466,7 +602,6 @@ const SERVICES = [
   },
 ];
 
-// Цвета для иконок сервисов
 const ICON_BG = {
   live: { bg: '#DCFCE7', color: '#22C55E' },
   demo: { bg: '#FEF3C7', color: '#F59E0B' },
@@ -497,7 +632,7 @@ async function doLogin() {
   } catch (e) {
     err.textContent = e.message;
   } finally {
-    btn.disabled = false; btn.textContent = 'Войти';
+    btn.disabled = false; btn.textContent = 'Войти в кабинет';
   }
 }
 
@@ -538,7 +673,7 @@ function renderDashboard() {
 
   document.getElementById('client-name').textContent = ACCOUNT.client_name;
   document.getElementById('client-bin').textContent =
-    ACCOUNT.client_bin ? 'БИН: ' + ACCOUNT.client_bin : 'Enterprise клиент';
+    ACCOUNT.client_bin ? 'БИН: ' + ACCOUNT.client_bin : 'Корпоративный клиент';
   document.getElementById('stat-requests').textContent = ACCOUNT.requests_this_month;
   const quotaTxt = ACCOUNT.monthly_quota > 0
     ? 'из ' + ACCOUNT.monthly_quota.toLocaleString('ru') + ' лимит'
@@ -558,9 +693,9 @@ function renderDashboard() {
   const FEATURE_MAP = {
     'process_payment':         ['process_payment'],
     'taxpayer_info':           ['taxpayer_info'],
-    'taxpayer_status':         ['taxpayer_info'],   // используем тот же endpoint
+    'taxpayer_status':         ['taxpayer_info'],
     'iin_validate':            ['iin_validate'],
-    'cancel_order':            ['cancel_receipt'],  // сервер называет фичу так
+    'cancel_order':            ['cancel_receipt'],
     'receipt_status':          ['receipt_status'],
     'income_limit':            ['income_limit'],
     'self_employed_registry':  ['self_employed_registry'],
@@ -569,15 +704,16 @@ function renderDashboard() {
 
   const grid = document.getElementById('services-grid');
   grid.innerHTML = '';
-  for (const s of SERVICES) {
+  SERVICES.forEach((s, i) => {
     const required = FEATURE_MAP[s.code] || [s.code];
     const enabled = required.some(f => ACCOUNT.features.includes(f));
     const card = document.createElement('div');
     const c = ICON_BG[s.status];
     card.className = 'service' + (enabled ? '' : ' disabled');
+    card.style.animationDelay = (i * 0.04) + 's';
     card.innerHTML = `
       <div class="service-header">
-        <div class="service-icon" style="background:${c.bg}; color:${c.color}">${s.icon}</div>
+        <div class="service-icon" style="background:${c.bg};color:${c.color}">${s.icon}</div>
         <div class="service-status ${s.status === 'live' ? 'live' : s.status === 'demo' ? 'demo' : 'block'}">
           ${s.status === 'live' ? 'БОЕВОЙ' : s.status === 'demo' ? 'DEMO' : 'БЛОКЕР'}
         </div>
@@ -591,7 +727,7 @@ function renderDashboard() {
     `;
     if (enabled) card.onclick = () => openModal(s);
     grid.appendChild(card);
-  }
+  });
 }
 
 // ── Modal ───────────────────────────────────────────────────────────────────
@@ -600,16 +736,13 @@ function openModal(service) {
   document.getElementById('modal-title').textContent = service.title;
   const form = document.getElementById('modal-form');
 
-  // Описание сервиса — сверху, выше формы
   let html = '';
   if (service.desc) {
     html += `<div class="service-desc">${service.desc}</div>`;
   }
-
-  // Поля формы
   for (const f of service.fields) {
     if (f.type === 'checkbox') {
-      html += `<label style="display:flex; align-items:center; gap:8px; margin-top:10px">
+      html += `<label style="display:flex;align-items:center;gap:8px;margin-top:14px">
                  <input type="checkbox" id="f_${f.key}" ${f.def ? 'checked' : ''} style="width:auto">
                  <span>${f.label}</span>
                </label>`;
@@ -622,8 +755,8 @@ function openModal(service) {
     }
   }
   if (service.fields.length === 0) {
-    html += `<div style="background:#FEF3C7; padding:12px; border-radius:8px; font-size:13px">
-      ⚠ Параметры не нужны. Нажмите «Выполнить» чтобы увидеть demo-ответ.
+    html += `<div class="service-desc" style="border-left-color:#F59E0B">
+      Параметры не нужны. Нажмите «Выполнить» чтобы увидеть demo-ответ.
     </div>`;
   }
   form.innerHTML = html;
@@ -632,7 +765,7 @@ function openModal(service) {
 }
 function closeModal() {
   document.getElementById('modal-bg').style.display = 'none';
-  loadAccount(); // обновим статистику
+  loadAccount();
 }
 
 // ── Execute ─────────────────────────────────────────────────────────────────
@@ -640,10 +773,9 @@ async function executeService() {
   const s = ACTIVE_SERVICE;
   const btn = document.getElementById('exec-btn');
   const out = document.getElementById('modal-result');
-  btn.disabled = true; btn.textContent = '⏳ Выполняем...';
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Выполняем...';
   out.innerHTML = '';
 
-  // Сбор полей
   const vals = {};
   for (const f of s.fields) {
     const el = document.getElementById('f_' + f.key);
@@ -665,10 +797,7 @@ async function executeService() {
     case 'cancel_order':
       url = '/platform/cancel-order'; method = 'POST'; body = vals; break;
     case 'receipt_status':
-      // Используем те же данные что в process-payment — но просто покажем последний чек
-      url = '/platform/process-payment'; method = 'POST';
-      body = { courier_iin: '850101100012', amount: 1, order_id: vals.order_id, skip_taxpayer_check: true };
-      break;
+      url = '/platform/receipts/' + encodeURIComponent(vals.order_id); break;
     case 'self_employed_registry':
       url = '/platform/self-employed/registry'; break;
     case 'benefits':
@@ -689,7 +818,7 @@ async function executeService() {
   } catch (e) {
     renderResult({ error: e.message }, 500);
   } finally {
-    btn.disabled = false; btn.textContent = '▶ Выполнить запрос';
+    btn.disabled = false; btn.textContent = 'Выполнить запрос';
   }
 }
 
@@ -701,7 +830,6 @@ function renderResult(data, status) {
   const explicitFail = data.valid === false || data.can_pay === false ||
                        decision === 'BLOCK' || data.ok === false;
 
-  // WARNING — есть предупреждения но не критично
   const warn = decision === 'WARNING' ||
                data.mode === 'demo' ||
                (Array.isArray(data.warnings) && data.warnings.length > 0) ||
@@ -709,10 +837,8 @@ function renderResult(data, status) {
                data.source === 'fallback' ||
                (status === 502 && !!data.bin);
 
-  // OK — HTTP 2xx + нет error + нет явного отказа
   const ok = httpOk && !hasError && !explicitFail && !warn;
 
-  // Иначе ошибка
   const cls = warn ? 'warn' : ok ? 'ok' : 'error';
   const icon = warn ? '⚠' : ok ? '✓' : '✕';
   const label = warn ? 'Выполнено с предупреждением' :
@@ -726,13 +852,11 @@ function renderResult(data, status) {
     <div class="result">
       <div class="result-head ${cls}">
         <span>${icon}</span><span>${label}</span>
-        <div style="flex:1"></div>
       </div>
       ${human ? `<div class="human-result">${human}</div>` : ''}
       <details ${human ? '' : 'open'}>
-        <summary style="cursor:pointer; padding:8px 14px; font-size:12px; color:#0EA5E9; background:#F8FAFC; border-top:1px solid #E2E8F0">
-          📄 Показать ответ сервера (JSON) — для разработчика
-          <button class="copy-btn" onclick="event.preventDefault(); copyJson(this)" style="float:right">Копировать</button>
+        <summary>Показать ответ сервера (JSON) — для разработчика
+          <button class="copy-btn" style="float:right" onclick="event.preventDefault();copyJson(this)">Копировать</button>
         </summary>
         <pre id="result-json">${escapeHtml(json)}</pre>
       </details>
@@ -743,13 +867,10 @@ function renderResult(data, status) {
 // ── Человеко-понятное объяснение результата ─────────────────────────────────
 function humanReadable(code, d) {
   if (!d || typeof d !== 'object') return null;
-
-  // Универсальные блоки
   const row = (icon, text) => `<div class="rrow"><div class="ricon">${icon}</div><div class="rtext">${text}</div></div>`;
   const fmt = (n) => Math.round(n).toLocaleString('ru');
   const out = [];
 
-  // ── По коду сервиса ────────────────────────────────────────────────────
   if (code === 'iin_validate') {
     if (d.valid === true) {
       out.push(row('✅', `Этот ИИН — <b>валиден</b>.`));
@@ -825,6 +946,19 @@ function humanReadable(code, d) {
     }
   }
 
+  if (code === 'receipt_status') {
+    if (d.order_id) {
+      out.push(row(d.is_fiscalized ? '✅' : 'ℹ', `Заказ <b>${d.order_id}</b> — ${d.status_label || d.status}`));
+      if (d.fiscal) {
+        out.push(row('🧾', `Фискальный номер: <b>${d.fiscal.fiscal_number}</b>`));
+        if (d.fiscal.qr_url) out.push(row('🔗', `QR-код: ${d.fiscal.qr_url}`));
+        if (d.fiscal.employee_name) out.push(row('🚴', `Курьер: ${d.fiscal.employee_name}`));
+      }
+    } else if (d.error === 'NOT_FOUND') {
+      out.push(row('❌', `Чек не найден. ${d.hint || ''}`));
+    }
+  }
+
   if (code === 'self_employed_registry' && d.mode === 'demo') {
     out.push(row('⚠', `Это <b>демонстрационные данные</b> — не реальный реестр КГД.`));
     if (Array.isArray(d.data)) out.push(row('📋', `В демо-реестре <b>${d.data.length}</b> курьеров.`));
@@ -838,24 +972,25 @@ function humanReadable(code, d) {
   }
 
   if (out.length === 0) return null;
-  return `<h4>📖 Что это значит:</h4>${out.join('')}<button class="json-toggle" onclick="this.previousElementSibling.scrollIntoView()">показать технические детали ниже ↓</button>`;
+  return `<h4>Что это значит:</h4>${out.join('')}`;
 }
 
 function copyJson(btn) {
   const txt = document.getElementById('result-json').textContent;
   navigator.clipboard.writeText(txt);
   btn.textContent = '✓ Скопировано';
-  setTimeout(() => { btn.textContent = 'Копировать JSON'; }, 1500);
+  setTimeout(() => { btn.textContent = 'Копировать'; }, 1500);
 }
 function copyApiKey() {
   navigator.clipboard.writeText(ACCOUNT.api_key);
-  alert('Ключ скопирован');
+  const btn = event.target;
+  btn.textContent = '✓ Скопировано';
+  setTimeout(() => { btn.textContent = 'Копировать'; }, 1500);
 }
 function hideWelcome() {
   document.getElementById('welcome').style.display = 'none';
   localStorage.setItem('welcome_hidden', '1');
 }
-// Если ранее уже прятали — не показываем
 if (localStorage.getItem('welcome_hidden') === '1') {
   document.addEventListener('DOMContentLoaded', () => {
     const w = document.getElementById('welcome');
