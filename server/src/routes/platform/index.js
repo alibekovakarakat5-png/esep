@@ -31,6 +31,7 @@ const taxpayerInfo = require('./taxpayer_info');
 const incomeLimit = require('./income_limit');
 const processPayment = require('./process_payment');
 const cancelOrder = require('./cancel_order');
+const receipts = require('./receipts');
 const webhooks = require('./webhooks');
 const myAccount = require('./my_account');
 const adminSeed = require('./admin_seed');
@@ -45,12 +46,13 @@ router.get('/', (_req, res) => {
     version: '1.0.0-mvp',
     docs: 'https://api.esepkz.com/api/platform/docs',
     services: [
+      { id: 'process_payment', endpoint: 'POST /process-payment', status: 'live', source: 'algorithm + db + webkassa' },
       { id: 'iin_validate', endpoint: 'POST /iin/validate', status: 'live', source: 'algorithm' },
       { id: 'taxpayer_info', endpoint: 'GET /taxpayer/:bin', status: 'live', source: 'stat.gov.kz' },
       { id: 'income_limit', endpoint: 'GET/POST /income-limit/*', status: 'live', source: 'our_db + НК 2026' },
-      { id: 'fiscalize', endpoint: 'POST /fiscalize/issue', status: 'coming_soon', source: 'webkassa' },
-      { id: 'cancel_receipt', endpoint: 'POST /fiscalize/cancel', status: 'coming_soon', source: 'webkassa' },
-      { id: 'receipt_status', endpoint: 'GET /fiscalize/status/:id', status: 'coming_soon', source: 'webkassa' },
+      { id: 'cancel_receipt', endpoint: 'POST /cancel-order', status: 'live', source: 'our_db + webkassa' },
+      { id: 'receipt_status', endpoint: 'GET /receipts/:order_id', status: 'live', source: 'our_db + webkassa webhook' },
+      { id: 'fiscalize', endpoint: 'POST /process-payment (встроено)', status: 'live', source: 'webkassa' },
       { id: 'self_employed_registry', endpoint: 'GET /self-employed/registry', status: 'demo_mode', source: 'ISNA API (pending contract)' },
       { id: 'benefits', endpoint: 'GET /self-employed/benefits', status: 'demo_mode', source: 'ISNA API (pending contract)' },
     ],
@@ -86,6 +88,7 @@ router.use('/taxpayer', taxpayerInfo);
 router.use('/income-limit', incomeLimit);
 router.use('/process-payment', processPayment);  // ← MAGIC endpoint для курьерки
 router.use('/cancel-order', cancelOrder);        // ← Сервис #5 аннулирование
+router.use('/receipts', receipts);               // ← Сервис #6 статус чеков
 router.use('/webhooks', webhooks);               // ← приём уведомлений от Webkassa
 router.use('/my-account', myAccount);            // ← для Flutter — JWT auth, не X-Platform-Key
 router.use('/admin-seed', adminSeed);            // ← одноразовое создание enterprise-юзера
@@ -122,13 +125,15 @@ router.post(
   },
 );
 
+// /fiscalize/status/:id — устарел, используйте /receipts/:order_id
 router.get(
   '/fiscalize/status/:id',
   requirePlatformKey('receipt_status'),
   (req, res) => {
-    res.status(501).json({
-      status: 'not_implemented',
-      message: 'Зависит от /fiscalize/issue.',
+    res.status(308).json({
+      status: 'moved',
+      message: 'Endpoint перенесён. Используйте GET /api/platform/receipts/:order_id',
+      new_url: `/api/platform/receipts/${req.params.id}`,
     });
   },
 );

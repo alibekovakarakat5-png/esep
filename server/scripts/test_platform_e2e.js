@@ -239,8 +239,19 @@ async function main() {
   console.log('      Обработано за: ' + r9.body?.processed_in_ms + ' мс');
 
   // ── 10. Сценарий: исчерпание лимита ───────────────────────────────────────
-  section('10. Сценарий BLOCK — 7 выплат по 250 000 ₸ должны исчерпать лимит');
+  section('10. Сценарий BLOCK — 6 выплат по 250 000 ₸ должны исчерпать лимит');
   const stressIin = '900515200011'; // валидный: 1990-05-15, женский, XX век
+  // Идемпотентность: чистим данные stress-IIN от прошлых прогонов теста,
+  // иначе накопленные выплаты сразу дадут BLOCK на 1-й операции.
+  try {
+    const db = require('../src/db');
+    await db.query(
+      'DELETE FROM platform_self_employed_income WHERE iin = $1', [stressIin]);
+    await db.query(
+      'DELETE FROM platform_receipts WHERE iin = $1', [stressIin]);
+  } catch (e) {
+    console.log(c.yellow('  ⚠  Не смог очистить stress-IIN: ' + e.message));
+  }
   // Сначала проверим валидность тестового ИИН
   const stressCheck = await request('POST', '/iin/validate', { iin: stressIin }, H);
   if (stressCheck.body?.valid !== true) {
@@ -263,6 +274,42 @@ async function main() {
     check('Лимит сработал на 6-й или 7-й выплате', blockedAt === 6 || blockedAt === 7,
       `blocked at #${blockedAt}`);
   }
+
+  // ── 11. GET /receipts/:order_id — статус конкретного чека ─────────────────
+  section('11. GET /receipts/:order_id — статус чека');
+  // Создаём заказ, потом запрашиваем его статус
+  const receiptOrderId = `e2e_receipt_${Date.now()}`;
+  await request('POST', '/process-payment', {
+    courier_iin: TEST_IIN,
+    amount: 12000,
+    order_id: receiptOrderId,
+    skip_taxpayer_check: true,
+  }, H);
+  const r11 = await request('GET', `/receipts/${receiptOrderId}`, null, H);
+  check('Endpoint отвечает (200)', r11.status === 200, `status ${r11.status}`);
+  check('order_id совпадает', r11.body?.order_id === receiptOrderId);
+  check('Есть поле status', 'status' in (r11.body || {}));
+  check('Есть человекочитаемый status_label', !!r11.body?.status_label);
+  check('Есть флаг is_fiscalized', 'is_fiscalized' in (r11.body || {}));
+  console.log('      Статус: ' + (r11.body?.status || '?'));
+
+  // Несуществующий чек → 404
+  const r11bad = await request('GET', '/receipts/NONEXISTENT_ORDER_XYZ', null, H);
+  check('Несуществующий чек → 404', r11bad.status === 404);
+
+  // ── 12. GET /receipts — список чеков ─────────────────────────────────────
+  section('12. GET /receipts — список чеков клиента');
+  const r12 = await request('GET', '/receipts?limit=10', null, H);
+  check('Endpoint отвечает (200)', r12.status === 200, `status ${r12.status}`);
+  check('Есть поле total', 'total' in (r12.body || {}));
+  check('Есть массив receipts', Array.isArray(r12.body?.receipts));
+  check('Есть summary по статусам', typeof r12.body?.summary === 'object');
+  console.log('      Всего чеков у клиента: ' + (r12.body?.total ?? '?'));
+  // Фильтр по статусу
+  const r12f = await request('GET', '/receipts?status=cancelled&limit=5', null, H);
+  check('Фильтр по статусу работает', r12f.status === 200 &&
+    Array.isArray(r12f.body?.receipts) &&
+    r12f.body.receipts.every((x) => x.status === 'cancelled'));
 
   // ── Итог ──────────────────────────────────────────────────────────────────
   console.log('\n' + c.bold('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
