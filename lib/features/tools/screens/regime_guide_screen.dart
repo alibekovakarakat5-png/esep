@@ -715,34 +715,40 @@ class _RegimeGuideScreenState extends ConsumerState<RegimeGuideScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Налог с дохода:',
+        const Text('Единый платёж — 4% от дохода:',
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
-        _paymentRow('4% от дохода', 'ИПН (СН=0% по СНР)'),
+        _paymentRow('ИПН (налог с дохода)', '0% — доход освобождён'),
         const SizedBox(height: 12),
-        const Text('Соцплатежи дополнительно (ежемесячно):',
+        const Text('В составе 4% (это только соцплатежи):',
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
-        _paymentRow('ОПВ (10% от МЗП)', fmt.format(KzTax.opvMonthly)),
-        _paymentRow('ОПВР (3.5% от МЗП)', fmt.format(KzTax.opvrMonthly)),
-        _paymentRow('СО (5% от МЗП)', fmt.format(KzTax.soMonthly)),
-        _paymentRow(
-            'ВОСМС (5% от 1.4 x МЗП)', fmt.format(KzTax.vosmsMonthly)),
+        _paymentRow('ОПВ', '1% (пенсионные взносы)'),
+        _paymentRow('ОПВР', '1% (пенсионные взносы работодателя)'),
+        _paymentRow('СО', '1% (социальные отчисления)'),
+        _paymentRow('ОСМС', '1% (медицинское страхование)'),
         const Divider(height: 20),
         Row(
           children: [
-            const Text('Итого соцплатежи',
+            const Text('Итого',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
             const Spacer(),
-            Text('${fmt.format(KzTax.monthlyTotalSelf)} \u20b8/мес',
-                style: const TextStyle(
+            const Text('4% от дохода',
+                style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color: EsepColors.expense)),
           ],
         ),
         const SizedBox(height: 8),
-        _deadlineBadge('Срок оплаты: до 25 числа каждого месяца'),
+        const Text(
+          'Больше платить ничего не нужно: 4% — это только соцплатежи, и они '
+          'уже включают всё. ИПН для самозанятых = 0%. Отдельных соцплатежей '
+          '«за себя», как у ИП, нет.',
+          style: TextStyle(fontSize: 12, color: EsepColors.income),
+        ),
+        const SizedBox(height: 8),
+        _deadlineBadge('Учёт и оплата — через приложение E-Salyq Business'),
       ],
     );
   }
