@@ -1,5 +1,5 @@
 // Тесты на генерацию ЭСФ XML в формате контейнера импорта ИС ЭСФ
-// (esf:invoiceInfoContainer → invoiceBody CDATA → v2:invoice).
+// (esf:invoiceContainer → invoiceSet → v2:invoice, без CDATA — формат SDK).
 //
 // Запуск: flutter test test/esf_service_test.dart
 //
@@ -147,13 +147,17 @@ void main() {
   // Структура контейнера
   // ────────────────────────────────────────────────────────────────────────
   group('EsfService.generate — структура контейнера', () {
-    test('контейнер invoiceInfoContainer с CDATA-телом', () {
+    test('контейнер invoiceContainer без CDATA (формат импорта SDK)', () {
       final xml = EsfService.generate(invoice(), companyComplete());
-      expect(xml, startsWith('<?xml version="1.0" encoding="UTF-8"?>'));
-      expect(xml, contains('<esf:invoiceInfoContainer xmlns:esf="esf">'));
-      expect(xml, contains('<invoiceBody><![CDATA['));
-      expect(xml, contains('</v2:invoice>]]></invoiceBody>'));
-      expect(xml, contains('</esf:invoiceInfoContainer>'));
+      expect(xml,
+          startsWith('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'));
+      expect(xml, contains('<esf:invoiceContainer xmlns:esf="esf">'));
+      expect(xml, contains('<invoiceSet>'));
+      expect(xml, contains('</esf:invoiceContainer>'));
+      // CDATA и invoiceInfo/invoiceBody больше НЕ используются
+      expect(xml, isNot(contains('CDATA')));
+      expect(xml, isNot(contains('invoiceInfoContainer')));
+      expect(xml, isNot(contains('<invoiceBody>')));
     });
 
     test('внутренний документ v2:invoice с нужными namespace', () {
@@ -258,6 +262,23 @@ void main() {
       );
       final matches = RegExp('<ndsAmount>8000</ndsAmount>').allMatches(xml);
       expect(matches.length, 2);
+    });
+
+    test('ndsRate=16 выводится для НДС-плательщика', () {
+      final xml = EsfService.generate(
+        invoice(),
+        companyComplete(isVatPayer: true),
+      );
+      final matches = RegExp('<ndsRate>16</ndsRate>').allMatches(xml);
+      expect(matches.length, 2); // на каждой из 2 позиций
+    });
+
+    test('ndsRate отсутствует у не-НДС-плательщика', () {
+      final xml = EsfService.generate(
+        invoice(),
+        companyComplete(isVatPayer: false),
+      );
+      expect(xml, isNot(contains('<ndsRate>')));
     });
   });
 

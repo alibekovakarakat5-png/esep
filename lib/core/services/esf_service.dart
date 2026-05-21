@@ -19,9 +19,12 @@ class EsfValidation {
 
 /// Генератор ЭСФ XML для ИС ЭСФ КГД РК.
 ///
-/// Формат — официальный контейнер пакетного импорта:
-/// `esf:invoiceInfoContainer` → `invoiceSet` → `invoiceInfo` →
-/// `invoiceBody` (CDATA) → `v2:invoice`.
+/// Формат — официальный контейнер импорта (сверено с эталоном SDK
+/// `One InvoiceV2.xml`, ESF SDK 28.08.2024):
+/// `esf:invoiceContainer` → `invoiceSet` → `v2:invoice` (напрямую, без CDATA).
+///
+/// ⚠ ВАЖНО: используется `invoiceContainer` (для импорта/загрузки),
+/// НЕ `invoiceInfoContainer` (тот — для получения данных о чеке).
 ///
 /// Системные поля (invoiceId, registrationNumber, signature, certificate,
 /// invoiceStatus и т.д.) не выводятся — их присваивает ИС ЭСФ при
@@ -101,19 +104,20 @@ class EsfService {
   /// Генерирует XML строку ЭСФ в формате контейнера импорта ИС ЭСФ.
   /// Если `company.isVatPayer == true` — товары/услуги облагаются НДС 16%.
   /// Сумма строки трактуется как **без НДС** (net), НДС начисляется сверху.
+  ///
+  /// Формат: `esf:invoiceContainer` → `invoiceSet` → `v2:invoice` напрямую
+  /// (сверено с эталоном SDK `One InvoiceV2.xml`).
   static String generate(Invoice invoice, CompanyInfo company) {
     final body = _buildInvoiceBody(invoice, company);
-    return '<?xml version="1.0" encoding="UTF-8"?>'
-        '<esf:invoiceInfoContainer xmlns:esf="esf">\n'
-        '  <invoiceSet>\n'
-        '    <invoiceInfo>\n'
-        '      <invoiceBody><![CDATA[$body]]></invoiceBody>\n'
-        '    </invoiceInfo>\n'
-        '  </invoiceSet>\n'
-        '</esf:invoiceInfoContainer>';
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+        '<esf:invoiceContainer xmlns:esf="esf">\n'
+        '    <invoiceSet>\n'
+        '$body\n'
+        '    </invoiceSet>\n'
+        '</esf:invoiceContainer>';
   }
 
-  /// Внутренний документ `v2:invoice` (помещается в CDATA контейнера).
+  /// Документ `v2:invoice` — помещается напрямую в `invoiceSet` (без CDATA).
   static String _buildInvoiceBody(Invoice invoice, CompanyInfo company) {
     final isVat = company.isVatPayer;
     final vatRate = KzTax.vatRate; // 0.16
@@ -142,10 +146,16 @@ class EsfService {
               ? '\n                <unitNomenclature>${_esc(item.esfUnitCode!.trim())}</unitNomenclature>'
               : '';
 
+      // ndsRate выводится только для облагаемых НДС позиций.
+      // Порядок тегов алфавитный — ndsRate идёт сразу после ndsAmount.
+      final ndsRate = isVat
+          ? '\n                <ndsRate>${(vatRate * 100).round()}</ndsRate>'
+          : '';
+
       return '''            <product>
                 <catalogTruId>${_esc(item.catalogTruId)}</catalogTruId>
                 <description>${_esc(item.description)}</description>
-                <ndsAmount>${_num(vat)}</ndsAmount>
+                <ndsAmount>${_num(vat)}</ndsAmount>$ndsRate
                 <priceWithTax>${_num(gross)}</priceWithTax>
                 <priceWithoutTax>${_num(net)}</priceWithoutTax>
                 <quantity>${_num(item.quantity)}</quantity>
