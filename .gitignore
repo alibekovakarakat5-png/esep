@@ -57,3 +57,4 @@ app.*.map.json
 # Node
 node_modules/
 server/node_modules/
+samples/esf/xsd/_*.xsd

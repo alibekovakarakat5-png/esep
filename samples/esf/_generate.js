@@ -1,6 +1,6 @@
 // Реплика логики lib/core/services/esf_service.dart на Node.js.
-// Формат — контейнер импорта ИС ЭСФ:
-//   esf:invoiceInfoContainer → invoiceBody (CDATA) → v2:invoice
+// Формат — официальный контейнер импорта ИС ЭСФ (сверено с SDK):
+//   esf:invoiceContainer → invoiceSet → v2:invoice (без CDATA)
 // Только для генерации тестовых XML — НЕ продакшен-код.
 // Запуск: node samples/esf/_generate.js
 //
@@ -37,6 +37,14 @@ function dateFmt(d) {
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const yyyy = d.getFullYear();
   return `${dd}.${mm}.${yyyy}`;
+}
+
+// Номер ЭСФ по XSD КГД — строго [0-9]{1,30}. Из номера счёта (может быть
+// "СЧ-2026-001") извлекаем только цифры. Если цифр нет — fallback timestamp.
+function numericNum(s) {
+  const digits = String(s == null ? '' : s).replace(/[^0-9]/g, '');
+  if (digits && digits.length <= 30) return digits;
+  return String(Date.now());
 }
 
 function validate(invoice, company) {
@@ -81,11 +89,14 @@ function buildInvoiceBody(invoice, company) {
     const unitNomenclature = item.esfUnitCode
       ? `\n                <unitNomenclature>${esc(item.esfUnitCode)}</unitNomenclature>`
       : '';
+    const ndsRate = isVat
+      ? `\n                <ndsRate>${Math.round(VAT_RATE * 100)}</ndsRate>`
+      : '';
 
     return `            <product>
                 <catalogTruId>${esc(item.catalogTruId || '1')}</catalogTruId>
                 <description>${esc(item.description)}</description>
-                <ndsAmount>${num(vat)}</ndsAmount>
+                <ndsAmount>${num(vat)}</ndsAmount>${ndsRate}
                 <priceWithTax>${num(gross)}</priceWithTax>
                 <priceWithoutTax>${num(net)}</priceWithoutTax>
                 <quantity>${num(item.quantity)}</quantity>
@@ -133,7 +144,7 @@ function buildInvoiceBody(invoice, company) {
   return `<v2:invoice xmlns:a="abstractInvoice.esf" xmlns:v2="v2.esf">
     <date>${invoiceDate}</date>
     <invoiceType>ORDINARY_INVOICE</invoiceType>
-    <num>${esc(invoice.number)}</num>
+    <num>${numericNum(invoice.number)}</num>
     <operatorFullname>${esc(operator)}</operatorFullname>
     <turnoverDate>${turnoverDate}</turnoverDate>
     <consignee>
@@ -183,13 +194,12 @@ ${products}
 
 function generate(invoice, company) {
   const body = buildInvoiceBody(invoice, company);
-  return `<?xml version="1.0" encoding="UTF-8"?><esf:invoiceInfoContainer xmlns:esf="esf">
-  <invoiceSet>
-    <invoiceInfo>
-      <invoiceBody><![CDATA[${body}]]></invoiceBody>
-    </invoiceInfo>
-  </invoiceSet>
-</esf:invoiceInfoContainer>`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<esf:invoiceContainer xmlns:esf="esf">
+    <invoiceSet>
+${body}
+    </invoiceSet>
+</esf:invoiceContainer>`;
 }
 
 // ─── Test fixtures ────────────────────────────────────────────────────────

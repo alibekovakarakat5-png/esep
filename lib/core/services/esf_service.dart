@@ -98,6 +98,15 @@ class EsfService {
           'Не заполнен ИИК (IBAN) поставщика — покупатель не увидит реквизиты для оплаты.');
     }
 
+    // Номер ЭСФ по XSD КГД — строго числовой. Если в номере счёта нет цифр,
+    // будет подставлен timestamp — он не совпадёт с нумерацией бухгалтерии.
+    if (invoice.number.replaceAll(RegExp(r'[^0-9]'), '').isEmpty) {
+      warnings.add(
+          'Номер счёта не содержит цифр. Номер ЭСФ должен быть числовым — '
+          'будет сгенерирован автоматически. Рекомендуем нумеровать счета '
+          'с числами (например «2026-001»).');
+    }
+
     return EsfValidation(errors: errors, warnings: warnings);
   }
 
@@ -217,7 +226,7 @@ class EsfService {
     return '''<v2:invoice xmlns:a="abstractInvoice.esf" xmlns:v2="v2.esf">
     <date>$invoiceDate</date>
     <invoiceType>ORDINARY_INVOICE</invoiceType>
-    <num>${_esc(invoice.number)}</num>
+    <num>${_numericNum(invoice.number)}</num>
     <operatorFullname>${_esc(operator)}</operatorFullname>
     <turnoverDate>$turnoverDate</turnoverDate>
     <consignee>
@@ -263,6 +272,15 @@ $products
         </seller>
     </sellers>
 </v2:invoice>''';
+  }
+
+  /// Номер ЭСФ (поле `num`) по XSD КГД — строго `[0-9]{1,30}`.
+  /// Номер счёта пользователя может быть «СЧ-2026-001» — извлекаем только
+  /// цифры. Если цифр нет — fallback на timestamp (тоже число).
+  static String _numericNum(String invoiceNumber) {
+    final digits = invoiceNumber.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isNotEmpty && digits.length <= 30) return digits;
+    return DateTime.now().millisecondsSinceEpoch.toString();
   }
 
   /// Формат чисел как в ИС ЭСФ: точка-разделитель, без разделителей тысяч,

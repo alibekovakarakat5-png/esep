@@ -167,7 +167,8 @@ void main() {
         contains('<v2:invoice xmlns:a="abstractInvoice.esf" xmlns:v2="v2.esf">'),
       );
       expect(xml, contains('<invoiceType>ORDINARY_INVOICE</invoiceType>'));
-      expect(xml, contains('<num>СЧ-2026-001</num>'));
+      // num по XSD КГД — только цифры [0-9]{1,30}. «СЧ-2026-001» → «2026001».
+      expect(xml, contains('<num>2026001</num>'));
       expect(xml, contains('<date>12.05.2026</date>'));
       expect(xml, contains('<turnoverDate>12.05.2026</turnoverDate>'));
     });

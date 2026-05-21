@@ -1,10 +1,10 @@
-<?xml version="1.0" encoding="UTF-8"?><esf:invoiceInfoContainer xmlns:esf="esf">
-  <invoiceSet>
-    <invoiceInfo>
-      <invoiceBody><![CDATA[<v2:invoice xmlns:a="abstractInvoice.esf" xmlns:v2="v2.esf">
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<esf:invoiceContainer xmlns:esf="esf">
+    <invoiceSet>
+<v2:invoice xmlns:a="abstractInvoice.esf" xmlns:v2="v2.esf">
     <date>12.05.2026</date>
     <invoiceType>ORDINARY_INVOICE</invoiceType>
-    <num>СЧ-2026-001</num>
+    <num>2026001</num>
     <operatorFullname>Алибеков Аскар Канатович</operatorFullname>
     <turnoverDate>12.05.2026</turnoverDate>
     <consignee>
@@ -36,6 +36,7 @@
                 <catalogTruId>1</catalogTruId>
                 <description>Консультация по форме 910</description>
                 <ndsAmount>8000</ndsAmount>
+                <ndsRate>16</ndsRate>
                 <priceWithTax>58000</priceWithTax>
                 <priceWithoutTax>50000</priceWithoutTax>
                 <quantity>1</quantity>
@@ -48,6 +49,7 @@
                 <catalogTruId>1</catalogTruId>
                 <description>Настройка учёта</description>
                 <ndsAmount>8000</ndsAmount>
+                <ndsRate>16</ndsRate>
                 <priceWithTax>58000</priceWithTax>
                 <priceWithoutTax>50000</priceWithoutTax>
                 <quantity>2</quantity>
@@ -74,7 +76,6 @@
             <tin>900101300123</tin>
         </seller>
     </sellers>
-</v2:invoice>]]></invoiceBody>
-    </invoiceInfo>
-  </invoiceSet>
-</esf:invoiceInfoContainer>
+</v2:invoice>
+    </invoiceSet>
+</esf:invoiceContainer>
