@@ -1,3 +1,8 @@
+// Загружаем .env, если он есть (локальная разработка и скрипты).
+// На проде (Railway) файла нет — переменные приходят из окружения, dotenv это
+// просто игнорирует. Не переопределяет уже заданные переменные.
+try { require('dotenv').config(); } catch { /* dotenv не обязателен */ }
+
 const express = require('express');
 const cors    = require('cors');
 const db      = require('./db');
