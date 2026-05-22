@@ -311,6 +311,60 @@ async function main() {
     Array.isArray(r12f.body?.receipts) &&
     r12f.body.receipts.every((x) => x.status === 'cancelled'));
 
+  // ── 13. Идемпотентность /process-payment ─────────────────────────────────
+  section('13. Идемпотентность — повторный /process-payment с тем же order_id');
+  const idemDb = require('../src/db');
+  const idemOrderId = `idem_${Date.now()}`;
+  const idemAmount = 100000;
+  // чистим от прошлых прогонов — тест должен быть повторяемым
+  try {
+    await idemDb.query("DELETE FROM platform_self_employed_income WHERE external_id LIKE 'idem%'");
+    await idemDb.query("DELETE FROM platform_receipts WHERE external_id LIKE 'idem%'");
+  } catch (e) {
+    console.log(c.yellow('  ⚠  не смог подготовить БД: ' + e.message));
+  }
+
+  // Два одинаковых вызова — как ретрай клиента после таймаута
+  const idem1 = await request('POST', '/process-payment', {
+    courier_iin: TEST_IIN, amount: idemAmount, order_id: idemOrderId, skip_taxpayer_check: true,
+  }, H);
+  const idem2 = await request('POST', '/process-payment', {
+    courier_iin: TEST_IIN, amount: idemAmount, order_id: idemOrderId, skip_taxpayer_check: true,
+  }, H);
+
+  const idemInc = await idemDb.query(
+    `SELECT COALESCE(SUM(amount),0)::float AS s, COUNT(*)::int AS n
+       FROM platform_self_employed_income WHERE external_id = $1`, [idemOrderId]);
+  const idemRcp = await idemDb.query(
+    `SELECT COUNT(*)::int AS n FROM platform_receipts WHERE external_id = $1`, [idemOrderId]);
+
+  check('Доход записан один раз, не задвоен',
+    idemInc.rows[0].s === idemAmount,
+    `сумма ${idemInc.rows[0].s} в ${idemInc.rows[0].n} строк(ах), ожидалось ${idemAmount} в 1`);
+  check('Создан ровно один фискальный чек',
+    idemRcp.rows[0].n === 1, `чеков ${idemRcp.rows[0].n}, ожидался 1`);
+  check('Повторный вызов помечен idempotent_replay',
+    idem2.body?.idempotent_replay === true,
+    `idempotent_replay = ${idem2.body?.idempotent_replay}`);
+  check('Оба вызова ответили 200',
+    idem1.status === 200 && idem2.status === 200,
+    `статусы ${idem1.status} / ${idem2.status}`);
+
+  // recordIncome идемпотентен по external_id (прямой вызов функции)
+  const { recordIncome: recordIncomeFn } = require('../src/services/platform_db');
+  const idemKeyRow = await idemDb.query(
+    'SELECT id FROM platform_api_keys WHERE api_key = $1', [apiKey]);
+  const idemDirectExtId = `idem_direct_${Date.now()}`;
+  await recordIncomeFn({ apiKeyId: idemKeyRow.rows[0].id, iin: TEST_IIN, amount: 7000,
+    externalId: idemDirectExtId, paymentMethod: 'card', note: 'idem test' });
+  await recordIncomeFn({ apiKeyId: idemKeyRow.rows[0].id, iin: TEST_IIN, amount: 7000,
+    externalId: idemDirectExtId, paymentMethod: 'card', note: 'idem test' });
+  const idemDirect = await idemDb.query(
+    `SELECT COALESCE(SUM(amount),0)::float AS s FROM platform_self_employed_income
+      WHERE external_id = $1`, [idemDirectExtId]);
+  check('recordIncome идемпотентен по external_id',
+    idemDirect.rows[0].s === 7000, `сумма ${idemDirect.rows[0].s}, ожидалось 7000`);
+
   // ── Итог ──────────────────────────────────────────────────────────────────
   console.log('\n' + c.bold('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
   console.log(c.bold(`  ИТОГ:  ${c.green(passed + ' прошли')}, ${failed > 0 ? c.red(failed + ' упали') : c.green('0 упали')}`));

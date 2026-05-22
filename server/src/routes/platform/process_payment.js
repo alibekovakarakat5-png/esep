@@ -153,6 +153,34 @@ router.post(
     }
     result.iin_valid = true;
 
+    // ── 2b. Идемпотентность ─────────────────────────────────────────────────
+    // Если заказ с этим order_id уже обрабатывался — возвращаем прежний
+    // результат и НЕ регистрируем выплату повторно. Защита от ретраев
+    // клиента после таймаута (иначе задваивается учёт лимита 300 МРП).
+    try {
+      const dup = await db.query(
+        `SELECT status FROM platform_receipts
+          WHERE api_key_id = $1 AND external_id = $2
+          LIMIT 1`,
+        [req.platformClient.id, order_id],
+      );
+      if (dup.rows.length > 0) {
+        result.ok = true;
+        result.decision = 'PROCEED';
+        result.idempotent_replay = true;
+        result.fiscal_status = dup.rows[0].status;
+        result.warnings.push(
+          'Заказ с этим order_id уже обработан ранее. Возвращён прежний ' +
+          'результат, повторная выплата не зарегистрирована.',
+        );
+        result.processed_in_ms = Date.now() - startedAt;
+        return res.status(200).json(result);
+      }
+    } catch (err) {
+      // Сбой проверки не должен блокировать платёж — продолжаем обычным путём.
+      result.warnings.push('Проверка идемпотентности не выполнена: ' + err.message);
+    }
+
     // ── 3. Проверка СНР/ОКЭД (если не пропустили) ───────────────────────────
     if (!skip_taxpayer_check) {
       try {

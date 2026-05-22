@@ -99,6 +99,25 @@ async function migratePlatform() {
       ON platform_audit_log(api_key_id, created_at);
   `);
 
+  // Уникальность order_id (external_id) в рамках клиента — для идемпотентности.
+  // Отдельным шагом под try/catch: на старых БД возможны дубли от прежней
+  // (неидемпотентной) логики — тогда индекс не создастся, но сервер стартует,
+  // а идемпотентность всё равно обеспечивается на уровне кода.
+  for (const [idx, table] of [
+    ['uq_platform_receipts_order', 'platform_receipts'],
+    ['uq_platform_income_order', 'platform_self_employed_income'],
+  ]) {
+    try {
+      await db.query(
+        `CREATE UNIQUE INDEX IF NOT EXISTS ${idx}
+           ON ${table} (api_key_id, external_id)
+         WHERE external_id IS NOT NULL`,
+      );
+    } catch (e) {
+      console.warn(`[platform] индекс ${idx} не создан: ${e.message}`);
+    }
+  }
+
   console.log('✅  Platform API tables migrated');
 }
 
@@ -142,15 +161,45 @@ async function getMonthlyIncome(iin, date = new Date()) {
  * Запись новой выплаты самозанятому.
  */
 async function recordIncome({ apiKeyId, iin, amount, externalId, paymentMethod, note, date = new Date() }) {
-  const month = new Date(date.getFullYear(), date.getMonth(), 1);
-  const { rows } = await db.query(
-    `INSERT INTO platform_self_employed_income
-       (api_key_id, iin, month, amount, external_id, payment_method, note)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING id, created_at`,
-    [apiKeyId, iin, month.toISOString().slice(0, 10), amount, externalId, paymentMethod, note],
-  );
-  return rows[0];
+  const month = new Date(date.getFullYear(), date.getMonth(), 1)
+    .toISOString().slice(0, 10);
+
+  // Идемпотентность: повторная запись с тем же (apiKeyId, externalId)
+  // не создаёт дубль — возвращаем уже существующую выплату.
+  if (externalId) {
+    const dup = await db.query(
+      `SELECT id, created_at FROM platform_self_employed_income
+        WHERE api_key_id = $1 AND external_id = $2
+        LIMIT 1`,
+      [apiKeyId, externalId],
+    );
+    if (dup.rows.length > 0) {
+      return { ...dup.rows[0], idempotent: true };
+    }
+  }
+
+  try {
+    const { rows } = await db.query(
+      `INSERT INTO platform_self_employed_income
+         (api_key_id, iin, month, amount, external_id, payment_method, note)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, created_at`,
+      [apiKeyId, iin, month, amount, externalId, paymentMethod, note],
+    );
+    return rows[0];
+  } catch (err) {
+    // Гонка: параллельный запрос успел вставить ту же выплату первым.
+    if (externalId && /duplicate|unique/i.test(err.message)) {
+      const dup = await db.query(
+        `SELECT id, created_at FROM platform_self_employed_income
+          WHERE api_key_id = $1 AND external_id = $2
+          LIMIT 1`,
+        [apiKeyId, externalId],
+      );
+      if (dup.rows.length > 0) return { ...dup.rows[0], idempotent: true };
+    }
+    throw err;
+  }
 }
 
 module.exports = {
