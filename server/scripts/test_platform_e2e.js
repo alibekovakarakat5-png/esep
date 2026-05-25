@@ -365,6 +365,48 @@ async function main() {
   check('recordIncome идемпотентен по external_id',
     idemDirect.rows[0].s === 7000, `сумма ${idemDirect.rows[0].s}, ожидалось 7000`);
 
+  // ── 14. Откат лимита при cancel-order ────────────────────────────────────
+  section('14. /cancel-order действительно откатывает учёт лимита');
+  const rollbackOrderId = `rollback_${Date.now()}`;
+  const rollbackAmount = 80000;
+  // чистим хвосты — у TEST_IIN накопилось от предыдущих секций/прогонов,
+  // иначе process-payment может вернуть BLOCK и записи не будет.
+  try {
+    await idemDb.query("DELETE FROM platform_self_employed_income WHERE iin = $1", [TEST_IIN]);
+    await idemDb.query("DELETE FROM platform_receipts WHERE iin = $1", [TEST_IIN]);
+  } catch (e) {
+    console.log(c.yellow('  ⚠  не смог подготовить БД: ' + e.message));
+  }
+
+  const before = await request('GET', `/income-limit/status/${TEST_IIN}`, null, H);
+  const usedBefore = before.body?.used_tenge ?? 0;
+
+  // выплата
+  const rbPay = await request('POST', '/process-payment', {
+    courier_iin: TEST_IIN, amount: rollbackAmount, order_id: rollbackOrderId, skip_taxpayer_check: true,
+  }, H);
+
+  const middle = await request('GET', `/income-limit/status/${TEST_IIN}`, null, H);
+  const usedMiddle = middle.body?.used_tenge ?? 0;
+
+  // отмена
+  const rbCancel = await request('POST', '/cancel-order', {
+    order_id: rollbackOrderId, reason: 'тест отката лимита',
+  }, H);
+
+  const after = await request('GET', `/income-limit/status/${TEST_IIN}`, null, H);
+  const usedAfter = after.body?.used_tenge ?? 0;
+
+  check('После выплаты лимит вырос на сумму выплаты',
+    usedMiddle - usedBefore === rollbackAmount,
+    `прирост ${usedMiddle - usedBefore}, ожидалось ${rollbackAmount}`);
+  check('cancel-order вернул ok',
+    rbCancel.status === 200 && rbCancel.body?.ok === true,
+    `status ${rbCancel.status}`);
+  check('После cancel лимит откатился до исходного',
+    usedAfter === usedBefore,
+    `было ${usedBefore}, после выплаты ${usedMiddle}, после отмены ${usedAfter}, ожидалось ${usedBefore}`);
+
   // ── Итог ──────────────────────────────────────────────────────────────────
   console.log('\n' + c.bold('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
   console.log(c.bold(`  ИТОГ:  ${c.green(passed + ' прошли')}, ${failed > 0 ? c.red(failed + ' упали') : c.green('0 упали')}`));

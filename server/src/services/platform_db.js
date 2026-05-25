@@ -59,6 +59,18 @@ async function migratePlatform() {
       ON platform_self_employed_income(iin, month);
     CREATE INDEX IF NOT EXISTS idx_self_emp_apikey
       ON platform_self_employed_income(api_key_id);
+    -- Откат лимита при cancel-order: помечаем, не удаляем (аудит сохраняем)
+    ALTER TABLE platform_self_employed_income
+      ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
+    -- Бэкфилл: для уже отменённых чеков подтянуть cancelled_at
+    UPDATE platform_self_employed_income i
+       SET cancelled_at = COALESCE(r.cancelled_at, NOW())
+      FROM platform_receipts r
+     WHERE i.cancelled_at IS NULL
+       AND i.external_id IS NOT NULL
+       AND i.api_key_id = r.api_key_id
+       AND i.external_id = r.external_id
+       AND r.status = 'cancelled';
 
     -- ════════════════════════════════════════════════════════════════════════
     -- 3) Лог фискальных чеков (для аннулирования и аудита)
@@ -151,7 +163,8 @@ async function getMonthlyIncome(iin, date = new Date()) {
     `SELECT COALESCE(SUM(amount), 0) AS total
        FROM platform_self_employed_income
       WHERE iin = $1
-        AND month = $2`,
+        AND month = $2
+        AND cancelled_at IS NULL`,
     [iin, month.toISOString().slice(0, 10)],
   );
   return parseFloat(rows[0].total) || 0;

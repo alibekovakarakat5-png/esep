@@ -95,15 +95,16 @@ router.post('/', requirePlatformKey('cancel_receipt'), async (req, res) => {
       [receipt.id, reason || 'Отменено клиентом через API'],
     );
 
-    // Если был учёт в лимите 300 МРП — откатываем
-    // (выплата отменена, не должна учитываться в лимите)
+    // Откат учёта в лимите 300 МРП — помечаем cancelled_at, не удаляем
+    // (getMonthlyIncome исключает строки с cancelled_at IS NOT NULL).
     if (receipt.iin && receipt.amount) {
-      // Помечаем запись о выплате как отменённую (не удаляем для аудита)
       await db.query(
         `UPDATE platform_self_employed_income
-            SET note = COALESCE(note, '') || ' [CANCELLED ' || NOW()::TEXT || ']'
+            SET cancelled_at = NOW(),
+                note = COALESCE(note, '') || ' [CANCELLED ' || NOW()::TEXT || ']'
           WHERE external_id = $1
-            AND api_key_id = $2`,
+            AND api_key_id = $2
+            AND cancelled_at IS NULL`,
         [order_id, req.platformClient.id],
       );
     }
