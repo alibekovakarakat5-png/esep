@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RulesDocKinds>
+	<documentKinds>
+		<documentKind code="300.00" version="29" kind="00010000000000000000" inisValue="3"/>
+		<documentKind code="300.00" version="29" kind="00011000000000000000" inisValue="6"/>
+		<documentKind code="300.00" version="29" kind="00100000000000000000" inisValue="4"/>
+		<documentKind code="300.00" version="29" kind="01000000000000000000" inisValue="2"/>
+		<documentKind code="300.00" version="29" kind="10000000000000000000" inisValue="1"/>
+		<documentKind code="300.00" version="29" kind="10100000000000000000" inisValue="4"/>
+	</documentKinds>
+	<rules>
+		<rule name="Правило3" formula="@page.field_300_00_031" condition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="300.00.29.2023.01" code="300.00" version="29" year="2023" formula="@formula.get_date(25,@page.period_quarter*3+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="300.00.29.2023.02" code="300.00" version="29" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="105101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило4" formula="@page.form_300_05_n_h_1" condition="(@page.form_300_05_n_h_1&lt;>'')" chargeType="0">
+			<taxYear fullId="300.00.29.2023.01" code="300.00" version="29" year="2023" formula="@formula.get_date(25,@page.period_quarter*3+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="300.00.29.2023.02" code="300.00" version="29" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="105104" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило1" formula="@page.field_300_00_030_01" condition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="300.00.29.2023.01" code="300.00" version="29" year="2023" formula="@formula.get_date(25,@page.period_quarter*3+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="300.00.29.2023.02" code="300.00" version="29" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="105101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило2" formula="@page.field_300_00_030_02" condition="(@page.field_300_00_030_02&lt;>'')*((@page.field_300_00_030_01='')+(@page.field_300_00_030_01=0)>0)" chargeType="1">
+			<taxYear fullId="300.00.29.2023.01" code="300.00" version="29" year="2023" formula="@formula.get_date(25,@page.period_quarter*3+2,@page.period_year)" dateType="Все"/>
+			<taxRecordYear fullId="300.00.29.2023.02" code="300.00" version="29" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="105101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+	</rules>
+	<submissionDates>
+		<submissionDate full-id="300.00.29.2023.16" code="300.00" version="29" year="2023" subm-date="'15.02.2024'" tax-period="16"/>
+		<submissionDate full-id="300.00.29.2023.15" code="300.00" version="29" year="2023" subm-date="'15.11.2023'" tax-period="15"/>
+		<submissionDate full-id="300.00.29.2023.14" code="300.00" version="29" year="2023" subm-date="'15.08.2023'" tax-period="14"/>
+		<submissionDate full-id="300.00.29.2023.13" code="300.00" version="29" year="2023" subm-date="'15.05.2023'" tax-period="13"/>
+		<submissionDate full-id="300.00.29.2024.16" code="300.00" version="29" year="2024" subm-date="'15.02.2025'" tax-period="16"/>
+		<submissionDate full-id="300.00.29.2024.15" code="300.00" version="29" year="2024" subm-date="'15.11.2024'" tax-period="15"/>
+		<submissionDate full-id="300.00.29.2024.14" code="300.00" version="29" year="2024" subm-date="'15.08.2024'" tax-period="14"/>
+		<submissionDate full-id="300.00.29.2024.13" code="300.00" version="29" year="2024" subm-date="'15.05.2024'" tax-period="13"/>
+		<submissionDate full-id="300.00.29.2025.16" code="300.00" version="29" year="2025" subm-date="'15.02.2026'" tax-period="16"/>
+		<submissionDate full-id="300.00.29.2025.15" code="300.00" version="29" year="2025" subm-date="'15.11.2025'" tax-period="15"/>
+		<submissionDate full-id="300.00.29.2025.14" code="300.00" version="29" year="2025" subm-date="'15.08.2025'" tax-period="14"/>
+		<submissionDate full-id="300.00.29.2025.13" code="300.00" version="29" year="2025" subm-date="'15.05.2025'" tax-period="13"/>
+		<submissionDate full-id="300.00.29.2026.16" code="300.00" version="29" year="2026" subm-date="'15.02.2027'" tax-period="16"/>
+		<submissionDate full-id="300.00.29.2026.15" code="300.00" version="29" year="2026" subm-date="'15.11.2026'" tax-period="15"/>
+		<submissionDate full-id="300.00.29.2026.14" code="300.00" version="29" year="2026" subm-date="'15.08.2026'" tax-period="14"/>
+		<submissionDate full-id="300.00.29.2026.13" code="300.00" version="29" year="2026" subm-date="'15.05.2026'" tax-period="13"/>
+	</submissionDates>
+</RulesDocKinds>

@@ -1,0 +1,346 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RulesDocKinds>
+	<documentKinds>
+		<documentKind code="200.00" version="33" kind="00010000000000000000" inisValue="3"/>
+		<documentKind code="200.00" version="33" kind="00011000000000000000" inisValue="6"/>
+		<documentKind code="200.00" version="33" kind="00100000000000000000" inisValue="4"/>
+		<documentKind code="200.00" version="33" kind="01000000000000000000" inisValue="2"/>
+		<documentKind code="200.00" version="33" kind="10000000000000000000" inisValue="1"/>
+		<documentKind code="200.00" version="33" kind="10100000000000000000" inisValue="4"/>
+	</documentKinds>
+	<rules>
+		<rule name="Правило 4.3.2" formula="@page.field_200_04_003_2" condition="(@page.num_ap1&lt;>'')*(@page.date_ap1&lt;>'')" isKno="true" knoFormula="@page_200_00_03.rating_auth_code" knoCondition="@formula.is_true=1" formName="form_200_04" chargeType="0">
+			<taxYear fullId="200.00.33.2023.02" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3,@page.period_year)" formulaDescription="СУ 2" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="103101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 4.3.3" formula="@page.field_200_04_003_3" condition="(@page.num_ap1&lt;>'')*(@page.date_ap1&lt;>'')" isKno="true" knoFormula="@page_200_00_03.rating_auth_code" knoCondition="@formula.is_true=1" formName="form_200_04" chargeType="0">
+			<taxYear fullId="200.00.33.2023.03" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3+1,@page.period_year)" formulaDescription="СУ 3" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="103101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 4.3.1" formula="@page.field_200_04_003_1" condition="(@page.num_ap1&lt;>'')*(@page.date_ap1&lt;>'')" isKno="true" knoFormula="@page_200_00_03.rating_auth_code" knoCondition="@formula.is_true=1" formName="form_200_04" chargeType="0">
+			<taxYear fullId="200.00.33.2023.01" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3-1,@page.period_year)" formulaDescription="СУ 1" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="103101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="200_00_005_1" formula="@page.field_200_00_005_1" condition="((@formula.typenp.(@page_200_00_01.iin, '2')='U')=1)*(@page_200_00_01.farm_fact=0)*(@page_200_00_01.usecnr=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.01" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3-1,@page.period_year)" formulaDescription="СУ 1" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="103101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="200_00_005_2" formula="@page.field_200_00_005_2" condition="((@formula.typenp.(@page_200_00_01.iin, '2')='U')=1)*(@page_200_00_01.farm_fact=0)*(@page_200_00_01.usecnr=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.02" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3,@page.period_year)" formulaDescription="СУ 2" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="103101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="200_00_005_3" formula="@page.field_200_00_005_3" condition="((@formula.typenp.(@page_200_00_01.iin, '2')='U')=1)*(@page_200_00_01.farm_fact=0)*(@page_200_00_01.usecnr=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.03" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3+1,@page.period_year)" formulaDescription="СУ 3" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="103101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="200_00_006_1" formula="@page.field_200_00_006_1" condition="(@page_200_00_01.farm_fact=1)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.01" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3-1,@page.period_year)" formulaDescription="СУ 1" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="103101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="200_00_006_2" formula="@page.field_200_00_006_2" condition="(@page_200_00_01.farm_fact=1)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.02" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3,@page.period_year)" formulaDescription="СУ 2" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="103101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="200_00_006_3" formula="@page.field_200_00_006_3" condition="(@page_200_00_01.farm_fact=1)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.03" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3+1,@page.period_year)" formulaDescription="СУ 3" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="103101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 9.2" formula="@page.field_200_00_009_2" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*((@formula.typenp.(@page_200_00_01.iin, '2')='F')=1)*(@page_200_00_01.usecnr=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.02" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3,@page.period_year)" formulaDescription="СУ 2" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="200_00_007_1" formula="@page.field_200_00_007_1" condition="((@formula.typenp.(@page_200_00_01.iin, '2')='F')=1)*(@page_200_00_01.farm_fact=0)*(@page_200_00_01.usecnr=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.01" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3-1,@page.period_year)" formulaDescription="СУ 1" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="103101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="200_00_007_2" formula="@page.field_200_00_007_2" condition="((@formula.typenp.(@page_200_00_01.iin, '2')='F')=1)*(@page_200_00_01.farm_fact=0)*(@page_200_00_01.usecnr=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.02" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3,@page.period_year)" formulaDescription="СУ 2" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="103101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 10.1" formula="@page.field_200_00_010_1" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*(@page_200_00_01.usecnr=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.01" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3-1,@page.period_year)" formulaDescription="СУ 1" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 10.2" formula="@page.field_200_00_010_2" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*(@page_200_00_01.usecnr=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.02" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3,@page.period_year)" formulaDescription="СУ 2" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 10.3" formula="@page.field_200_00_010_3" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*(@page_200_00_01.usecnr=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.03" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3+1,@page.period_year)" formulaDescription="СУ 3" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 11.2" formula="@page.field_200_00_011_2" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*((@formula.typenp.(@page_200_00_01.iin, '2')='U')*(@page_200_00_01.usecnr=0)+(@formula.typenp.(@page_200_00_01.iin, '2')='F')>0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.02" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3,@page.period_year)" formulaDescription="СУ 2" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 11.3" formula="@page.field_200_00_011_3" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*((@formula.typenp.(@page_200_00_01.iin, '2')='U')*(@page_200_00_01.usecnr=0)+(@formula.typenp.(@page_200_00_01.iin, '2')='F')>0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.03" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3+1,@page.period_year)" formulaDescription="СУ 3" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 12.1" formula="@page.field_200_00_012_1" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*(@formula.typenp.(@page_200_00_01.iin, '2')='F')" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.01" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3-1,@page.period_year)" formulaDescription="СУ 1" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 12.2" formula="@page.field_200_00_012_2" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*(@formula.typenp.(@page_200_00_01.iin, '2')='F')" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.02" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3,@page.period_year)" formulaDescription="СУ 2" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 12.3" formula="@page.field_200_00_012_3" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*(@formula.typenp.(@page_200_00_01.iin, '2')='F')" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.03" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3+1,@page.period_year)" formulaDescription="СУ 3" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="200_00_013_1" formula="@page.field_200_00_013_1" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*((@formula.typenp.(@page_200_00_01.iin, '2')='U')*(@page_200_00_01.usecnr=0)+(@formula.typenp.(@page_200_00_01.iin, '2')='F')>0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.01" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3-1,@page.period_year)" formulaDescription="СУ 1" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="200_00_013_2" formula="@page.field_200_00_013_2" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*((@formula.typenp.(@page_200_00_01.iin, '2')='U')*(@page_200_00_01.usecnr=0)+(@formula.typenp.(@page_200_00_01.iin, '2')='F')>0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.02" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3,@page.period_year)" formulaDescription="СУ 2" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="200_00_013_3" formula="@page.field_200_00_013_3" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*((@formula.typenp.(@page_200_00_01.iin, '2')='U')*(@page_200_00_01.usecnr=0)+(@formula.typenp.(@page_200_00_01.iin, '2')='F')>0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.03" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3+1,@page.period_year)" formulaDescription="СУ 3" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="905101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="200_00_014_1" formula="@page.field_200_00_014_1" condition="((@formula.typenp.(@page_200_00_01.iin, '2')='U')*(@page_200_00_01.usecnr=0)+(@formula.typenp.(@page_200_00_01.iin, '2')='F')>0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.01" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3-1,@page.period_year)" formulaDescription="СУ 1" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="906101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 3.3" formula="@page.field_200_00_003_3" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*(((@formula.typenp.(@page_200_00_01.iin, '2')='U')*(@page_200_00_01.usecnr=1))=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.03" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3+1,@page.period_year)" formulaDescription="СУ 3" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="903101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 4.1" formula="@page.field_200_00_004_1" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*((@formula.typenp.(@page_200_00_01.iin, '2')='F')=1)*(@page_200_00_01.usecnr=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.01" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3-1,@page.period_year)" formulaDescription="СУ 1" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 4.2" formula="@page.field_200_00_004_2" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*((@formula.typenp.(@page_200_00_01.iin, '2')='F')=1)*(@page_200_00_01.usecnr=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.02" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3,@page.period_year)" formulaDescription="СУ 2" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 4.3" formula="@page.field_200_00_004_3" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*((@formula.typenp.(@page_200_00_01.iin, '2')='F')=1)*(@page_200_00_01.usecnr=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.03" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3+1,@page.period_year)" formulaDescription="СУ 3" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="200_00_014_2" formula="@page.field_200_00_014_2" condition="((@formula.typenp.(@page_200_00_01.iin, '2')='U')*(@page_200_00_01.usecnr=0)+(@formula.typenp.(@page_200_00_01.iin, '2')='F')>0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.02" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3,@page.period_year)" formulaDescription="СУ 2" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="906101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="200_00_014_3" formula="@page.field_200_00_014_3" condition="((@formula.typenp.(@page_200_00_01.iin, '2')='U')*(@page_200_00_01.usecnr=0)+(@formula.typenp.(@page_200_00_01.iin, '2')='F')>0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.03" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3+1,@page.period_year)" formulaDescription="СУ 3" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="906101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 2.2" formula="@page.field_200_00_002_2" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*((@formula.typenp.(@page_200_00_01.iin, '2')='U')*(@page_200_00_01.usecnr=0)+(@formula.typenp.(@page_200_00_01.iin, '2')='F')=1)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.02" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3,@page.period_year)" formulaDescription="СУ 2" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 2.3" formula="@page.field_200_00_002_3" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*((@formula.typenp.(@page_200_00_01.iin, '2')='U')*(@page_200_00_01.usecnr=0)+(@formula.typenp.(@page_200_00_01.iin, '2')='F')=1)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.03" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3+1,@page.period_year)" formulaDescription="СУ 3" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 3.1" formula="@page.field_200_00_003_1" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*(((@formula.typenp.(@page_200_00_01.iin, '2')='U')*(@page_200_00_01.usecnr=1))=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.01" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3-1,@page.period_year)" formulaDescription="СУ 1" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="903101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="200_00_001_1" formula="@page.field_200_00_001_1" condition="((@formula.typenp.(@page_200_00_01.iin, '2')='U')*(@page_200_00_01.usecnr=0)+(@formula.typenp.(@page_200_00_01.iin, '2')='F')>0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.01" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3-1,@page.period_year)" formulaDescription="СУ 1" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="101201" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="200_00_001_2" formula="@page.field_200_00_001_2" condition="((@formula.typenp.(@page_200_00_01.iin, '2')='U')*(@page_200_00_01.usecnr=0)+(@formula.typenp.(@page_200_00_01.iin, '2')='F')>0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.02" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3,@page.period_year)" formulaDescription="СУ 2" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="101201" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="200_00_001_3" formula="@page.field_200_00_001_3" condition="((@formula.typenp.(@page_200_00_01.iin, '2')='U')*(@page_200_00_01.usecnr=0)+(@formula.typenp.(@page_200_00_01.iin, '2')='F')>0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.03" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3+1,@page.period_year)" formulaDescription="СУ 3" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="101201" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 2.1" formula="@page.field_200_00_002_1" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*((@formula.typenp.(@page_200_00_01.iin, '2')='U')*(@page_200_00_01.usecnr=0)+(@formula.typenp.(@page_200_00_01.iin, '2')='F')=1)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.01" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3-1,@page.period_year)" formulaDescription="СУ 1" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="901101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 9.1" formula="@page.field_200_00_009_1" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*((@formula.typenp.(@page_200_00_01.iin, '2')='F')=1)*(@page_200_00_01.usecnr=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.01" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3-1,@page.period_year)" formulaDescription="СУ 1" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 9.3" formula="@page.field_200_00_009_3" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*((@formula.typenp.(@page_200_00_01.iin, '2')='F')=1)*(@page_200_00_01.usecnr=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.03" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3+1,@page.period_year)" formulaDescription="СУ 3" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="200_00_007_3" formula="@page.field_200_00_007_3" condition="((@formula.typenp.(@page_200_00_01.iin, '2')='F')=1)*(@page_200_00_01.farm_fact=0)*(@page_200_00_01.usecnr=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.03" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3+1,@page.period_year)" formulaDescription="СУ 3" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="103101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 8.1" formula="@page.field_200_00_008_1" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*(@page_200_00_01.usecnr=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.01" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3-1,@page.period_year)" formulaDescription="СУ 1" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 8.3" formula="@page.field_200_00_008_3" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*(@page_200_00_01.usecnr=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.03" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3+1,@page.period_year)" formulaDescription="СУ 3" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 8.2" formula="@page.field_200_00_008_2" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*(@page_200_00_01.usecnr=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.02" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3,@page.period_year)" formulaDescription="СУ 2" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="902101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 3.2" formula="@page.field_200_00_003_2" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*(((@formula.typenp.(@page_200_00_01.iin, '2')='U')*(@page_200_00_01.usecnr=1))=0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.02" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3,@page.period_year)" formulaDescription="СУ 2" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="903101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+		<rule name="Правило 11.1" formula="@page.field_200_00_011_1" condition="(@page_200_00_03.rating_auth_code_struct&lt;>'')*((@formula.typenp.(@page_200_00_01.iin, '2')='U')*(@page_200_00_01.usecnr=0)+(@formula.typenp.(@page_200_00_01.iin, '2')='F')>0)" isKno="true" knoFormula="@page_200_00_03.rating_auth_code_struct" knoCondition="@formula.is_true=1" chargeType="0">
+			<taxYear fullId="200.00.33.2023.01" code="200.00" version="33" year="2023" formula="@formula.get_date(25,@page.period_quarter*3-1,@page.period_year)" formulaDescription="СУ 1" dateType="Все"/>
+			<taxRecordYear fullId="200.00.33.2023.99" code="200.00" version="33" year="2023" formula="@formula.get_date(@formula.cut_date(@formula.get_fil_date, d) + 10, @formula.cut_date(@formula.get_fil_date, m),  @formula.cut_date(@formula.get_fil_date, y))" dateType="Ликвидационный"/>
+			<kbks>
+				<kbk formula="904101" condition="@formula.is_true=1"/>
+			</kbks>
+		</rule>
+	</rules>
+	<submissionDates>
+		<submissionDate full-id="200.00.33.2024.13" code="200.00" version="33" year="2024" subm-date="'15.05.2024'" tax-period="13"/>
+		<submissionDate full-id="200.00.33.2024.14" code="200.00" version="33" year="2024" subm-date="'15.08.2024'" tax-period="14"/>
+		<submissionDate full-id="200.00.33.2024.15" code="200.00" version="33" year="2024" subm-date="'15.11.2024'" tax-period="15"/>
+		<submissionDate full-id="200.00.33.2024.16" code="200.00" version="33" year="2024" subm-date="'15.02.2025'" tax-period="16"/>
+		<submissionDate full-id="200.00.33.2025.13" code="200.00" version="33" year="2025" subm-date="'15.05.2025'" tax-period="13"/>
+		<submissionDate full-id="200.00.33.2025.14" code="200.00" version="33" year="2025" subm-date="'15.08.2025'" tax-period="14"/>
+		<submissionDate full-id="200.00.33.2025.15" code="200.00" version="33" year="2025" subm-date="'15.11.2025'" tax-period="15"/>
+		<submissionDate full-id="200.00.33.2025.16" code="200.00" version="33" year="2025" subm-date="'15.02.2026'" tax-period="16"/>
+		<submissionDate full-id="200.00.33.2023.13" code="200.00" version="33" year="2023" subm-date="'15.05.2023'" tax-period="13"/>
+		<submissionDate full-id="200.00.33.2023.14" code="200.00" version="33" year="2023" subm-date="'15.08.2023'" tax-period="14"/>
+		<submissionDate full-id="200.00.33.2023.15" code="200.00" version="33" year="2023" subm-date="'15.11.2023'" tax-period="15"/>
+		<submissionDate full-id="200.00.33.2023.16" code="200.00" version="33" year="2023" subm-date="'15.02.2024'" tax-period="16"/>
+		<submissionDate full-id="200.00.33.2026.13" code="200.00" version="33" year="2026" subm-date="'15.05.2026'" tax-period="13"/>
+		<submissionDate full-id="200.00.33.2026.14" code="200.00" version="33" year="2026" subm-date="'15.08.2026'" tax-period="14"/>
+		<submissionDate full-id="200.00.33.2026.15" code="200.00" version="33" year="2026" subm-date="'15.11.2026'" tax-period="15"/>
+		<submissionDate full-id="200.00.33.2026.16" code="200.00" version="33" year="2026" subm-date="'15.02.2027'" tax-period="16"/>
+	</submissionDates>
+</RulesDocKinds>
