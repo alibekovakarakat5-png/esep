@@ -49,15 +49,48 @@ router.get('/', authMiddleware, async (req, res) => {
       [userId],
     );
 
-    if (rows.length === 0) {
+    let row = rows[0];
+
+    // Авто-провижн для enterprise-пользователей без записи в platform_api_keys.
+    // Создаём демо-аккаунт с базовым набором фич, чтобы они могли сразу
+    // открыть свой кабинет после смены тарифа в админке.
+    if (!row && req.user?.tier === 'enterprise') {
+      const crypto = require('crypto');
+      const apiKey = 'pk_' + crypto.randomBytes(16).toString('base64url');
+      const userInfo = await db.query(
+        'SELECT name FROM users WHERE id = $1',
+        [userId],
+      );
+      const defaultFeatures = [
+        'process_payment', 'taxpayer_info', 'iin_validate',
+        'cancel_receipt', 'receipt_status', 'income_limit',
+        'self_employed_registry', 'benefits',
+      ];
+      const inserted = await db.query(
+        `INSERT INTO platform_api_keys
+          (user_id, api_key, client_name, client_bin, tier, features,
+           monthly_quota, is_active)
+         VALUES ($1, $2, $3, NULL, 'enterprise', $4, 10000, TRUE)
+         RETURNING id, api_key, client_name, client_bin, tier, features,
+                   monthly_quota, requests_this_month, requests_total,
+                   created_at, last_used_at`,
+        [
+          userId,
+          apiKey,
+          userInfo.rows[0]?.name || 'Enterprise клиент',
+          defaultFeatures,
+        ],
+      );
+      row = inserted.rows[0];
+    }
+
+    if (!row) {
       return res.status(403).json({
         error: 'NO_PLATFORM_ACCESS',
         has_platform_access: false,
         message: 'У вашего аккаунта нет доступа к Platform API. Свяжитесь с менеджером Esep.',
       });
     }
-
-    const row = rows[0];
 
     // Считаем сколько чеков обработано
     const { rows: [stats] } = await db.query(
