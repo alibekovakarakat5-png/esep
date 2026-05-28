@@ -125,6 +125,8 @@ extension SubscriptionTierExt on SubscriptionTier {
         return 'До 15 клиентов + ЛПР + дедлайны';
       case SubscriptionTier.accountantPro:
         return 'До 50 клиентов + приоритетная поддержка';
+      case SubscriptionTier.enterprise:
+        return 'Platform API — Compliance под 214-VIII';
     }
   }
 }

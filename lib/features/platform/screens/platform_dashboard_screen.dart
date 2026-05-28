@@ -66,7 +66,7 @@ class _PlatformDashboardScreenState
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text('Platform API — Корпоративный кабинет'),
-        backgroundColor: AppTheme.primary,
+        backgroundColor: EsepColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
