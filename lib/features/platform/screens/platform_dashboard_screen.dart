@@ -146,25 +146,31 @@ class _PlatformDashboardScreenState
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  RichText(
-                    text: const TextSpan(
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Esep',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: _Brand.text,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.4,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: _Brand.tagBg,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'PLATFORM',
                       style: TextStyle(
-                        fontSize: 17,
-                        color: _Brand.text,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.3,
+                        fontSize: 10,
+                        color: _Brand.accent,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.8,
                       ),
-                      children: [
-                        TextSpan(text: 'esep'),
-                        TextSpan(
-                          text: 'platform',
-                          style: TextStyle(
-                            color: _Brand.textSecondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                   const SizedBox(width: 28),
@@ -572,13 +578,17 @@ class _PlatformDashboardScreenState
           if (i + j < items.length) {
             rowChildren.add(Expanded(child: _heroStatCell(items[i + j])));
             if (j < cols - 1 && i + j + 1 < items.length) {
-              rowChildren.add(_heroStatDivider());
+              rowChildren.add(Container(
+                width: 1,
+                height: 80,
+                color: _Brand.borderDark.withValues(alpha: 0.6),
+              ));
             }
           } else {
             rowChildren.add(const Expanded(child: SizedBox.shrink()));
           }
         }
-        rows.add(IntrinsicHeight(child: Row(children: rowChildren)));
+        rows.add(Row(children: rowChildren));
         if (i + cols < items.length) {
           rows.add(Container(height: 1, color: _Brand.borderDark.withValues(alpha: 0.6)));
         }
@@ -586,11 +596,6 @@ class _PlatformDashboardScreenState
       return Column(children: rows);
     });
   }
-
-  Widget _heroStatDivider() => Container(
-        width: 1,
-        color: _Brand.borderDark.withValues(alpha: 0.6),
-      );
 
   Widget _heroStatCell(_HeroStat s) {
     return Padding(
