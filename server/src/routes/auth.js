@@ -115,6 +115,88 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// POST /api/auth/help-request — пользователь запрашивает помощь с входом
+// (восстановление пароля, не могу войти, и т.п.). Запрос летит админу в Telegram.
+// Простой rate-limit по IP: max 3 запроса в час.
+const _helpRequestRate = new Map(); // ip → { count, resetAt }
+function _checkRate(ip) {
+  const now = Date.now();
+  const rec = _helpRequestRate.get(ip);
+  if (!rec || rec.resetAt < now) {
+    _helpRequestRate.set(ip, { count: 1, resetAt: now + 3600_000 });
+    return true;
+  }
+  if (rec.count >= 3) return false;
+  rec.count++;
+  return true;
+}
+
+router.post('/help-request', async (req, res) => {
+  try {
+    const ip = req.ip || 'unknown';
+    if (!_checkRate(ip)) {
+      return res.status(429).json({
+        error: 'Слишком много запросов. Попробуйте через час или напишите в WhatsApp.'
+      });
+    }
+
+    const { email = '', message = '', phone = '' } = req.body ?? {};
+    const trimmedEmail = String(email).toLowerCase().trim();
+    const trimmedMsg = String(message).trim().slice(0, 500);
+    const trimmedPhone = normalizePhone(phone);
+
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+      return res.status(400).json({ error: 'Укажите корректный email' });
+    }
+
+    // Узнаём, есть ли такой пользователь (для контекста админу — но ответ
+    // пользователю одинаковый в любом случае, чтобы не раскрывать БД).
+    const { rows } = await db.query(
+      'SELECT id, name, phone, tier, telegram_chat_id FROM users WHERE email = $1',
+      [trimmedEmail],
+    );
+    const user = rows[0] || null;
+
+    // Лог в security audit (если БД миграция прошла)
+    try {
+      await db.query(
+        `INSERT INTO auth_security_log (user_id, event, meta, ip, user_agent)
+         VALUES ($1, 'help_request', $2::jsonb, $3, $4)`,
+        [
+          user?.id || null,
+          JSON.stringify({ email: trimmedEmail, message: trimmedMsg, phone: trimmedPhone }),
+          ip,
+          req.headers?.['user-agent']?.slice(0, 200) || null,
+        ],
+      );
+    } catch (_) { /* table may not exist yet — ignore */ }
+
+    // Уведомляем админа в Telegram
+    const adminMsg =
+      `🆘 <b>Запрос на восстановление доступа</b>\n\n` +
+      `Email: <code>${trimmedEmail}</code>\n` +
+      (trimmedPhone ? `Телефон: ${trimmedPhone}\n` : '') +
+      (user
+        ? `✅ В базе: ${user.name || '—'} · тариф <b>${user.tier}</b>` +
+          (user.telegram_chat_id ? ' · TG привязан' : ' · TG не привязан') + '\n'
+        : `❌ В базе НЕ найден\n`) +
+      (trimmedMsg ? `\nСообщение:\n<i>${trimmedMsg.replace(/[<>&]/g, '')}</i>\n` : '') +
+      `\nIP: <code>${ip}</code>`;
+
+    tg.sendAdmin(adminMsg, { parse_mode: 'HTML' }).catch((err) =>
+      console.error('[help-request] admin notify failed:', err.message),
+    );
+
+    res.json({
+      ok: true,
+      message: 'Запрос отправлен. Мы свяжемся с вами в течение часа в рабочее время.',
+    });
+  } catch (err) {
+    console.error('POST /auth/help-request error:', err);
+    res.status(500).json({ error: 'Не удалось отправить запрос. Напишите в WhatsApp.' });
+  }
+});
+
 // GET /api/auth/me  — проверяет токен и возвращает актуальный тариф
 router.get('/me', authMiddleware, async (req, res) => {
   try {

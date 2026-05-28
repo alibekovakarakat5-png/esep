@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/legal_docs.dart';
 import '../../../core/providers/legal_consent_provider.dart';
@@ -326,19 +325,14 @@ class _LoginTab extends StatelessWidget {
         Align(
           alignment: Alignment.centerRight,
           child: TextButton.icon(
-            onPressed: () async {
-              // Открываем TG-бот: /start reset_<email>
-              final email = emailCtrl.text.trim();
-              final payload = email.contains('@')
-                  ? 'reset_$email'
-                  : 'reset';
-              final url = Uri.parse('https://t.me/EsepKZ_bot?start=$payload');
-              if (await canLaunchUrl(url)) {
-                await launchUrl(url, mode: LaunchMode.externalApplication);
-              }
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (_) => _HelpRequestDialog(initialEmail: emailCtrl.text.trim()),
+              );
             },
-            icon: const Icon(Iconsax.message, size: 16),
-            label: const Text('Забыл пароль? Пиши боту'),
+            icon: const Icon(Iconsax.key, size: 16),
+            label: const Text('Забыл пароль?'),
           ),
         ),
         const SizedBox(height: 4),
@@ -546,6 +540,259 @@ class _ConsentCheckboxState extends State<_ConsentCheckbox> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ── Help-request dialog: пользователь не может войти ────────────────────────
+// Отправляет запрос на /api/auth/help-request, админ получает уведомление в TG.
+
+class _HelpRequestDialog extends StatefulWidget {
+  const _HelpRequestDialog({required this.initialEmail});
+  final String initialEmail;
+
+  @override
+  State<_HelpRequestDialog> createState() => _HelpRequestDialogState();
+}
+
+class _HelpRequestDialogState extends State<_HelpRequestDialog> {
+  late final TextEditingController _emailCtrl;
+  late final TextEditingController _phoneCtrl;
+  late final TextEditingController _msgCtrl;
+  bool _loading = false;
+  String? _error;
+  bool _sent = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailCtrl = TextEditingController(text: widget.initialEmail);
+    _phoneCtrl = TextEditingController();
+    _msgCtrl = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    _phoneCtrl.dispose();
+    _msgCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final email = _emailCtrl.text.trim();
+    if (!email.contains('@') || !email.contains('.')) {
+      setState(() => _error = 'Укажите корректный email');
+      return;
+    }
+    setState(() { _loading = true; _error = null; });
+    try {
+      final res = await ApiClient.post('/api/auth/help-request', {
+        'email': email,
+        'phone': _phoneCtrl.text.trim(),
+        'message': _msgCtrl.text.trim(),
+      });
+      if (mounted) {
+        setState(() {
+          _sent = true;
+          _loading = false;
+        });
+      }
+      // Поглощаем неиспользуемый результат, но логируем для отладки
+      // ignore: avoid_print
+      print('help-request ok: $res');
+    } on ApiException catch (e) {
+      if (mounted) setState(() { _error = e.message; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() {
+        _error = 'Нет соединения. Напишите в WhatsApp на +7 707 588 46 51';
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
+          child: _sent ? _buildSuccess() : _buildForm(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildForm() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: EsepColors.primary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Iconsax.key, color: EsepColors.primary, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Восстановить доступ',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+            ),
+            IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.close, size: 22),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        const Text(
+          'Опишите проблему — мы свяжемся с вами в течение часа в рабочее время и поможем восстановить доступ.',
+          style: TextStyle(
+            fontSize: 13.5,
+            color: EsepColors.textSecondary,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        if (_error != null) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: EsepColors.expense.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(children: [
+              const Icon(Icons.error_outline, color: EsepColors.expense, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _error!,
+                  style: const TextStyle(color: EsepColors.expense, fontSize: 12.5),
+                ),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 14),
+        ],
+
+        TextField(
+          controller: _emailCtrl,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(
+            labelText: 'Email *',
+            hintText: 'name@example.com',
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _phoneCtrl,
+          keyboardType: TextInputType.phone,
+          decoration: const InputDecoration(
+            labelText: 'Телефон / WhatsApp (необязательно)',
+            hintText: '+7 777 123 45 67',
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _msgCtrl,
+          maxLines: 3,
+          maxLength: 500,
+          decoration: const InputDecoration(
+            labelText: 'Что произошло (необязательно)',
+            hintText: 'Например: забыл пароль, не получаю код, и т.п.',
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              textStyle: const TextStyle(
+                fontSize: 15, fontWeight: FontWeight.w700,
+              ),
+            ),
+            onPressed: _loading ? null : _submit,
+            child: _loading
+                ? const SizedBox(
+                    height: 20, width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white,
+                    ),
+                  )
+                : const Text('Отправить запрос'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSuccess() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: EsepColors.income.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.check_circle_outline,
+            color: EsepColors.income,
+            size: 48,
+          ),
+        ),
+        const SizedBox(height: 18),
+        const Text(
+          'Запрос отправлен',
+          style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'Мы свяжемся с вами в течение часа в рабочее время. '
+          'Проверьте Telegram, WhatsApp и email.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            color: EsepColors.textSecondary,
+            height: 1.45,
+          ),
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'Понятно',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
