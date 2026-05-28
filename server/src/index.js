@@ -38,6 +38,8 @@ const { migrateAuthRecovery }             = require('./services/auth_recovery_db
 const authRecoveryRoutes                  = require('./routes/auth-recovery');
 const { migratePlatform }                 = require('./services/platform_db');
 const platformRoutes                      = require('./routes/platform');
+const { router: partnerRoutes,
+        migratePartner }                  = require('./routes/partner');
 
 // ── Env validation ───────────────────────────────────────────────────────────
 const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET'];
@@ -297,6 +299,7 @@ async function migrate() {
   // Platform API (enterprise клиенты — курьерская служба, маркетплейсы)
   try {
     await migratePlatform();
+    await migratePartner();
   } catch (err) {
     console.error('[platform] migration failed:', err.message);
   }
@@ -364,6 +367,7 @@ app.use('/api/account',      authMiddleware, accountRoutes);
 app.use('/api/tax-profile',  authMiddleware, taxProfileRoutes);
 app.use('/api/kbk',          authMiddleware, kbkRoutes);
 app.use('/api/platform',     platformRoutes);    // Enterprise Platform API — auth внутри (X-Platform-Key)
+app.use('/api/partner',      partnerRoutes);     // Партнёрская программа — JWT внутри
 
 // Static files (Platform Dashboard preview, для созвонов)
 const path = require('path');

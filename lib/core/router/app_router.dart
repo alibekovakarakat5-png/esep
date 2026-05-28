@@ -38,6 +38,7 @@ import '../providers/auth_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/user_mode_provider.dart';
 import '../../features/platform/screens/platform_dashboard_screen.dart';
+import '../../features/partner/partner_dashboard_screen.dart';
 
 // ── Router Listeneables ───────────────────────────────────────────────────────
 
@@ -148,6 +149,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/platform',
         builder: (_, __) => const PlatformDashboardScreen(),
+      ),
+
+      // ── Partner Dashboard — кабинет бухгалтерской фирмы-партнёра
+      GoRoute(
+        path: '/partner',
+        builder: (_, __) => const PartnerDashboardScreen(),
       ),
 
       // ── Main shell (with bottom nav) ─────────────────────────────────────

@@ -121,6 +121,29 @@ router.patch('/users/:id/beta-tester', adminAuth, async (req, res) => {
   }
 });
 
+// ── PATCH /api/admin/users/:id/partner ─────────────────────────────────────
+// Body: { is: bool, commission_pct?: number, company_name?: string }
+// Превращает пользователя в партнёра (или убирает статус).
+router.patch('/users/:id/partner', adminAuth, async (req, res) => {
+  try {
+    const is = !!req.body?.is;
+    const pct = Math.max(0, Math.min(100, parseInt(req.body?.commission_pct, 10) || 30));
+    const companyName = (req.body?.company_name || '').toString().slice(0, 200);
+    await db.query(
+      `UPDATE users
+          SET is_partner = $1,
+              partner_commission_pct = $2,
+              partner_company_name = COALESCE(NULLIF($3, ''), partner_company_name)
+        WHERE id = $4`,
+      [is, pct, companyName, req.params.id],
+    );
+    res.json({ ok: true, is_partner: is, commission_pct: pct, company_name: companyName });
+  } catch (err) {
+    console.error('PATCH /admin/users/:id/partner error:', err);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
 // ── POST /api/admin/users/:id/impersonate ────────────────────────────────────
 // Создаёт временный JWT для входа под клиента из админки.
 // TTL 1 час. JWT содержит claim `imp: true` — middleware и /me его пробрасывают,
