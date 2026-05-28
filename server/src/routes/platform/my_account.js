@@ -38,20 +38,8 @@ const DEFAULT_ENTERPRISE_FEATURES = [
   'self_employed_registry', 'benefits',
 ];
 
-async function getOrCreateApiKey(userId) {
-  // Пытаемся найти существующий
-  const { rows } = await db.query(
-    `SELECT id, api_key, client_name, client_bin, features,
-            monthly_quota, requests_this_month, requests_total,
-            created_at, last_used_at
-       FROM platform_api_keys
-      WHERE user_id = $1 AND is_active = TRUE
-      LIMIT 1`,
-    [userId],
-  );
-  if (rows[0]) return rows[0];
-
-  // Нет — создаём
+// (зарезервировано для будущего endpoint'а POST /api/admin/users/:id/enable-platform)
+async function _provisionApiKey(userId) {
   const crypto = require('crypto');
   const apiKey = 'pk_' + crypto.randomBytes(16).toString('base64url');
   const userInfo = await db.query(
@@ -84,9 +72,12 @@ router.get('/', authMiddleware, async (req, res) => {
       return res.status(401).json({ error: 'Не авторизован' });
     }
 
-    // Доступ имеют все enterprise-юзеры. API-ключ создаём лениво при
-    // первом заходе — не как блокер, а как сопутствующий артефакт.
-    if (req.user?.tier !== 'enterprise') {
+    const isAdminImpersonation = !!req.isImpersonated;
+
+    // Доступ требует tier=enterprise (биллинг).
+    // Исключение: super-admin через impersonation видит дашборд
+    // независимо от тарифа — для оперативной диагностики.
+    if (req.user?.tier !== 'enterprise' && !isAdminImpersonation) {
       return res.status(403).json({
         error: 'NO_PLATFORM_ACCESS',
         has_platform_access: false,
@@ -95,21 +86,43 @@ router.get('/', authMiddleware, async (req, res) => {
       });
     }
 
-    let row;
-    try {
-      row = await getOrCreateApiKey(userId);
-    } catch (e) {
-      // Даже если БД сломалась — отдаём дашборд с дефолтами,
-      // чтобы UI не показывал «нет доступа» в случае админ-захода
-      // под нового enterprise-юзера.
-      console.error('[platform/my-account] getOrCreateApiKey failed:', e.message);
+    // Ищем существующий API-ключ
+    const existing = await db.query(
+      `SELECT id, api_key, client_name, client_bin, features,
+              monthly_quota, requests_this_month, requests_total,
+              created_at, last_used_at
+         FROM platform_api_keys
+        WHERE user_id = $1 AND is_active = TRUE
+        LIMIT 1`,
+      [userId],
+    );
+
+    let row = existing.rows[0];
+
+    if (!row) {
+      // Нет ключа в БД.
+      // — Обычный enterprise-юзер: возвращаем 403, чтобы menedger Esep
+      //   увидел запрос и оформил клиента нормально (заведёт фичи,
+      //   лимиты, контактное лицо).
+      // — Super-admin (impersonation): пропускаем с дефолтным placeholder,
+      //   чтобы можно было сразу зайти в кабинет и диагностировать.
+      if (!isAdminImpersonation) {
+        return res.status(403).json({
+          error: 'NO_PLATFORM_ACCESS',
+          has_platform_access: false,
+          message: 'Аккаунт ещё не настроен для Platform API. ' +
+                   'Менеджер Esep оформит ваш ключ в течение рабочего дня.',
+        });
+      }
+      // Admin-bypass: даём виртуальный аккаунт без записи в БД.
+      console.log('[platform/my-account] admin bypass for user', userId, '(no api key row)');
       row = {
         id: null,
-        api_key: 'pk_pending_setup',
-        client_name: req.user.email || 'Enterprise клиент',
+        api_key: 'pk_admin_view_no_key',
+        client_name: '[admin view] ' + (req.user.email || 'Enterprise клиент'),
         client_bin: null,
         features: DEFAULT_ENTERPRISE_FEATURES,
-        monthly_quota: 10000,
+        monthly_quota: 0,
         requests_this_month: 0,
         requests_total: 0,
         created_at: null,
