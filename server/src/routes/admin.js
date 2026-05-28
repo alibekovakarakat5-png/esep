@@ -1,6 +1,8 @@
 const router = require('express').Router();
+const jwt    = require('jsonwebtoken');
 const db     = require('../db');
 const { TIERS, normalizeTier } = require('../tiers');
+const tg     = require('../bot/telegram');
 
 // BUG 7: XSS prevention helper
 function escapeHtml(str) {
@@ -115,6 +117,74 @@ router.patch('/users/:id/beta-tester', adminAuth, async (req, res) => {
     res.json({ ok: true, isBetaTester: is });
   } catch (err) {
     console.error('PATCH /admin/users/:id/beta-tester error:', err);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// ── POST /api/admin/users/:id/impersonate ────────────────────────────────────
+// Создаёт временный JWT для входа под клиента из админки.
+// TTL 1 час. JWT содержит claim `imp: true` — middleware и /me его пробрасывают,
+// фронт показывает баннер «Вы вошли как X».
+router.post('/users/:id/impersonate', adminAuth, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const reason = String(req.body?.reason || '').slice(0, 200);
+
+    const { rows } = await db.query(
+      'SELECT id, email, name, tier FROM users WHERE id = $1',
+      [userId],
+    );
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
+    const user = rows[0];
+
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({ error: 'JWT_SECRET not set' });
+    }
+
+    // 1 час TTL, явный claim impersonation
+    const token = jwt.sign(
+      { sub: user.id, imp: true },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' },
+    );
+    const expiresAt = new Date(Date.now() + 3600_000).toISOString();
+
+    // Лог в security audit (если миграция прошла)
+    try {
+      await db.query(
+        `INSERT INTO auth_security_log (user_id, event, meta, ip, user_agent)
+         VALUES ($1, 'impersonate_start', $2::jsonb, $3, $4)`,
+        [
+          user.id,
+          JSON.stringify({ reason, by_admin: true }),
+          req.ip || null,
+          req.headers?.['user-agent']?.slice(0, 200) || null,
+        ],
+      );
+    } catch (_) { /* table may not exist — ignore */ }
+
+    // Уведомляем админа (саму себя) — на всякий случай, для трассировки
+    tg.sendAdmin(
+      `👁 <b>Вход под клиента</b>\n\n` +
+      `Email: <code>${user.email}</code>\n` +
+      `Имя: ${user.name || '—'}\n` +
+      `Тариф: <b>${user.tier}</b>\n` +
+      (reason ? `Причина: <i>${reason.replace(/[<>&]/g, '')}</i>\n` : '') +
+      `IP: <code>${req.ip}</code>\n` +
+      `Срок токена: 1 час`,
+      { parse_mode: 'HTML' },
+    ).catch(() => {});
+
+    res.json({
+      token,
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      tier: normalizeTier(user.tier),
+      expiresAt,
+    });
+  } catch (err) {
+    console.error('POST /admin/users/:id/impersonate error:', err);
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
@@ -408,6 +478,7 @@ router.get('/', adminAuth, async (_req, res) => {
       const safeEmail = escapeHtml(u.email);
       const safeName = escapeHtml(u.name);
       const safeTier = escapeHtml(u.tier);
+      const safeId = escapeHtml(u.id);
       const isTester = !!u.is_beta_tester;
       return `
       <tr>
@@ -417,7 +488,7 @@ router.get('/', adminAuth, async (_req, res) => {
         <td>${u.tx_total}</td><td>${u.inv_total}</td>
         <td>${new Date(u.created_at).toLocaleDateString('ru-RU')}</td>
         <td>
-          <select onchange="changeTier('${escapeHtml(u.id)}', this.value)">
+          <select onchange="changeTier('${safeId}', this.value)">
             ${TIERS.map((t) =>
               `<option value="${t}"${t === u.tier ? ' selected' : ''}>${t}</option>`
             ).join('')}
@@ -425,9 +496,16 @@ router.get('/', adminAuth, async (_req, res) => {
         </td>
         <td style="text-align:center">
           <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:${isTester ? '#16a34a' : '#9ca3af'};font-weight:600">
-            <input type="checkbox" ${isTester ? 'checked' : ''} onchange="toggleBetaTester('${escapeHtml(u.id)}', this.checked)" style="cursor:pointer">
+            <input type="checkbox" ${isTester ? 'checked' : ''} onchange="toggleBetaTester('${safeId}', this.checked)" style="cursor:pointer">
             ${isTester ? '🧪 тестер' : '—'}
           </label>
+        </td>
+        <td style="text-align:center">
+          <button onclick="impersonate('${safeId}', '${safeEmail}')"
+                  title="Войти под этим клиентом (1 час)"
+                  style="padding:5px 10px;border:none;background:#7c3aed;color:#fff;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">
+            👁 Войти
+          </button>
         </td>
       </tr>`;
     }).join('');
@@ -570,7 +648,7 @@ router.get('/', adminAuth, async (_req, res) => {
       <div class="stat"><div class="stat-val">${users.filter(u=>u.tier==='accountant_pro').length}</div><div class="stat-label">Бухгалтер Про</div></div>
     </div>
     <table>
-      <thead><tr><th>Email</th><th>Имя</th><th>Тариф</th><th>Транзакции</th><th>Счета</th><th>Регистрация</th><th>Сменить</th><th style="text-align:center">🧪 Тестер</th></tr></thead>
+      <thead><tr><th>Email</th><th>Имя</th><th>Тариф</th><th>Транзакции</th><th>Счета</th><th>Регистрация</th><th>Сменить</th><th style="text-align:center">🧪 Тестер</th><th style="text-align:center">Действия</th></tr></thead>
       <tbody>${userRows}</tbody>
     </table>
   </div>
@@ -888,6 +966,27 @@ router.get('/', adminAuth, async (_req, res) => {
       } else {
         toast('Ошибка', false);
       }
+    }
+
+    async function impersonate(userId, email) {
+      const reason = prompt('Зачем входим под ' + email + '?\\n(для аудита, можно пустым)') || '';
+      const r = await fetch('/api/admin/users/' + userId + '/impersonate', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({reason})
+      });
+      if (!r.ok) {
+        toast('Не удалось получить токен', false);
+        return;
+      }
+      const data = await r.json();
+      // Открываем приложение в новой вкладке с токеном в URL.
+      // Главное приложение прочитает ?impersonate= и сохранит токен.
+      const appUrl = (window.ESEP_APP_URL || 'https://app.esepkz.com') +
+        '?impersonate=' + encodeURIComponent(data.token) +
+        '&imp_email=' + encodeURIComponent(data.email);
+      window.open(appUrl, '_blank', 'noopener');
+      toast('Открыто в новой вкладке — токен живёт 1 час', true);
     }
 
     async function saveTaxKey(key) {

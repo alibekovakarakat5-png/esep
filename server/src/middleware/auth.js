@@ -10,6 +10,7 @@ module.exports = async (req, res, next) => {
   try {
     const payload = jwt.verify(auth.slice(7), process.env.JWT_SECRET);
     req.userId = payload.sub;
+    req.isImpersonated = !!payload.imp;
     const { rows } = await db.query(
       'SELECT id, email, tier FROM users WHERE id = $1',
       [req.userId],
@@ -19,6 +20,7 @@ module.exports = async (req, res, next) => {
       id: rows[0].id,
       email: rows[0].email,
       tier: normalizeTier(rows[0].tier),
+      isImpersonated: req.isImpersonated,
     };
     next();
   } catch {

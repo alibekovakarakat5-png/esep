@@ -218,6 +218,7 @@ router.get('/me', authMiddleware, async (req, res) => {
       isTrialActive: user.trial_expires_at ? new Date(user.trial_expires_at) > new Date() : false,
       isSubscriptionActive: user.subscription_expires_at ? new Date(user.subscription_expires_at) > new Date() : false,
       isBetaTester: !!user.is_beta_tester,
+      isImpersonated: !!req.isImpersonated,
     });
   } catch (err) {
     console.error('GET /auth/me error:', err);
