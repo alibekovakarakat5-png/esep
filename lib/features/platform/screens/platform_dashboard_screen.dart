@@ -1,10 +1,10 @@
-/// Главный экран для enterprise-клиентов (Platform API).
+/// Platform API Dashboard — корпоративный кабинет для enterprise-клиентов.
 ///
-/// Показывает после логина если user.tier == 'enterprise'.
-/// Заменяет обычный дашборд Esep (учёт/счета/налоги).
-///
-/// Дизайн: тёмно-синий брендинг как на business.esepkz.com.
-/// Desktop-first с constrained-шириной 1180px.
+/// Дизайн в одной языке с лендингом business.esepkz.com:
+///   • dark navy hero + light content sections
+///   • section tags (pill style) над каждым разделом
+///   • premium spacing rhythm (8 / 12 / 16 / 24 / 40px)
+///   • cards с цветным иконкой-плашкой как на landing
 library;
 
 import 'package:flutter/material.dart';
@@ -15,27 +15,28 @@ import '../../../core/services/platform_api_service.dart';
 import '../widgets/service_card.dart';
 import 'service_test_screen.dart' show ServiceTestScreen;
 
-// ─── Esep Business brand palette ────────────────────────────────────────────
-// Совпадает со стилями business.esepkz.com (см. сайт/client-demo/style.css).
+// ─── Design tokens — синхронизированы с client-demo/style.css ───────────────
 class _Brand {
+  static const Color bgPage       = Color(0xFFFAFBFD);
   static const Color bgDark       = Color(0xFF0B1426);
   static const Color cardDark     = Color(0xFF14213D);
   static const Color cardDarkAlt  = Color(0xFF1E2D4F);
   static const Color borderDark   = Color(0xFF1F2D4D);
-  static const Color accent       = Color(0xFF1E5BFF);
-  static const Color accentBright = Color(0xFF6A8DFF);
-  static const Color textOnDark   = Colors.white;
-  static const Color textDim      = Color(0xFF98A4C0);
-  static const Color bgLight      = Color(0xFFFAFBFD);
   static const Color cardLight    = Colors.white;
   static const Color border       = Color(0xFFE4E9F2);
   static const Color text         = Color(0xFF0B1426);
   static const Color textSecondary= Color(0xFF5A6986);
+  static const Color textOnDark   = Colors.white;
+  static const Color textDim      = Color(0xFF98A4C0);
+  static const Color accent       = Color(0xFF1E5BFF);
+  static const Color accentBright = Color(0xFF6A8DFF);
   static const Color green        = Color(0xFF00B870);
+  static const Color greenBright  = Color(0xFF6CE2A8);
   static const Color orange       = Color(0xFFF59E0B);
   static const Color red          = Color(0xFFEF4444);
+  static const Color tagBg        = Color(0xFFEBF1FF); // rgba(30,91,255,0.10) baked
 
-  static const double maxWidth    = 1180.0;
+  static const double maxWidth = 1280.0;
 }
 
 class PlatformDashboardScreen extends ConsumerStatefulWidget {
@@ -83,42 +84,57 @@ class _PlatformDashboardScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _Brand.bgLight,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(64),
-        child: _buildTopBar(),
+      backgroundColor: _Brand.bgPage,
+      body: Column(
+        children: [
+          _buildTopBar(),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(color: _Brand.accent))
+                : _error != null
+                    ? _buildError()
+                    : _buildContent(),
+          ),
+        ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: _Brand.accent))
-          : _error != null
-              ? _buildError()
-              : _buildContent(),
     );
   }
 
+  // ─── TOP BAR ──────────────────────────────────────────────────────────────
   Widget _buildTopBar() {
     return Container(
-      color: _Brand.bgDark,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: _Brand.border, width: 1),
+        ),
+      ),
       child: SafeArea(
         bottom: false,
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: _Brand.maxWidth),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
               child: Row(
                 children: [
-                  // Logo mark
                   Container(
-                    width: 36,
-                    height: 36,
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [_Brand.accent, _Brand.accentBright],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(9),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _Brand.accent.withValues(alpha: 0.30),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     alignment: Alignment.center,
                     child: const Text(
@@ -126,16 +142,16 @@ class _PlatformDashboardScreenState
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,
-                        fontSize: 19,
+                        fontSize: 18,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   RichText(
                     text: const TextSpan(
                       style: TextStyle(
                         fontSize: 17,
-                        color: _Brand.textOnDark,
+                        color: _Brand.text,
                         fontWeight: FontWeight.w700,
                         letterSpacing: -0.3,
                       ),
@@ -144,7 +160,7 @@ class _PlatformDashboardScreenState
                         TextSpan(
                           text: 'platform',
                           style: TextStyle(
-                            color: _Brand.textDim,
+                            color: _Brand.textSecondary,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -155,16 +171,28 @@ class _PlatformDashboardScreenState
                   const Text(
                     'Корпоративный кабинет',
                     style: TextStyle(
-                      color: _Brand.textDim,
-                      fontSize: 13.5,
+                      color: _Brand.textSecondary,
+                      fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                   const Spacer(),
-                  IconButton(
-                    icon: const Icon(Iconsax.refresh, color: _Brand.textOnDark, size: 20),
-                    onPressed: _load,
-                    tooltip: 'Обновить',
+                  _navButton('Документация', null, false),
+                  const SizedBox(width: 6),
+                  _navButton('Поддержка', null, false),
+                  const SizedBox(width: 10),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: _Brand.bgPage,
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Iconsax.refresh, color: _Brand.text, size: 18),
+                      onPressed: _load,
+                      tooltip: 'Обновить',
+                      padding: const EdgeInsets.all(8),
+                      constraints: const BoxConstraints(),
+                    ),
                   ),
                 ],
               ),
@@ -175,10 +203,25 @@ class _PlatformDashboardScreenState
     );
   }
 
+  Widget _navButton(String label, IconData? icon, bool primary) {
+    return TextButton(
+      onPressed: () {},
+      style: TextButton.styleFrom(
+        foregroundColor: primary ? Colors.white : _Brand.textSecondary,
+        backgroundColor: primary ? _Brand.accent : Colors.transparent,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        textStyle: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      child: Text(label),
+    );
+  }
+
+  // ─── ERROR STATE ──────────────────────────────────────────────────────────
   Widget _buildError() {
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480),
+        constraints: const BoxConstraints(maxWidth: 460),
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
@@ -188,42 +231,27 @@ class _PlatformDashboardScreenState
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: _Brand.orange.withValues(alpha: 0.10),
+                  color: _Brand.orange.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Iconsax.info_circle,
-                  size: 36,
+                  size: 34,
                   color: _Brand.orange,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 22),
               Text(
                 _error ?? '',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 15.5,
+                  fontSize: 16,
                   color: _Brand.textSecondary,
                   height: 1.45,
                 ),
               ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _Brand.accent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  textStyle: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                onPressed: _load,
-                child: const Text('Повторить'),
-              ),
+              const SizedBox(height: 26),
+              _primaryButton(label: 'Повторить', onPressed: _load),
             ],
           ),
         ),
@@ -231,6 +259,7 @@ class _PlatformDashboardScreenState
     );
   }
 
+  // ─── CONTENT ──────────────────────────────────────────────────────────────
   Widget _buildContent() {
     final acc = _account!;
     return RefreshIndicator(
@@ -242,22 +271,26 @@ class _PlatformDashboardScreenState
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: _Brand.maxWidth),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(28, 32, 28, 60),
+              padding: const EdgeInsets.fromLTRB(28, 28, 28, 48),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildClientHero(acc),
-                  const SizedBox(height: 24),
-                  _buildStatsRow(acc),
-                  const SizedBox(height: 40),
-                  _sectionTitle('Подключённые сервисы'),
-                  const SizedBox(height: 6),
-                  _sectionSub(
-                    'Кликните по карточке, чтобы попробовать сервис вживую с реальным API',
+                  _buildHero(acc),
+                  const SizedBox(height: 32),
+                  _sectionHeader(
+                    tag: 'Сервисы',
+                    title: 'Подключённые возможности',
+                    sub: 'Кликни по карточке — попробуй вживую через реальный API',
                   ),
                   const SizedBox(height: 18),
                   _buildServicesGrid(acc),
                   const SizedBox(height: 40),
+                  _sectionHeader(
+                    tag: 'Интеграция',
+                    title: 'Подключение за 14 дней',
+                    sub: 'Один HTTP-запрос вместо девяти сторонних интеграций',
+                  ),
+                  const SizedBox(height: 18),
                   _buildIntegrationCard(acc),
                 ],
               ),
@@ -268,132 +301,219 @@ class _PlatformDashboardScreenState
     );
   }
 
-  Widget _sectionTitle(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 22,
-        fontWeight: FontWeight.w800,
-        color: _Brand.text,
-        letterSpacing: -0.4,
-      ),
+  // ─── SECTION HEADER (как на лендинге) ─────────────────────────────────────
+  Widget _sectionHeader({required String tag, required String title, required String sub}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          decoration: BoxDecoration(
+            color: _Brand.tagBg,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            tag.toUpperCase(),
+            style: const TextStyle(
+              color: _Brand.accent,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.7,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w800,
+            color: _Brand.text,
+            letterSpacing: -0.6,
+            height: 1.15,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          sub,
+          style: const TextStyle(
+            fontSize: 14.5,
+            color: _Brand.textSecondary,
+            height: 1.45,
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _sectionSub(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 14.5,
-        color: _Brand.textSecondary,
-        height: 1.45,
-      ),
-    );
-  }
-
-  Widget _buildClientHero(PlatformAccount acc) {
+  // ─── HERO (полностраничный hero с stats внутри) ───────────────────────────
+  Widget _buildHero(PlatformAccount acc) {
     return Container(
-      padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [_Brand.bgDark, _Brand.cardDark],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: _Brand.bgDark.withValues(alpha: 0.20),
+            color: _Brand.bgDark.withValues(alpha: 0.18),
             blurRadius: 30,
             offset: const Offset(0, 12),
           ),
         ],
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: _Brand.accent.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(
-              Iconsax.building_4,
-              color: _Brand.accentBright,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 18),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  acc.clientName,
-                  style: const TextStyle(
-                    color: _Brand.textOnDark,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Text(
-                      acc.clientBin != null ? 'БИН: ${acc.clientBin}' : 'Enterprise клиент',
-                      style: const TextStyle(
-                        color: _Brand.textDim,
-                        fontSize: 13,
+          // Top block — info + key chip
+          Padding(
+            padding: const EdgeInsets.fromLTRB(36, 32, 36, 28),
+            child: LayoutBuilder(builder: (ctx, c) {
+              final wide = c.maxWidth >= 760;
+              final leftBlock = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _Brand.green.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Text(
+                      'ENTERPRISE · PLATFORM API',
+                      style: TextStyle(
+                        color: _Brand.greenBright,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.9,
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _Brand.green.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        'ENTERPRISE',
-                        style: TextStyle(
-                          color: Color(0xFF6CE2A8),
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    acc.clientName,
+                    style: const TextStyle(
+                      color: _Brand.textOnDark,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.8,
+                      height: 1.1,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    acc.clientBin != null
+                        ? 'БИН ${acc.clientBin} · Compliance под Закон 214-VIII'
+                        : 'Compliance под Закон 214-VIII',
+                    style: const TextStyle(
+                      color: _Brand.textDim,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              );
+              final rightBlock = _buildApiKeyCard(acc);
+
+              if (wide) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: leftBlock),
+                    const SizedBox(width: 32),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 320),
+                      child: rightBlock,
                     ),
                   ],
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  leftBlock,
+                  const SizedBox(height: 22),
+                  rightBlock,
+                ],
+              );
+            }),
+          ),
+          // Divider
+          Container(
+            height: 1,
+            color: _Brand.borderDark.withValues(alpha: 0.6),
+          ),
+          // Stats row внутри hero
+          _buildHeroStats(acc),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildApiKeyCard(PlatformAccount acc) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _Brand.cardDarkAlt,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _Brand.borderDark),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: _Brand.accent.withValues(alpha: 0.20),
+                  borderRadius: BorderRadius.circular(7),
                 ),
-              ],
+                child: const Icon(Iconsax.key, color: _Brand.accentBright, size: 15),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'API Key',
+                style: TextStyle(
+                  color: _Brand.textOnDark,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13.5,
+                ),
+              ),
+              const Spacer(),
+              const Text(
+                'live',
+                style: TextStyle(
+                  color: _Brand.greenBright,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SelectableText(
+            _maskKey(acc.apiKey),
+            style: const TextStyle(
+              color: _Brand.textOnDark,
+              fontSize: 14,
+              fontFamily: 'monospace',
+              letterSpacing: 0.6,
             ),
           ),
-          // API key chip
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: _Brand.cardDarkAlt,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: _Brand.borderDark),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Iconsax.key, color: _Brand.textDim, size: 14),
-                const SizedBox(width: 8),
-                Text(
-                  _maskKey(acc.apiKey),
-                  style: const TextStyle(
-                    color: _Brand.textOnDark,
-                    fontSize: 12.5,
-                    fontFamily: 'monospace',
-                    letterSpacing: 0.4,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 12),
+          Text(
+            'Используй заголовок\nX-Platform-Key: <ключ>',
+            style: const TextStyle(
+              color: _Brand.textDim,
+              fontSize: 11.5,
+              height: 1.45,
             ),
           ),
         ],
@@ -402,114 +522,129 @@ class _PlatformDashboardScreenState
   }
 
   String _maskKey(String key) {
-    if (key.length < 12) return key;
-    return '${key.substring(0, 8)}…${key.substring(key.length - 4)}';
+    if (key.length < 16) return key;
+    return '${key.substring(0, 10)}····${key.substring(key.length - 6)}';
   }
 
-  Widget _buildStatsRow(PlatformAccount acc) {
+  Widget _buildHeroStats(PlatformAccount acc) {
     final usagePercent = acc.monthlyQuota > 0
-        ? (acc.requestsThisMonth / acc.monthlyQuota * 100).toStringAsFixed(1)
+        ? (acc.requestsThisMonth / acc.monthlyQuota * 100).clamp(0, 100).toStringAsFixed(1)
         : '∞';
+    final items = [
+      _HeroStat(
+        label: 'Запросов в этом месяце',
+        value: '${acc.requestsThisMonth}',
+        hint: acc.monthlyQuota > 0
+            ? 'из ${acc.monthlyQuota} ($usagePercent%)'
+            : 'безлимит',
+        icon: Iconsax.activity,
+        color: _Brand.accentBright,
+      ),
+      _HeroStat(
+        label: 'Фискализировано чеков',
+        value: '${acc.receipts.issued}',
+        hint: 'из ${acc.receipts.total} операций',
+        icon: Iconsax.tick_circle,
+        color: _Brand.greenBright,
+      ),
+      _HeroStat(
+        label: 'Сумма выплат',
+        value: '${_formatMoney(acc.receipts.totalAmount)} ₸',
+        hint: 'через Webkassa → КГД',
+        icon: Iconsax.money,
+        color: const Color(0xFFFACC15),
+      ),
+      _HeroStat(
+        label: 'Время отклика',
+        value: '< 200 мс',
+        hint: 'SLA 99.9%',
+        icon: Iconsax.flash_1,
+        color: _Brand.accentBright,
+      ),
+    ];
 
     return LayoutBuilder(builder: (ctx, c) {
-      final isNarrow = c.maxWidth < 720;
-      final children = [
-        _statCard(
-          'Запросов в месяц',
-          '${acc.requestsThisMonth}',
-          '/${acc.monthlyQuota > 0 ? acc.monthlyQuota : '∞'} ($usagePercent%)',
-          Iconsax.activity,
-          _Brand.accent,
-        ),
-        _statCard(
-          'Фискализировано',
-          '${acc.receipts.issued}',
-          'из ${acc.receipts.total} чеков',
-          Iconsax.tick_circle,
-          _Brand.green,
-        ),
-        _statCard(
-          'Сумма выплат',
-          _formatMoney(acc.receipts.totalAmount),
-          '₸ всего',
-          Iconsax.money,
-          _Brand.orange,
-        ),
-      ];
-      if (isNarrow) {
-        return Column(
-          children: [
-            for (var i = 0; i < children.length; i++) ...[
-              children[i],
-              if (i < children.length - 1) const SizedBox(height: 12),
-            ],
-          ],
-        );
+      final cols = c.maxWidth >= 900 ? 4 : c.maxWidth >= 560 ? 2 : 1;
+      final rows = <Widget>[];
+      for (int i = 0; i < items.length; i += cols) {
+        final rowChildren = <Widget>[];
+        for (int j = 0; j < cols; j++) {
+          if (i + j < items.length) {
+            rowChildren.add(Expanded(child: _heroStatCell(items[i + j])));
+            if (j < cols - 1 && i + j + 1 < items.length) {
+              rowChildren.add(_heroStatDivider());
+            }
+          } else {
+            rowChildren.add(const Expanded(child: SizedBox.shrink()));
+          }
+        }
+        rows.add(IntrinsicHeight(child: Row(children: rowChildren)));
+        if (i + cols < items.length) {
+          rows.add(Container(height: 1, color: _Brand.borderDark.withValues(alpha: 0.6)));
+        }
       }
-      return Row(
-        children: [
-          for (var i = 0; i < children.length; i++) ...[
-            Expanded(child: children[i]),
-            if (i < children.length - 1) const SizedBox(width: 16),
-          ],
-        ],
-      );
+      return Column(children: rows);
     });
   }
 
-  Widget _statCard(String label, String value, String sub, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: _Brand.cardLight,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _Brand.border),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0E1A34).withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _heroStatDivider() => Container(
+        width: 1,
+        color: _Brand.borderDark.withValues(alpha: 0.6),
+      );
+
+  Widget _heroStatCell(_HeroStat s) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 22),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
+              color: s.color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: color, size: 20),
+            child: Icon(s.icon, color: s.color, size: 18),
           ),
-          const SizedBox(height: 16),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              color: _Brand.text,
-              letterSpacing: -0.6,
-              height: 1.0,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              color: _Brand.text,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            sub,
-            style: const TextStyle(
-              fontSize: 12,
-              color: _Brand.textSecondary,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  s.label,
+                  style: const TextStyle(
+                    color: _Brand.textDim,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  s.value,
+                  style: const TextStyle(
+                    color: _Brand.textOnDark,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
+                    height: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  s.hint,
+                  style: const TextStyle(
+                    color: _Brand.textDim,
+                    fontSize: 11,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
         ],
@@ -517,19 +652,20 @@ class _PlatformDashboardScreenState
     );
   }
 
+  // ─── SERVICES GRID ────────────────────────────────────────────────────────
   Widget _buildServicesGrid(PlatformAccount acc) {
     final services = _buildServices(acc);
     return LayoutBuilder(builder: (ctx, c) {
       final w = c.maxWidth;
-      final cols = w >= 1000 ? 3 : w >= 640 ? 2 : 1;
+      final cols = w >= 1180 ? 4 : w >= 880 ? 3 : w >= 560 ? 2 : 1;
       return GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: cols,
-          mainAxisSpacing: 14,
-          crossAxisSpacing: 14,
-          mainAxisExtent: 180,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          mainAxisExtent: 160,
         ),
         itemCount: services.length,
         itemBuilder: (_, i) {
@@ -556,95 +692,183 @@ class _PlatformDashboardScreenState
     });
   }
 
+  // ─── INTEGRATION CARD ─────────────────────────────────────────────────────
   Widget _buildIntegrationCard(PlatformAccount acc) {
     return Container(
-      padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         color: _Brand.bgDark,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: _Brand.accent.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: const Icon(Iconsax.code, color: _Brand.accentBright, size: 18),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'Интеграция в вашу систему',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 18,
-                  color: _Brand.textOnDark,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          _kv('API URL', acc.apiBaseUrl),
-          _kv('Заголовок', 'X-Platform-Key: <ваш ключ>'),
-          _kv('Главный endpoint', 'POST /process-payment'),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: _Brand.cardDark,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: _Brand.borderDark),
-            ),
-            child: const Text(
-              'Вызывайте /process-payment на каждую выплату курьеру. Внутри выполняется: '
-              'валидация ИИН → проверка СНР → контроль лимита 300 МРП → фискализация через Webkassa → '
-              'регистрация чека в КГД. Один HTTP-запрос вместо девяти.',
-              style: TextStyle(
-                fontSize: 13,
-                color: _Brand.textDim,
-                height: 1.55,
-              ),
-            ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: _Brand.bgDark.withValues(alpha: 0.20),
+            blurRadius: 28,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
+      child: LayoutBuilder(builder: (ctx, c) {
+        final wide = c.maxWidth >= 880;
+        final leftBlock = Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: _Brand.accent.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: const Icon(Iconsax.code, color: _Brand.accentBright, size: 18),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Параметры подключения',
+                    style: TextStyle(
+                      color: _Brand.textOnDark,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              _kvRow('API URL', acc.apiBaseUrl),
+              const SizedBox(height: 10),
+              _kvRow('Заголовок авторизации', 'X-Platform-Key: <ключ>'),
+              const SizedBox(height: 10),
+              _kvRow('Главный endpoint', 'POST /process-payment'),
+            ],
+          ),
+        );
+
+        final rightBlock = Container(
+          margin: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: _Brand.cardDark,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _Brand.borderDark),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Один запрос = весь compliance',
+                style: TextStyle(
+                  color: _Brand.textOnDark,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              for (final step in const [
+                '1. Валидация ИИН курьера',
+                '2. Проверка СНР / ОКЭД',
+                '3. Контроль лимита 300 МРП',
+                '4. Фискализация через Webkassa',
+                '5. Регистрация чека в КГД',
+              ])
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 5,
+                        height: 5,
+                        decoration: const BoxDecoration(
+                          color: _Brand.accentBright,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          step,
+                          style: const TextStyle(
+                            color: _Brand.textDim,
+                            fontSize: 12.5,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        );
+
+        if (wide) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(flex: 3, child: leftBlock),
+              Expanded(flex: 2, child: rightBlock),
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [leftBlock, rightBlock],
+        );
+      }),
     );
   }
 
-  Widget _kv(String k, String v) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 160,
-            child: Text(
-              k,
-              style: const TextStyle(
-                fontSize: 12.5,
-                color: _Brand.textDim,
-                fontWeight: FontWeight.w500,
-              ),
+  Widget _kvRow(String k, String v) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 180,
+          child: Text(
+            k,
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: _Brand.textDim,
+              fontWeight: FontWeight.w500,
             ),
           ),
-          Expanded(
-            child: SelectableText(
-              v,
-              style: const TextStyle(
-                fontSize: 13,
-                fontFamily: 'monospace',
-                color: _Brand.textOnDark,
-              ),
+        ),
+        Expanded(
+          child: SelectableText(
+            v,
+            style: const TextStyle(
+              fontSize: 13.5,
+              fontFamily: 'monospace',
+              color: _Brand.textOnDark,
             ),
           ),
-        ],
+        ),
+      ],
+    );
+  }
+
+  // ─── HELPERS ──────────────────────────────────────────────────────────────
+  Widget _primaryButton({required String label, required VoidCallback onPressed}) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: _Brand.accent,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        textStyle: const TextStyle(
+          fontSize: 14.5,
+          fontWeight: FontWeight.w700,
+        ),
       ),
+      onPressed: onPressed,
+      child: Text(label),
     );
   }
 
@@ -758,5 +982,20 @@ class _ServiceDef {
     required this.icon,
     required this.status,
     required this.enabled,
+  });
+}
+
+class _HeroStat {
+  final String label;
+  final String value;
+  final String hint;
+  final IconData icon;
+  final Color color;
+  const _HeroStat({
+    required this.label,
+    required this.value,
+    required this.hint,
+    required this.icon,
+    required this.color,
   });
 }
