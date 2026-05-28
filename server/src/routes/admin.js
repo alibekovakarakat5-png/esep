@@ -121,6 +121,41 @@ router.patch('/users/:id/beta-tester', adminAuth, async (req, res) => {
   }
 });
 
+// ── PATCH /api/admin/users/:id/custom-price ────────────────────────────────
+// Body: { monthly: number|null, pilot: number|null, pilot_months: number, config: object }
+// Назначает кастомную цену B2B-клиенту (бухгалтерской фирме).
+router.patch('/users/:id/custom-price', adminAuth, async (req, res) => {
+  try {
+    const monthly = req.body?.monthly == null ? null : Math.max(0, parseInt(req.body.monthly, 10));
+    const pilot = req.body?.pilot == null ? null : Math.max(0, parseInt(req.body.pilot, 10));
+    const pilotMonths = Math.max(0, Math.min(24, parseInt(req.body?.pilot_months, 10) || 0));
+    const config = req.body?.config || {};
+
+    const pilotExpiresAt = pilotMonths > 0
+      ? new Date(Date.now() + pilotMonths * 30 * 24 * 60 * 60 * 1000).toISOString()
+      : null;
+
+    await db.query(
+      `UPDATE users
+          SET custom_monthly_price = $1,
+              pilot_price_monthly = $2,
+              pilot_expires_at = $3,
+              billing_config = $4::jsonb
+        WHERE id = $5`,
+      [monthly, pilot, pilotExpiresAt, JSON.stringify(config), req.params.id],
+    );
+    res.json({
+      ok: true,
+      custom_monthly_price: monthly,
+      pilot_price_monthly: pilot,
+      pilot_expires_at: pilotExpiresAt,
+    });
+  } catch (err) {
+    console.error('PATCH /admin/users/:id/custom-price error:', err);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
 // ── PATCH /api/admin/users/:id/partner ─────────────────────────────────────
 // Body: { is: bool, commission_pct?: number, company_name?: string }
 // Превращает пользователя в партнёра (или убирает статус).

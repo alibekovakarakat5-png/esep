@@ -689,6 +689,7 @@
       <li><a href="#features">Функции</a></li>
       <li><a href="/calculator" style="color:var(--primary);font-weight:700">Калькулятор</a></li>
       <li><a href="#pricing">Тарифы</a></li>
+      <li><a href="#calculator">Калькулятор</a></li>
       <li><a href="#download">Скачать</a></li>
       <li><a href="#blog">Блог</a></li>
       <li><a href="#b2b">Для компаний</a></li>
@@ -1319,6 +1320,31 @@
           </span>
         </div>
       </div>
+
+      <!-- B2B Custom — для бухгалтерских фирм -->
+      <div class="price-card" style="border-color:#1E5BFF;background:linear-gradient(160deg,#F5F8FF,#FFFFFF);">
+        <div class="price-popular" style="background:#1E5BFF;color:#fff;">Для фирмы</div>
+        <div class="price-tier">Бухгалтерская фирма</div>
+        <div class="price-val" style="color:#1E5BFF;">от 49 900 <span>₸/мес</span></div>
+        <div class="price-desc">Рассчитаем под ваш профиль: клиенты + сотрудники + модули</div>
+        <div class="price-features">
+          <div class="price-feat"><span class="ok">✓</span> 50+ клиентов (ИП + ТОО)</div>
+          <div class="price-feat"><span class="ok">✓</span> Multi-user (несколько бухгалтеров)</div>
+          <div class="price-feat"><span class="ok">✓</span> White-label с вашим брендом</div>
+          <div class="price-feat"><span class="ok">✓</span> AI распознавание чеков</div>
+          <div class="price-feat"><span class="ok">✓</span> WhatsApp-бот напоминаний клиентам</div>
+          <div class="price-feat"><span class="ok">✓</span> Партнёрская программа 30% комиссии</div>
+        </div>
+        <div style="text-align:center;font-size:13px;color:#1E5BFF;margin-bottom:8px;font-weight:700;">
+          🎁 Пилотным партнёрам: −50% на 3 месяца
+        </div>
+        <a href="#calculator" class="btn btn-primary" style="width:100%;justify-content:center;background:#1E5BFF;">Рассчитать цену →</a>
+        <div class="price-guarantee" style="margin-top:6px">
+          <span style="display:flex;align-items:center;justify-content:center;gap:4px;font-size:12px;color:var(--muted)">
+            Или напишите в <a href="https://wa.me/77059914789" target="_blank" style="color:#1E5BFF;font-weight:600">WhatsApp</a>
+          </span>
+        </div>
+      </div>
     </div>
     <div class="reveal" style="text-align:center;margin-top:20px;font-size:13px;color:var(--muted);">
       Оплата через Kaspi Pay. Первым 50 клиентам — стартовая цена навсегда.<br>
@@ -1326,6 +1352,225 @@
     </div>
   </div>
 </section>
+
+<!-- ── B2B CALCULATOR ─────────────────────────────────────────────────────────── -->
+<section class="section" id="calculator" style="background:#FAFBFD;">
+  <div class="container">
+    <div class="section-head reveal" style="text-align:center;">
+      <span style="display:inline-block;background:#EBF1FF;color:#1E5BFF;padding:6px 14px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:0.7px;text-transform:uppercase;margin-bottom:14px;">Калькулятор · Для бухгалтерских фирм</span>
+      <h2 class="section-title" style="font-size:32px;letter-spacing:-0.6px;">Рассчитайте стоимость под ваш профиль</h2>
+      <p class="section-sub" style="max-width:600px;margin:8px auto 0;">Подвиньте ползунки, выберите модули — стоимость пересчитается в реальном времени</p>
+    </div>
+
+    <div class="reveal" style="max-width:1100px;margin:36px auto 0;display:grid;grid-template-columns:1fr 380px;gap:24px;align-items:start;">
+
+      <!-- LEFT — inputs -->
+      <div style="background:#fff;border:1px solid #E4E9F2;border-radius:18px;padding:28px;box-shadow:0 8px 28px rgba(14,26,52,0.06);">
+
+        <!-- Sliders -->
+        <div style="margin-bottom:22px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+            <label style="font-size:14px;font-weight:600;color:#0B1426;">ИП-клиенты (упрощёнка / патент / ЕСП)</label>
+            <span id="calcIpDisplay" style="font-size:20px;font-weight:800;color:#1E5BFF;font-variant-numeric:tabular-nums;">15</span>
+          </div>
+          <input type="range" id="calcIp" min="0" max="200" value="15" step="1" style="width:100%;height:6px;-webkit-appearance:none;appearance:none;background:#E4E9F2;border-radius:3px;outline:none;" />
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:#5A6986;margin-top:4px;"><span>0</span><span>200</span></div>
+        </div>
+
+        <div style="margin-bottom:22px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+            <label style="font-size:14px;font-weight:600;color:#0B1426;">ТОО-клиенты (ОУР + сотрудники)</label>
+            <span id="calcTooDisplay" style="font-size:20px;font-weight:800;color:#1E5BFF;font-variant-numeric:tabular-nums;">5</span>
+          </div>
+          <input type="range" id="calcToo" min="0" max="100" value="5" step="1" style="width:100%;height:6px;-webkit-appearance:none;appearance:none;background:#E4E9F2;border-radius:3px;outline:none;" />
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:#5A6986;margin-top:4px;"><span>0</span><span>100</span></div>
+        </div>
+
+        <div style="margin-bottom:22px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+            <label style="font-size:14px;font-weight:600;color:#0B1426;">Среднее число сотрудников у клиента</label>
+            <span id="calcEmpDisplay" style="font-size:20px;font-weight:800;color:#1E5BFF;font-variant-numeric:tabular-nums;">2</span>
+          </div>
+          <input type="range" id="calcEmp" min="0" max="20" value="2" step="1" style="width:100%;height:6px;-webkit-appearance:none;appearance:none;background:#E4E9F2;border-radius:3px;outline:none;" />
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:#5A6986;margin-top:4px;"><span>0</span><span>20</span></div>
+        </div>
+
+        <div style="margin-bottom:24px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+            <label style="font-size:14px;font-weight:600;color:#0B1426;">Бухгалтеров в вашей фирме</label>
+            <span id="calcBhDisplay" style="font-size:20px;font-weight:800;color:#1E5BFF;font-variant-numeric:tabular-nums;">2</span>
+          </div>
+          <input type="range" id="calcBh" min="1" max="20" value="2" step="1" style="width:100%;height:6px;-webkit-appearance:none;appearance:none;background:#E4E9F2;border-radius:3px;outline:none;" />
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:#5A6986;margin-top:4px;"><span>1</span><span>20</span></div>
+        </div>
+
+        <div style="height:1px;background:#E4E9F2;margin:10px 0 20px;"></div>
+
+        <div style="font-size:13px;font-weight:700;color:#5A6986;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:14px;">Модули (опционально)</div>
+
+        <div id="calcModules" style="display:grid;gap:8px;">
+          <label class="calc-mod" data-price="9900"><input type="checkbox" data-mod="ai" checked> <span>AI распознавание чеков из фото</span> <span class="calc-mod-price">+9 900</span></label>
+          <label class="calc-mod" data-price="5900"><input type="checkbox" data-mod="bulk"> <span>Bulk-генерация форм 910 / 200 <small style="color:#F59E0B;">🛠 Q3</small></span> <span class="calc-mod-price">+5 900</span></label>
+          <label class="calc-mod" data-price="14900"><input type="checkbox" data-mod="wa"> <span>WhatsApp-бот напоминаний клиентам <small style="color:#F59E0B;">🛠 Q3</small></span> <span class="calc-mod-price">+14 900</span></label>
+          <label class="calc-mod" data-price="29900"><input type="checkbox" data-mod="wl"> <span>White-label с вашим брендом <small style="color:#F59E0B;">🛠 Q3</small></span> <span class="calc-mod-price">+29 900</span></label>
+          <label class="calc-mod" data-price="4900"><input type="checkbox" data-mod="halyk"> <span>Импорт Halyk <small style="color:#F59E0B;">🛠 Q3</small></span> <span class="calc-mod-price">+4 900</span></label>
+          <label class="calc-mod" data-price="4900"><input type="checkbox" data-mod="forte"> <span>Импорт Forte <small style="color:#F59E0B;">🛠 Q3</small></span> <span class="calc-mod-price">+4 900</span></label>
+          <label class="calc-mod" data-price="7900"><input type="checkbox" data-mod="match"> <span>Авто-сверка банк ↔ чеки <small style="color:#F59E0B;">🛠 Q3</small></span> <span class="calc-mod-price">+7 900</span></label>
+          <label class="calc-mod" data-price="9900"><input type="checkbox" data-mod="support"> <span>Приоритетная поддержка 24/7</span> <span class="calc-mod-price">+9 900</span></label>
+          <label class="calc-mod" data-price="14900"><input type="checkbox" data-mod="onec"> <span>API интеграция с 1С <small style="color:#F59E0B;">🛠 Q4</small></span> <span class="calc-mod-price">+14 900</span></label>
+          <label class="calc-mod" data-price="5900"><input type="checkbox" data-mod="form200"> <span>Форма 200 (НДФЛ + соц.отчисления) <small style="color:#F59E0B;">🛠 Q3</small></span> <span class="calc-mod-price">+5 900</span></label>
+        </div>
+      </div>
+
+      <!-- RIGHT — output -->
+      <div style="background:linear-gradient(135deg,#0B1426,#14213D);border-radius:18px;padding:28px;color:#fff;position:sticky;top:90px;">
+        <div style="font-size:12px;color:#98A4C0;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:6px;">Ваша стоимость</div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:18px;">
+          <span id="calcTotal" style="font-size:42px;font-weight:800;letter-spacing:-1.2px;line-height:1;font-variant-numeric:tabular-nums;">88 500</span>
+          <span style="font-size:16px;color:#98A4C0;">₸/мес</span>
+        </div>
+
+        <div style="background:rgba(106,141,255,0.10);border:1px solid rgba(106,141,255,0.30);border-radius:10px;padding:14px;margin-bottom:18px;">
+          <div style="font-size:11px;color:#6CE2A8;font-weight:800;letter-spacing:0.7px;text-transform:uppercase;margin-bottom:6px;">🎁 Пилотным партнёрам</div>
+          <div style="font-size:13px;color:#fff;margin-bottom:4px;">Первые 3 месяца — <strong>−50%</strong></div>
+          <div style="font-size:22px;font-weight:800;color:#6CE2A8;font-variant-numeric:tabular-nums;"><span id="calcPilot">44 250</span> ₸/мес</div>
+        </div>
+
+        <div style="font-size:12px;color:#98A4C0;margin-bottom:12px;">Детализация:</div>
+        <div id="calcBreakdown" style="font-size:12px;color:#fff;margin-bottom:18px;display:grid;gap:4px;font-variant-numeric:tabular-nums;"></div>
+
+        <a id="calcCta" href="#" target="_blank" style="display:block;background:#1E5BFF;color:#fff;text-align:center;padding:14px;border-radius:10px;font-weight:700;text-decoration:none;margin-bottom:8px;">
+          Получить точное предложение →
+        </a>
+        <div style="font-size:11px;color:#98A4C0;text-align:center;">Откроется WhatsApp с готовым расчётом</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* Slider styling */
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:22px; height:22px; border-radius:50%;
+    background:#fff; border:3px solid #1E5BFF; cursor:pointer;
+    box-shadow:0 2px 8px rgba(30,91,255,0.30);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width:22px; height:22px; border-radius:50%;
+    background:#fff; border:3px solid #1E5BFF; cursor:pointer;
+  }
+  /* Module checkboxes */
+  .calc-mod {
+    display:flex; align-items:center; gap:10px; padding:10px 12px;
+    border:1px solid #E4E9F2; border-radius:9px; cursor:pointer;
+    font-size:13px; color:#0B1426; transition:all 0.15s;
+    background:#fff;
+  }
+  .calc-mod:hover { border-color:#1E5BFF; background:#F5F8FF; }
+  .calc-mod input[type="checkbox"] { margin:0; cursor:pointer; accent-color:#1E5BFF; }
+  .calc-mod > span:nth-of-type(1) { flex:1; }
+  .calc-mod-price {
+    font-weight:700; color:#5A6986; font-variant-numeric:tabular-nums;
+    font-size:13px;
+  }
+  .calc-mod input[type="checkbox"]:checked ~ .calc-mod-price,
+  .calc-mod:has(input:checked) .calc-mod-price { color:#1E5BFF; }
+  .calc-mod:has(input:checked) { border-color:#1E5BFF; background:#F5F8FF; }
+  @media (max-width: 880px) {
+    #calculator > .container > div[style*="grid-template-columns"] {
+      grid-template-columns:1fr !important;
+    }
+    #calculator > .container > div[style*="grid-template-columns"] > div:last-child {
+      position:static !important;
+    }
+  }
+</style>
+
+<script>
+  (function() {
+    const ipEl  = document.getElementById('calcIp');
+    const tooEl = document.getElementById('calcToo');
+    const empEl = document.getElementById('calcEmp');
+    const bhEl  = document.getElementById('calcBh');
+    const modules = document.querySelectorAll('.calc-mod input[type="checkbox"]');
+
+    const ipDisp = document.getElementById('calcIpDisplay');
+    const tooDisp = document.getElementById('calcTooDisplay');
+    const empDisp = document.getElementById('calcEmpDisplay');
+    const bhDisp = document.getElementById('calcBhDisplay');
+    const totalEl = document.getElementById('calcTotal');
+    const pilotEl = document.getElementById('calcPilot');
+    const breakdownEl = document.getElementById('calcBreakdown');
+    const ctaEl = document.getElementById('calcCta');
+
+    function fmt(n) { return new Intl.NumberFormat('ru-RU').format(Math.round(n)); }
+
+    function calc() {
+      const ip = +ipEl.value;
+      const too = +tooEl.value;
+      const emp = +empEl.value;
+      const bh = +bhEl.value;
+
+      const totalClients = ip + too;
+      const totalEmp = totalClients * emp;
+      const extraBh = Math.max(0, bh - 1);
+
+      const base = 9900;
+      const ipCost = ip * 1990;
+      const tooCost = too * 2990;
+      const empCost = totalEmp * 390;
+      const bhCost = extraBh * 7900;
+
+      let modCost = 0;
+      const modList = [];
+      modules.forEach(m => {
+        if (m.checked) {
+          const label = m.parentElement;
+          const price = +label.dataset.price;
+          modCost += price;
+          const name = label.querySelector('span').innerText.replace(/🛠.*$/, '').trim();
+          modList.push({ name, price });
+        }
+      });
+
+      const total = base + ipCost + tooCost + empCost + bhCost + modCost;
+      const pilot = Math.round(total * 0.5);
+
+      ipDisp.innerText = ip;
+      tooDisp.innerText = too;
+      empDisp.innerText = emp;
+      bhDisp.innerText = bh;
+      totalEl.innerText = fmt(total);
+      pilotEl.innerText = fmt(pilot);
+
+      // Breakdown
+      const lines = [];
+      lines.push(`<div style="display:flex;justify-content:space-between;"><span style="color:#98A4C0;">База платформы</span><span>${fmt(base)} ₸</span></div>`);
+      if (ip)  lines.push(`<div style="display:flex;justify-content:space-between;"><span style="color:#98A4C0;">${ip} ИП × 1 990 ₸</span><span>${fmt(ipCost)} ₸</span></div>`);
+      if (too) lines.push(`<div style="display:flex;justify-content:space-between;"><span style="color:#98A4C0;">${too} ТОО × 2 990 ₸</span><span>${fmt(tooCost)} ₸</span></div>`);
+      if (totalEmp) lines.push(`<div style="display:flex;justify-content:space-between;"><span style="color:#98A4C0;">${totalEmp} сотр. × 390 ₸</span><span>${fmt(empCost)} ₸</span></div>`);
+      if (extraBh) lines.push(`<div style="display:flex;justify-content:space-between;"><span style="color:#98A4C0;">${extraBh} доп. бух. × 7 900 ₸</span><span>${fmt(bhCost)} ₸</span></div>`);
+      if (modCost) lines.push(`<div style="display:flex;justify-content:space-between;"><span style="color:#98A4C0;">${modList.length} модулей</span><span>${fmt(modCost)} ₸</span></div>`);
+      breakdownEl.innerHTML = lines.join('');
+
+      // CTA — WhatsApp с готовым расчётом
+      const msg = `Здравствуйте! Хочу обсудить тариф Esep для бухгалтерской фирмы.\n\n` +
+        `Мой расчёт:\n` +
+        `• ИП-клиенты: ${ip}\n` +
+        `• ТОО-клиенты: ${too}\n` +
+        `• Сотрудники у клиентов: ~${emp}/клиент\n` +
+        `• Бухгалтеров в фирме: ${bh}\n` +
+        `• Модули: ${modList.map(m=>m.name).join(', ') || 'нет'}\n\n` +
+        `Итого по калькулятору: ${fmt(total)} ₸/мес\n` +
+        `На пилоте (3 мес): ${fmt(pilot)} ₸/мес`;
+      ctaEl.href = 'https://wa.me/77059914789?text=' + encodeURIComponent(msg);
+    }
+
+    [ipEl, tooEl, empEl, bhEl].forEach(el => el.addEventListener('input', calc));
+    modules.forEach(m => m.addEventListener('change', calc));
+    calc();
+  })();
+</script>
 
 <!-- ── B2B ────────────────────────────────────────────────────────────────────── -->
 <section class="section section-alt" id="b2b">

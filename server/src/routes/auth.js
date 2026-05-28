@@ -201,7 +201,8 @@ router.post('/help-request', async (req, res) => {
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT id, email, name, tier, trial_started_at, trial_expires_at, subscription_expires_at, is_beta_tester
+      `SELECT id, email, name, tier, trial_started_at, trial_expires_at, subscription_expires_at, is_beta_tester,
+              custom_monthly_price, pilot_price_monthly, pilot_expires_at, billing_config
        FROM users WHERE id = $1`,
       [req.userId],
     );
@@ -219,6 +220,11 @@ router.get('/me', authMiddleware, async (req, res) => {
       isSubscriptionActive: user.subscription_expires_at ? new Date(user.subscription_expires_at) > new Date() : false,
       isBetaTester: !!user.is_beta_tester,
       isImpersonated: !!req.isImpersonated,
+      // B2B custom pricing
+      customMonthlyPrice: user.custom_monthly_price,
+      pilotPriceMonthly: user.pilot_price_monthly,
+      pilotExpiresAt: user.pilot_expires_at,
+      billingConfig: user.billing_config || {},
     });
   } catch (err) {
     console.error('GET /auth/me error:', err);

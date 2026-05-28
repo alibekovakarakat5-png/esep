@@ -80,6 +80,16 @@ async function migrate() {
     -- Роль "тестировщик": видна кнопка "Сообщить о баге" в приложении.
     -- По умолчанию false — обычный пользователь. Меняется вручную в админке.
     ALTER TABLE users ADD COLUMN IF NOT EXISTS is_beta_tester BOOLEAN NOT NULL DEFAULT false;
+
+    -- Кастомная цена для B2B-клиентов (бухгалтерские фирмы).
+    -- Если NULL — используем стандартный прайс тарифа.
+    -- Если задано — это полная итоговая цена в ₸/мес (после всех скидок).
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_monthly_price INT;
+    -- Пилотная цена на первые 3 месяца (если применима)
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS pilot_price_monthly INT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS pilot_expires_at TIMESTAMPTZ;
+    -- Для аналитики и счетов — снимок конфига что было заказано
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS billing_config JSONB DEFAULT '{}'::jsonb;
     UPDATE users SET tier = 'solo' WHERE tier = 'ip';
     UPDATE users SET tier = 'accountant_pro' WHERE tier IN ('corporate', 'accountantPro');
 
