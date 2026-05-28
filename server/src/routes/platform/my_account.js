@@ -30,6 +30,53 @@ const router = express.Router();
 const db = require('../../db');
 const authMiddleware = require('../../middleware/auth');
 
+// Дефолтные фичи для любого enterprise-юзера — пока не дифференцируем
+// по конкретным клиентам (введём через 6 мес когда будут договоры).
+const DEFAULT_ENTERPRISE_FEATURES = [
+  'process_payment', 'taxpayer_info', 'iin_validate',
+  'cancel_receipt', 'receipt_status', 'income_limit',
+  'self_employed_registry', 'benefits',
+];
+
+async function getOrCreateApiKey(userId) {
+  // Пытаемся найти существующий
+  const { rows } = await db.query(
+    `SELECT id, api_key, client_name, client_bin, features,
+            monthly_quota, requests_this_month, requests_total,
+            created_at, last_used_at
+       FROM platform_api_keys
+      WHERE user_id = $1 AND is_active = TRUE
+      LIMIT 1`,
+    [userId],
+  );
+  if (rows[0]) return rows[0];
+
+  // Нет — создаём
+  const crypto = require('crypto');
+  const apiKey = 'pk_' + crypto.randomBytes(16).toString('base64url');
+  const userInfo = await db.query(
+    'SELECT name FROM users WHERE id = $1',
+    [userId],
+  );
+  const inserted = await db.query(
+    `INSERT INTO platform_api_keys
+       (user_id, api_key, client_name, client_bin, tier, features,
+        monthly_quota, is_active)
+     VALUES ($1, $2, $3, NULL, 'enterprise', $4::jsonb, 10000, TRUE)
+     RETURNING id, api_key, client_name, client_bin, features,
+               monthly_quota, requests_this_month, requests_total,
+               created_at, last_used_at`,
+    [
+      userId,
+      apiKey,
+      userInfo.rows[0]?.name || 'Enterprise клиент',
+      JSON.stringify(DEFAULT_ENTERPRISE_FEATURES),
+    ],
+  );
+  console.log('[platform/my-account] auto-provisioned for', userId);
+  return inserted.rows[0];
+}
+
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -37,88 +84,68 @@ router.get('/', authMiddleware, async (req, res) => {
       return res.status(401).json({ error: 'Не авторизован' });
     }
 
-    // Получаем платформенный аккаунт юзера
-    const { rows } = await db.query(
-      `SELECT id, api_key, client_name, client_bin, tier, features,
-              monthly_quota, requests_this_month, requests_total,
-              is_active, created_at, last_used_at
-         FROM platform_api_keys
-        WHERE user_id = $1
-          AND is_active = TRUE
-        LIMIT 1`,
-      [userId],
-    );
-
-    let row = rows[0];
-
-    // Авто-провижн для enterprise-пользователей без записи в platform_api_keys.
-    // Создаём демо-аккаунт с базовым набором фич, чтобы они могли сразу
-    // открыть свой кабинет после смены тарифа в админке.
-    if (!row && req.user?.tier === 'enterprise') {
-      try {
-        const crypto = require('crypto');
-        const apiKey = 'pk_' + crypto.randomBytes(16).toString('base64url');
-        const userInfo = await db.query(
-          'SELECT name FROM users WHERE id = $1',
-          [userId],
-        );
-        const defaultFeatures = [
-          'process_payment', 'taxpayer_info', 'iin_validate',
-          'cancel_receipt', 'receipt_status', 'income_limit',
-          'self_employed_registry', 'benefits',
-        ];
-        const inserted = await db.query(
-          `INSERT INTO platform_api_keys
-            (user_id, api_key, client_name, client_bin, tier, features,
-             monthly_quota, is_active)
-           VALUES ($1, $2, $3, NULL, 'enterprise', $4::jsonb, 10000, TRUE)
-           RETURNING id, api_key, client_name, client_bin, tier, features,
-                     monthly_quota, requests_this_month, requests_total,
-                     created_at, last_used_at`,
-          [
-            userId,
-            apiKey,
-            userInfo.rows[0]?.name || 'Enterprise клиент',
-            JSON.stringify(defaultFeatures),
-          ],
-        );
-        row = inserted.rows[0];
-        console.log('[platform/my-account] auto-provisioned enterprise account for user', userId);
-      } catch (insertErr) {
-        console.error('[platform/my-account] auto-provision failed:', insertErr.message);
-        // продолжаем — ниже вернётся 403, но в логе будет видна причина
-      }
-    }
-
-    if (!row) {
+    // Доступ имеют все enterprise-юзеры. API-ключ создаём лениво при
+    // первом заходе — не как блокер, а как сопутствующий артефакт.
+    if (req.user?.tier !== 'enterprise') {
       return res.status(403).json({
         error: 'NO_PLATFORM_ACCESS',
         has_platform_access: false,
-        message: 'У вашего аккаунта нет доступа к Platform API. Свяжитесь с менеджером Esep.',
+        message: 'Platform API доступен только на тарифе Enterprise. ' +
+                 'Свяжитесь с менеджером Esep для подключения.',
       });
     }
 
-    // Считаем сколько чеков обработано
-    const { rows: [stats] } = await db.query(
-      `SELECT
-         COUNT(*) FILTER (WHERE status='issued')                      AS issued,
-         COUNT(*) FILTER (WHERE status='awaiting_courier_fiscalization') AS awaiting,
-         COUNT(*) FILTER (WHERE status='cancelled')                  AS cancelled,
-         COUNT(*) FILTER (WHERE status='pending_ofd_contract')       AS pending,
-         COUNT(*) FILTER (WHERE status='upload_failed')              AS failed,
-         COALESCE(SUM(amount), 0)                                    AS total_amount
-        FROM platform_receipts
-       WHERE api_key_id = $1`,
-      [row.id],
-    );
+    let row;
+    try {
+      row = await getOrCreateApiKey(userId);
+    } catch (e) {
+      // Даже если БД сломалась — отдаём дашборд с дефолтами,
+      // чтобы UI не показывал «нет доступа» в случае админ-захода
+      // под нового enterprise-юзера.
+      console.error('[platform/my-account] getOrCreateApiKey failed:', e.message);
+      row = {
+        id: null,
+        api_key: 'pk_pending_setup',
+        client_name: req.user.email || 'Enterprise клиент',
+        client_bin: null,
+        features: DEFAULT_ENTERPRISE_FEATURES,
+        monthly_quota: 10000,
+        requests_this_month: 0,
+        requests_total: 0,
+        created_at: null,
+        last_used_at: null,
+      };
+    }
+
+    // Считаем сколько чеков обработано (если api_key_id есть)
+    let stats = { issued: 0, awaiting: 0, cancelled: 0, pending: 0, failed: 0, total_amount: 0 };
+    if (row.id) {
+      try {
+        const r = await db.query(
+          `SELECT
+             COUNT(*) FILTER (WHERE status='issued')                      AS issued,
+             COUNT(*) FILTER (WHERE status='awaiting_courier_fiscalization') AS awaiting,
+             COUNT(*) FILTER (WHERE status='cancelled')                  AS cancelled,
+             COUNT(*) FILTER (WHERE status='pending_ofd_contract')       AS pending,
+             COUNT(*) FILTER (WHERE status='upload_failed')              AS failed,
+             COALESCE(SUM(amount), 0)                                    AS total_amount
+            FROM platform_receipts
+           WHERE api_key_id = $1`,
+          [row.id],
+        );
+        stats = r.rows[0] || stats;
+      } catch (e) {
+        console.error('[platform/my-account] stats query failed:', e.message);
+      }
+    }
 
     return res.json({
       has_platform_access: true,
       api_key: row.api_key,
       client_name: row.client_name,
       client_bin: row.client_bin,
-      tier: row.tier,
-      features: row.features || [],
+      tier: 'enterprise',
+      features: row.features || DEFAULT_ENTERPRISE_FEATURES,
       monthly_quota: row.monthly_quota,
       requests_this_month: row.requests_this_month,
       requests_total: row.requests_total,
