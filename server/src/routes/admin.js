@@ -141,13 +141,13 @@ router.post('/users/:id/impersonate', adminAuth, async (req, res) => {
       return res.status(500).json({ error: 'JWT_SECRET not set' });
     }
 
-    // 1 час TTL, явный claim impersonation
+    // 24 часа TTL (пока единственный разработчик), claim impersonation
     const token = jwt.sign(
       { sub: user.id, imp: true },
       process.env.JWT_SECRET,
-      { expiresIn: '1h' },
+      { expiresIn: '24h' },
     );
-    const expiresAt = new Date(Date.now() + 3600_000).toISOString();
+    const expiresAt = new Date(Date.now() + 24 * 3600_000).toISOString();
 
     // Лог в security audit (если миграция прошла)
     try {
@@ -170,8 +170,7 @@ router.post('/users/:id/impersonate', adminAuth, async (req, res) => {
       `Имя: ${user.name || '—'}\n` +
       `Тариф: <b>${user.tier}</b>\n` +
       (reason ? `Причина: <i>${reason.replace(/[<>&]/g, '')}</i>\n` : '') +
-      `IP: <code>${req.ip}</code>\n` +
-      `Срок токена: 1 час`,
+      `IP: <code>${req.ip}</code>`,
       { parse_mode: 'HTML' },
     ).catch(() => {});
 
@@ -502,7 +501,7 @@ router.get('/', adminAuth, async (_req, res) => {
         </td>
         <td style="text-align:center">
           <button onclick="impersonate('${safeId}', '${safeEmail}')"
-                  title="Войти под этим клиентом (1 час)"
+                  title="Войти под этим клиентом"
                   style="padding:5px 10px;border:none;background:#7c3aed;color:#fff;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">
             👁 Войти
           </button>
@@ -969,24 +968,38 @@ router.get('/', adminAuth, async (_req, res) => {
     }
 
     async function impersonate(userId, email) {
-      const reason = prompt('Зачем входим под ' + email + '?\\n(для аудита, можно пустым)') || '';
-      const r = await fetch('/api/admin/users/' + userId + '/impersonate', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({reason})
-      });
-      if (!r.ok) {
-        toast('Не удалось получить токен', false);
+      if (!confirm('Войти под ' + email + '?')) return;
+      // Открываем окно СРАЗУ пока user-gesture жив — иначе Chrome
+      // заблокирует popup после await fetch. URL пока пустой,
+      // подменим как только получим токен.
+      const newWin = window.open('about:blank', '_blank');
+      if (!newWin) {
+        toast('Popup заблокирован браузером. Разреши popup для api.esepkz.com', false);
         return;
       }
-      const data = await r.json();
-      // Открываем приложение в новой вкладке с токеном в URL.
-      // Главное приложение прочитает ?impersonate= и сохранит токен.
-      const appUrl = (window.ESEP_APP_URL || 'https://app.esepkz.com') +
-        '?impersonate=' + encodeURIComponent(data.token) +
-        '&imp_email=' + encodeURIComponent(data.email);
-      window.open(appUrl, '_blank', 'noopener');
-      toast('Открыто в новой вкладке — токен живёт 1 час', true);
+      newWin.document.write('<title>Esep · открываем...</title><body style="font-family:system-ui;padding:40px;text-align:center;color:#7c3aed">Открываем приложение под ' + email + '...</body>');
+
+      try {
+        const r = await fetch('/api/admin/users/' + userId + '/impersonate', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({reason: ''})
+        });
+        if (!r.ok) {
+          newWin.close();
+          toast('Не удалось получить токен', false);
+          return;
+        }
+        const data = await r.json();
+        const appUrl = (window.ESEP_APP_URL || 'https://app.esepkz.com') +
+          '?impersonate=' + encodeURIComponent(data.token) +
+          '&imp_email=' + encodeURIComponent(data.email);
+        newWin.location.href = appUrl;
+        toast('Открыто в новой вкладке', true);
+      } catch (e) {
+        newWin.close();
+        toast('Ошибка: ' + e.message, false);
+      }
     }
 
     async function saveTaxKey(key) {
