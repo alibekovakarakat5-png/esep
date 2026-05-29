@@ -73,6 +73,14 @@ class _TaxesScreenState extends State<TaxesScreen> {
                 SizedBox(
                   width: buttonWidth,
                   child: _ToolButton(
+                    icon: Iconsax.receipt_2,
+                    label: 'Форма 300 (НДС)',
+                    onTap: () => context.push('/form-300'),
+                  ),
+                ),
+                SizedBox(
+                  width: buttonWidth,
+                  child: _ToolButton(
                     icon: Iconsax.people,
                     label: 'Сотрудники',
                     onTap: () => context.push('/employees'),
