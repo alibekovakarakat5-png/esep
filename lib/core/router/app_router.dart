@@ -19,6 +19,7 @@ import '../../features/mode_select/screens/mode_select_screen.dart';
 import '../../features/taxes/screens/salary_calculator_screen.dart';
 import '../../features/taxes/screens/too_calculator_screen.dart';
 import '../../features/taxes/screens/form910_screen.dart';
+import '../../features/taxes/screens/form200_screen.dart';
 import '../../features/taxes/screens/employees_screen.dart';
 import '../../features/legal/screens/legal_doc_screen.dart';
 import '../constants/legal_docs.dart';
@@ -206,6 +207,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/form-910',
             builder: (_, __) => const Form910Screen(),
+          ),
+          GoRoute(
+            path: '/form-200',
+            builder: (_, __) => const Form200Screen(),
           ),
           GoRoute(
             path: '/employees',

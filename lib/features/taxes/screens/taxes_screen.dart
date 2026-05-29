@@ -65,6 +65,14 @@ class _TaxesScreenState extends State<TaxesScreen> {
                 SizedBox(
                   width: buttonWidth,
                   child: _ToolButton(
+                    icon: Iconsax.document_favorite,
+                    label: 'Форма 200',
+                    onTap: () => context.push('/form-200'),
+                  ),
+                ),
+                SizedBox(
+                  width: buttonWidth,
+                  child: _ToolButton(
                     icon: Iconsax.people,
                     label: 'Сотрудники',
                     onTap: () => context.push('/employees'),
@@ -151,7 +159,6 @@ class _TaxesScreenState extends State<TaxesScreen> {
             const SizedBox(height: 16),
             const _DeadlineCard(),
           ],
-          if (_regime == TaxRegime.esp) _EspCard(fmt: fmt),
           if (_regime == TaxRegime.selfEmployed)
             _SelfEmployedCard(income: _income, fmt: fmt),
           if (_regime == TaxRegime.general)
@@ -350,33 +357,6 @@ class _DeadlineCard extends StatelessWidget {
           ),
           trailing: Icon(Iconsax.notification_1, color: EsepColors.warning, size: 20),
           isThreeLine: true,
-        ),
-      );
-}
-
-class _EspCard extends StatelessWidget {
-  const _EspCard({required this.fmt});
-  final NumberFormat fmt;
-
-  @override
-  Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('ЕСП — Единый совокупный платёж', style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 12),
-            _TaxRow('В городе (1 МРП/мес)', fmt.format(KzTax.espMonthlyCity), EsepColors.expense),
-            const SizedBox(height: 8),
-            _TaxRow('В селе (0.5 МРП/мес)', fmt.format(KzTax.espMonthlyRural), EsepColors.expense),
-            const SizedBox(height: 8),
-            _TaxRow('В год (город)', fmt.format(KzTax.espMonthlyCity * 12), EsepColors.expense),
-            const Divider(height: 20),
-            Text('Лимит дохода: ${fmt.format(KzTax.espYearLimit)} ₸/год',
-                style: const TextStyle(fontSize: 12, color: EsepColors.textSecondary)),
-            const SizedBox(height: 4),
-            Text('МРП 2026: ${fmt.format(KzTax.currentMrp)} ₸',
-                style: const TextStyle(fontSize: 12, color: EsepColors.textSecondary)),
-          ]),
         ),
       );
 }
