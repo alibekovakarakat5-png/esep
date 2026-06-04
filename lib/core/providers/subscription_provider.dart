@@ -10,7 +10,14 @@ import '../theme/app_theme.dart';
 
 // ── Subscription tiers ──────────────────────────────────────────────────────
 
-enum SubscriptionTier { free, solo, accountant, accountantPro, enterprise }
+enum SubscriptionTier {
+  free,
+  solo,
+  accountant,
+  accountantPro,
+  accountantStudio,
+  enterprise,
+}
 
 extension SubscriptionTierExt on SubscriptionTier {
   String get apiName {
@@ -19,6 +26,7 @@ extension SubscriptionTierExt on SubscriptionTier {
       case SubscriptionTier.solo: return 'solo';
       case SubscriptionTier.accountant: return 'accountant';
       case SubscriptionTier.accountantPro: return 'accountant_pro';
+      case SubscriptionTier.accountantStudio: return 'accountant_studio';
       case SubscriptionTier.enterprise: return 'enterprise';
     }
   }
@@ -29,6 +37,7 @@ extension SubscriptionTierExt on SubscriptionTier {
       case SubscriptionTier.solo: return 'Solo';
       case SubscriptionTier.accountant: return 'Бухгалтер';
       case SubscriptionTier.accountantPro: return 'Бухгалтер Про';
+      case SubscriptionTier.accountantStudio: return 'Бухгалтер Studio';
       case SubscriptionTier.enterprise: return 'Enterprise (Platform API)';
     }
   }
@@ -40,7 +49,17 @@ extension SubscriptionTierExt on SubscriptionTier {
       case SubscriptionTier.solo: return 2000;
       case SubscriptionTier.accountant: return 4900;
       case SubscriptionTier.accountantPro: return 14900;
+      case SubscriptionTier.accountantStudio: return 70000;
       case SubscriptionTier.enterprise: return 0; // индивидуальная тарификация
+    }
+  }
+
+  /// Pilot price (first 3 months) — for new bookkeeping firm partners.
+  /// Возвращает 0 если для этого тарифа пилотной цены нет.
+  int get pilotMonthlyPrice {
+    switch (this) {
+      case SubscriptionTier.accountantStudio: return 35000;
+      default: return 0;
     }
   }
 
@@ -51,6 +70,7 @@ extension SubscriptionTierExt on SubscriptionTier {
       case SubscriptionTier.solo: return 20000;
       case SubscriptionTier.accountant: return 48900;
       case SubscriptionTier.accountantPro: return 148900;
+      case SubscriptionTier.accountantStudio: return 700000;
       case SubscriptionTier.enterprise: return 0;
     }
   }
@@ -62,6 +82,7 @@ extension SubscriptionTierExt on SubscriptionTier {
       case SubscriptionTier.solo: return -1;
       case SubscriptionTier.accountant: return -1;
       case SubscriptionTier.accountantPro: return -1;
+      case SubscriptionTier.accountantStudio: return -1;
       case SubscriptionTier.enterprise: return -1;
     }
   }
@@ -73,6 +94,7 @@ extension SubscriptionTierExt on SubscriptionTier {
       case SubscriptionTier.solo: return -1;
       case SubscriptionTier.accountant: return -1;
       case SubscriptionTier.accountantPro: return -1;
+      case SubscriptionTier.accountantStudio: return -1;
       case SubscriptionTier.enterprise: return -1;
     }
   }
@@ -84,6 +106,7 @@ extension SubscriptionTierExt on SubscriptionTier {
       case SubscriptionTier.solo: return 1;
       case SubscriptionTier.accountant: return 15;
       case SubscriptionTier.accountantPro: return 50;
+      case SubscriptionTier.accountantStudio: return 100;
       case SubscriptionTier.enterprise: return -1;
     }
   }
@@ -95,12 +118,28 @@ extension SubscriptionTierExt on SubscriptionTier {
       case SubscriptionTier.solo: return -1;
       case SubscriptionTier.accountant: return -1;
       case SubscriptionTier.accountantPro: return -1;
+      case SubscriptionTier.accountantStudio: return -1;
       case SubscriptionTier.enterprise: return -1;
     }
   }
 
   /// Доступ к Platform API (B2B сервисы для корпоративных клиентов)
   bool get hasPlatformApi => this == SubscriptionTier.enterprise;
+
+  /// White-label кабинет с брендом партнёра-фирмы (запуск Q3 2026)
+  bool get hasWhiteLabel =>
+      this == SubscriptionTier.accountantStudio ||
+      this == SubscriptionTier.enterprise;
+
+  /// WhatsApp-бот напоминаний клиентам (запуск Q3 2026)
+  bool get hasWhatsAppClientBot =>
+      this == SubscriptionTier.accountantStudio ||
+      this == SubscriptionTier.enterprise;
+
+  /// Multi-user — несколько бухгалтеров под одной фирмой
+  bool get hasMultiUser =>
+      this == SubscriptionTier.accountantStudio ||
+      this == SubscriptionTier.enterprise;
 
   /// Price per extra business slot above limit (KZT/month)
   static const int overflowSlotPrice = 500;
@@ -109,8 +148,11 @@ extension SubscriptionTierExt on SubscriptionTier {
   bool get hasBankImport => this != SubscriptionTier.free;
   bool get hasAccountantMode =>
       this == SubscriptionTier.accountant ||
-      this == SubscriptionTier.accountantPro;
-  bool get hasPrioritySupport => this == SubscriptionTier.accountantPro;
+      this == SubscriptionTier.accountantPro ||
+      this == SubscriptionTier.accountantStudio;
+  bool get hasPrioritySupport =>
+      this == SubscriptionTier.accountantPro ||
+      this == SubscriptionTier.accountantStudio;
   bool get hasTelegramAlerts => this != SubscriptionTier.free;
   bool get hasSalaryCalculator => true; // all tiers
   bool get hasTooCalculator => true;    // all tiers
@@ -125,6 +167,8 @@ extension SubscriptionTierExt on SubscriptionTier {
         return 'До 15 клиентов + ЛПР + дедлайны';
       case SubscriptionTier.accountantPro:
         return 'До 50 клиентов + приоритетная поддержка';
+      case SubscriptionTier.accountantStudio:
+        return 'До 100 клиентов + white-label + multi-user (для фирм)';
       case SubscriptionTier.enterprise:
         return 'Platform API — Compliance под 214-VIII';
     }
@@ -141,6 +185,9 @@ SubscriptionTier subscriptionTierFromApi(String? value) {
     case 'accountantPro':
     case 'corporate':
       return SubscriptionTier.accountantPro;
+    case 'accountant_studio':
+    case 'accountantStudio':
+      return SubscriptionTier.accountantStudio;
     case 'enterprise':
       return SubscriptionTier.enterprise;
     default:
