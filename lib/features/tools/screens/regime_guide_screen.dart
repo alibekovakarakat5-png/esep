@@ -61,12 +61,14 @@ class _RegimeGuideScreenState extends ConsumerState<RegimeGuideScreen> {
     String best = '';
     String explanation = '';
 
-    // ЕСП check
-    if (yearIncome <= KzTax.espYearLimit && monthlyExpense < monthlyIncome * 0.3) {
-      final espTotal = KzTax.espMonthlyCity * 12;
-      best = 'ЕСП (Единый совокупный платёж)';
-      explanation = 'При доходе ${fmt.format(yearIncome)} ₸/год вы укладываетесь в лимит ЕСП. '
-          'Ежемесячный платёж всего ${fmt.format(KzTax.espMonthlyCity)} ₸ — это самый дешёвый вариант (${fmt.format(espTotal)} ₸/год).';
+    // Режим самозанятых check
+    if (yearIncome <= KzTax.selfEmployedYearLimit && monthlyExpense < monthlyIncome * 0.3) {
+      final seTax = yearIncome * KzTax.selfEmployedRate;
+      best = 'Режим самозанятых';
+      explanation = 'При доходе ${fmt.format(yearIncome)} ₸/год вы укладываетесь в лимит '
+          'режима самозанятых (3 600 МРП ≈ ${fmt.format(KzTax.selfEmployedYearLimit)} ₸/год). '
+          'Платёж — 4% от дохода (≈ ${fmt.format(seTax)} ₸/год), ИПН 0%. '
+          'Учёт и оплата — через приложение E-Salyq Business, без права найма сотрудников.';
     }
     // Упрощёнка check
     else if (halfYearIncome <= KzTax.simplified910HalfYearLimit) {
@@ -413,8 +415,6 @@ class _RegimeGuideScreenState extends ConsumerState<RegimeGuideScreen> {
     switch (_regime) {
       case TaxRegime.simplified:
         return _buildSimplifiedReports();
-      case TaxRegime.esp:
-        return _buildEspReports();
       case TaxRegime.selfEmployed:
         return _buildSelfEmployedReports();
       case TaxRegime.general:
@@ -436,33 +436,6 @@ class _RegimeGuideScreenState extends ConsumerState<RegimeGuideScreen> {
         _deadlineRow('II полугодие', 'сдать до 15 февраля'),
         const SizedBox(height: 10),
         _whereToSubmit('cabinet.salyk.kz (нужна ЭЦП)'),
-      ],
-    );
-  }
-
-  Widget _buildEspReports() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: EsepColors.income.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: const Row(
-            children: [
-              Icon(Iconsax.tick_circle, color: EsepColors.income, size: 20),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Отчётов нет!\nОплата через приложение e-Salyk Azamat каждый месяц.',
-                  style: TextStyle(fontSize: 13, color: EsepColors.income),
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -647,8 +620,6 @@ class _RegimeGuideScreenState extends ConsumerState<RegimeGuideScreen> {
       case TaxRegime.simplified:
       case TaxRegime.general:
         return _buildIpSelfPayments(fmt);
-      case TaxRegime.esp:
-        return _buildEspPayments(fmt);
       case TaxRegime.selfEmployed:
         return _buildSelfEmployedPayments(fmt);
     }
@@ -678,32 +649,6 @@ class _RegimeGuideScreenState extends ConsumerState<RegimeGuideScreen> {
                     fontWeight: FontWeight.w700,
                     color: EsepColors.expense)),
           ],
-        ),
-        const SizedBox(height: 8),
-        _deadlineBadge('Срок оплаты: до 25 числа каждого месяца'),
-      ],
-    );
-  }
-
-  Widget _buildEspPayments(NumberFormat fmt) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _paymentRow(
-            'Город (1 МРП/мес)', fmt.format(KzTax.espMonthlyCity)),
-        _paymentRow(
-            'Село (0.5 МРП/мес)', fmt.format(KzTax.espMonthlyRural)),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: EsepColors.income.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: const Text(
-            'Включает ОПВ + СО + ВОСМС + ИПН — всё в одном платеже!',
-            style: TextStyle(fontSize: 12, color: EsepColors.income),
-          ),
         ),
         const SizedBox(height: 8),
         _deadlineBadge('Срок оплаты: до 25 числа каждого месяца'),
@@ -922,9 +867,6 @@ class _RegimeGuideScreenState extends ConsumerState<RegimeGuideScreen> {
               'Форма 910.00 (II полугодие)', now);
           _addIfFuture(deadlines, DateTime(year, 2, 15),
               'Форма 910.00 (II полугодие ${year - 1})', now);
-        case TaxRegime.esp:
-          // No report deadlines, only social payments
-          break;
         case TaxRegime.selfEmployed:
           // No report deadlines, only social payments
           break;
