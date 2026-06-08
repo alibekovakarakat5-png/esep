@@ -67,6 +67,10 @@ async function _provisionApiKey(userId) {
 
 router.get('/', authMiddleware, async (req, res) => {
   try {
+    // Ответ зависит от прав доступа пользователя — НИКОГДА не кэшируем.
+    // Иначе браузер отдаёт старый ответ через 304 Not Modified (как и было
+    // при отладке: фикс уже на сервере, а в браузере висел прежний 403).
+    res.set('Cache-Control', 'no-store');
     const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ error: 'Не авторизован' });
