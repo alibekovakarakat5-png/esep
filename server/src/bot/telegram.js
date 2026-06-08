@@ -75,8 +75,6 @@ async function getTaxConfig() {
     ipn_rate_910: 0.04, sn_rate_910: 0,
     opv_rate: 0.10, opvr_rate: 0.035, so_rate: 0.05,
     vosms_rate_self: 0.05, vosms_base_mult: 1.4,
-    esp_mrp_city_mult: 1, esp_mrp_rural_mult: 0.5,
-    esp_year_mrp_limit: 1175,
     self_emp_rate: 0.04, self_emp_year_limit: 3600,
     vat_rate: 0.16, vat_threshold_mrp: 10000,
     '910_year_mrp': 600000,
@@ -171,7 +169,6 @@ async function handleStart(chatId, from, payload) {
     if (p === 'social') return handleSocial(chatId);
     if (p === 'rates') return handleRates(chatId);
     if (p === 'deadlines') return handleDeadlines(chatId);
-    if (p === 'esp') return handleEsp(chatId);
     if (p.startsWith('self_')) {
       const amount = p.replace('self_', '');
       return handleSelf(chatId, amount);
@@ -182,23 +179,30 @@ async function handleStart(chatId, from, payload) {
       const email = payload.replace(/^reset[_\s]?/i, '').trim();
       return handleReset(chatId, email);
     }
+
+    // Реклама бухфирмам: /start buh (из Instagram/Meta) → сразу оффер бухгалтерам
+    if (p === 'buh' || p === 'buhgalter' || p === 'firma' || p === 'partner') {
+      return sendBuhOffer(chatId, from);
+    }
   }
 
   // Welcome series: regime selection
   send(chatId,
     `Привет, ${from.first_name || 'друг'}! Я — <b>Esep Bot</b>\n\n` +
-    `Помогаю ИП и самозанятым Казахстана считать налоги.\n\n` +
-    `<b>На каком вы налоговом режиме?</b>`,
+    `Помогаю с налогами 2026 — ИП, самозанятым и бухгалтерам.\n\n` +
+    `<b>Что вам ближе?</b>`,
     {
       reply_markup: {
         inline_keyboard: [
           [
             { text: '📋 Упрощёнка (910)', callback_data: 'regime_910' },
-            { text: '🏷 ЕСП', callback_data: 'regime_esp' },
+            { text: '👤 Самозанятый', callback_data: 'regime_self' },
           ],
           [
-            { text: '👤 Самозанятый', callback_data: 'regime_self' },
             { text: '🏢 ОУР', callback_data: 'regime_our' },
+          ],
+          [
+            { text: '🧮 Я бухгалтер / веду клиентов', callback_data: 'regime_buh' },
           ],
           [
             { text: '❓ Не знаю / хочу разобраться', callback_data: 'regime_unknown' },
@@ -214,6 +218,41 @@ async function handleStart(chatId, from, payload) {
     `Имя: ${from.first_name || ''} ${from.last_name || ''}\n` +
     `Username: @${from.username || '—'}\n` +
     `Chat ID: <code>${chatId}</code>`,
+  );
+}
+
+// ── Оффер для бухгалтерских фирм (B2B-ветка) ─────────────────────────────────
+// Вызывается из кнопки regime_buh и deep-link /start buh. НЕ трогает B2C-поток.
+async function sendBuhOffer(chatId, from = {}) {
+  await send(chatId,
+    `🧮 <b>Esep для бухгалтерских фирм</b>\n\n` +
+    `Ведёте несколько клиентов? Esep — кабинет бухгалтера под Налоговый кодекс 2026:\n\n` +
+    `• Все клиенты (ИП и ТОО) в одном окне\n` +
+    `• Формы <b>910 / 200 / 300</b> — автоматически в формат ИСНА\n` +
+    `• Расчёт зарплат и соцплатежей, дедлайны по каждому клиенту\n` +
+    `• Распознавание чеков из фото + импорт выписок Kaspi\n\n` +
+    `<b>Для бухфирм — особые условия:</b>\n` +
+    `🎁 Пилот: <b>50% на 3 месяца</b>\n` +
+    `💰 Партнёрка: <b>30%</b> с каждой подписки клиента, которого приведёте — навсегда\n` +
+    `🤝 Настрою вашего первого клиента лично за 24 часа\n\n` +
+    `Покажу за 15 минут под ваш случай 👇`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '💬 Записаться на демо', url: 'https://t.me/alibekovakarakat' }],
+          [{ text: '🌐 Подробнее', url: 'https://business.esepkz.com' }],
+        ],
+      },
+    },
+  );
+
+  // Горячий B2B-лид — отдельный пинг владельцу (отличаем от B2C)
+  sendAdmin(
+    `🧮 <b>БУХГАЛТЕР в боте — горячий лид!</b>\n` +
+    `Имя: ${from.first_name || ''} ${from.last_name || ''}\n` +
+    `Username: @${from.username || '—'}\n` +
+    `Chat ID: <code>${chatId}</code>\n\n` +
+    `Показан оффер бухфирм (пилот 50% + партнёрка 30%). Напишет на @alibekovakarakat для демо.`,
   );
 }
 
@@ -328,26 +367,8 @@ async function handleRates(chatId) {
     `  ОПВ: ${c.opv_rate * 100}% | ОПВР: ${c.opvr_rate * 100}%\n` +
     `  СО: ${c.so_rate * 100}% | ВОСМС: ${c.vosms_rate_self * 100}%×${c.vosms_base_mult}МЗП\n\n` +
     `<b>Другие режимы:</b>\n` +
-    `  ЕСП: ${fmt(c.esp_mrp_city_mult)} МРП/мес город, лимит ${fmt(c.esp_year_mrp_limit)} МРП/год\n` +
     `  Самозанятый: ${formatRate(c.self_emp_rate)}, лимит ${fmt(c.self_emp_year_limit)} МРП/год\n` +
     `  НДС: ${formatRate(c.vat_rate)}, порог ${fmt(c.vat_threshold_mrp)} МРП`,
-  );
-}
-
-async function handleEsp(chatId) {
-  const c = await getTaxConfig();
-  const city  = c.mrp * c.esp_mrp_city_mult;
-  const rural = c.mrp * c.esp_mrp_rural_mult;
-  const limit = c.mrp * c.esp_year_mrp_limit;
-  const fmt = (n) => Math.round(n).toLocaleString('ru-RU');
-
-  send(chatId,
-    `🏷 <b>ЕСП (Единый совокупный платёж)</b>\n\n` +
-    `Город: <b>${fmt(city)} ₸/мес</b> (${c.esp_mrp_city_mult} МРП)\n` +
-    `Село: <b>${fmt(rural)} ₸/мес</b> (${c.esp_mrp_rural_mult} МРП)\n\n` +
-    `Лимит дохода: <b>${fmt(limit)} ₸/год</b> (${c.esp_year_mrp_limit} МРП)\n\n` +
-    `Включает: ИПН, СО, ВОСМС, ОПВ — всё в одном платеже.\n` +
-    `Подходит для мелкой торговли, услуг физлицам, репетиторов.`,
   );
 }
 
@@ -446,7 +467,6 @@ function handleHelp(chatId) {
     `/calc 5000000 — налог 910 за полугодие\n` +
     `/social — соцплатежи за себя\n` +
     `/rates — актуальные ставки 2026\n` +
-    `/esp — расчёт ЕСП\n` +
     `/self 1000000 — налог самозанятого\n` +
     `/deadlines — сроки сдачи\n` +
     `/status — ваш статус и лимиты\n` +
@@ -774,7 +794,12 @@ async function handleFreeText(chatId, text) {
     return handleRates(chatId);
   }
   if (lower.includes('есп') || lower.includes('совокупн')) {
-    return handleEsp(chatId);
+    return send(chatId,
+      'ЕСП (единый совокупный платёж) отменён с 1 января 2026 года.\n\n' +
+      'Его заменил <b>режим самозанятых</b>: 4% от дохода (ИПН 0% + соцплатежи ' +
+      'ОПВ/ОПВР/СО/ОСМС по 1%), лимит 3 600 МРП/год, учёт через приложение ' +
+      'E-Salyq Business.\n\n' +
+      'Расчёт: <code>/self 1000000</code>');
   }
   if (lower.includes('самозаня')) {
     if (num) return handleSelf(chatId, String(num));
@@ -875,7 +900,6 @@ async function handleUpdate(update) {
       case '/calc':      return handleCalc(chatId, args);
       case '/social':    return handleSocial(chatId);
       case '/rates':     return handleRates(chatId);
-      case '/esp':       return handleEsp(chatId);
       case '/self':      return handleSelf(chatId, args);
       case '/deadlines': return handleDeadlines(chatId);
       case '/link':      return handleLink(chatId, args);
@@ -1075,40 +1099,15 @@ async function handleCallbackQuery(cb) {
     );
   }
 
-  if (data === 'regime_esp') {
-    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
-    const c = await getTaxConfig();
-    const city = Math.round(c.mrp * c.esp_mrp_city_mult);
-    return send(chatId,
-      `🏷 <b>ЕСП (Единый совокупный платёж)</b>\n\n` +
-      `Самый простой режим — фиксированная сумма.\n\n` +
-      `<b>Город:</b> ${city.toLocaleString('ru-RU')} ₸/мес (1 МРП)\n` +
-      `<b>Село:</b> ${Math.round(city / 2).toLocaleString('ru-RU')} ₸/мес (0.5 МРП)\n` +
-      `<b>Лимит дохода:</b> ~5 млн ₸/год\n` +
-      `<b>Включает:</b> ИПН + СО + ВОСМС + ОПВ\n\n` +
-      `Подходит для мелкой торговли, услуг физлицам.`,
-      {
-        reply_markup: {
-          inline_keyboard: [
-            [
-              { text: '📖 Все команды', callback_data: 'show_help' },
-              { text: '📊 Ставки 2026', callback_data: 'go_rates' },
-            ],
-          ],
-        },
-      },
-    );
-  }
-
   if (data === 'regime_self') {
     botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return send(chatId,
       `👤 <b>Режим самозанятого</b>\n\n` +
       `Минимум бюрократии, без регистрации ИП.\n\n` +
-      `<b>Ставка:</b> 4% от дохода (ЕСП)\n` +
-      `<b>Лимит:</b> ~15.3 млн ₸/год\n` +
+      `<b>Ставка:</b> 4% от дохода (ИПН 0% + ОПВ/ОПВР/СО/ОСМС по 1%)\n` +
+      `<b>Лимит:</b> 3 600 МРП/год (300 МРП/мес)\n` +
       `<b>Нельзя:</b> нанимать сотрудников\n` +
-      `<b>Оплата:</b> через приложение e-Salyk Azamat\n\n` +
+      `<b>Оплата:</b> через приложение E-Salyq Business\n\n` +
       `Попробуйте расчёт:`,
       {
         reply_markup: {
@@ -1149,8 +1148,7 @@ async function handleCallbackQuery(cb) {
     return send(chatId,
       `❓ <b>Какой режим выбрать?</b>\n\n` +
       `Кратко:\n\n` +
-      `🏷 <b>ЕСП</b> — доход до ~5 млн/год, фикс. ~4 325 ₸/мес\n` +
-      `👤 <b>Самозанятый</b> — до ~15 млн/год, 4%, без сотрудников\n` +
+      `👤 <b>Самозанятый</b> — доход до 3 600 МРП/год, 4%, без сотрудников\n` +
       `📋 <b>Упрощёнка 910</b> — до 300 000 МРП/полугодие, 4%\n` +
       `🏢 <b>ОУР</b> — без лимитов, 10% + НДС\n\n` +
       `Большинство ИП работают на <b>упрощёнке (910)</b>.\n` +
@@ -1175,6 +1173,12 @@ async function handleCallbackQuery(cb) {
   if (data === 'demo_self_1000000') {
     botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return handleSelf(chatId, '1000000');
+  }
+
+  // B2B-ветка: бухгалтер выбрал «веду клиентов» в приветствии
+  if (data === 'regime_buh') {
+    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    return sendBuhOffer(chatId, cb.from || {});
   }
 }
 
@@ -1315,15 +1319,15 @@ const TAX_TIPS = [
   },
   {
     title: 'Сравнение режимов',
-    body: 'Упрощёнка (910): 4% от дохода + соцплатежи.\nЕСП: фиксированная сумма (1 МРП/мес), но лимит дохода ~5 млн/год.\nСамозанятый: 4%, но нет найма сотрудников.\n\nВыбирайте режим под свой масштаб!',
+    body: 'Упрощёнка (910): 4% от дохода + соцплатежи.\nСамозанятый: 4% (ИПН 0%), лимит 3 600 МРП/год, без найма сотрудников.\nОУР: 10% ИПН с прибыли, без лимита дохода.\n\nВыбирайте режим под свой масштаб!',
   },
   {
     title: 'Срок подачи 910.00',
     body: '1-е полугодие (янв—июн): подача до 15 августа, оплата до 25 августа.\n2-е полугодие (июл—дек): подача до 15 февраля, оплата до 25 февраля.\n\nНе пропустите!',
   },
   {
-    title: 'Что входит в ЕСП?',
-    body: 'Единый совокупный платёж (ЕСП) = ИПН + СО + ВОСМС + ОПВ в одном платеже.\nГород: 4 325 тенге/мес | Село: 2 163 тенге/мес.\nИдеально для мелкой торговли и услуг.',
+    title: 'Режим самозанятых с 2026',
+    body: 'С 2026 года патент и ЕСП отменены — вместо них режим самозанятых.\nПлатёж 4% от дохода: ИПН 0% + ОПВ, ОПВР, СО, ОСМС по 1%.\nЛимит дохода — 3 600 МРП/год. Учёт через приложение E-Salyq Business.',
   },
   {
     title: 'ВОСМС в 2026',
@@ -1426,7 +1430,7 @@ async function postLeadMagnet() {
     'ИПН + все соцплатежи = точная сумма.',
 
     '📊 <b>Какой режим выгоднее?</b>\n\n' +
-    'Упрощёнка, ЕСП или самозанятый? Зависит от дохода.\n' +
+    'Упрощёнка, самозанятый или ОУР? Зависит от дохода.\n' +
     'Бот @EsepKZ_bot сравнит все режимы за секунду.\n\n' +
     'Просто напишите: "сколько налогов с 3 млн?"',
 
@@ -1658,7 +1662,6 @@ async function setupWebhook(baseUrl) {
       { command: 'calc',      description: 'Рассчитать налог 910' },
       { command: 'social',    description: 'Соцплатежи за себя' },
       { command: 'rates',     description: 'Актуальные ставки 2026' },
-      { command: 'esp',       description: 'Расчёт ЕСП' },
       { command: 'self',      description: 'Налог самозанятого' },
       { command: 'deadlines', description: 'Сроки подачи и оплаты' },
       { command: 'status',    description: 'Статус и лимиты' },
