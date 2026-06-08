@@ -74,10 +74,16 @@ router.get('/', authMiddleware, async (req, res) => {
 
     const isAdminImpersonation = !!req.isImpersonated;
 
+    // Разработчик/основатель видит кабинет напрямую по своему email —
+    // без enterprise-тарифа и без impersonation ("разраб видит всё").
+    const DEV_EMAILS = (process.env.PLATFORM_DEV_EMAILS ||
+      'alibekovakarakat5@gmail.com,aksharayev@gmail.com')
+      .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+    const isDev = !!(req.user?.email && DEV_EMAILS.includes(req.user.email.toLowerCase()));
+
     // Доступ требует tier=enterprise (биллинг).
-    // Исключение: super-admin через impersonation видит дашборд
-    // независимо от тарифа — для оперативной диагностики.
-    if (req.user?.tier !== 'enterprise' && !isAdminImpersonation) {
+    // Исключения: super-admin через impersonation ИЛИ разработчик по email.
+    if (req.user?.tier !== 'enterprise' && !isAdminImpersonation && !isDev) {
       return res.status(403).json({
         error: 'NO_PLATFORM_ACCESS',
         has_platform_access: false,
@@ -101,12 +107,28 @@ router.get('/', authMiddleware, async (req, res) => {
 
     if (!row) {
       // Нет ключа в БД.
-      // — Обычный enterprise-юзер: возвращаем 403, чтобы menedger Esep
-      //   увидел запрос и оформил клиента нормально (заведёт фичи,
-      //   лимиты, контактное лицо).
-      // — Super-admin (impersonation): пропускаем с дефолтным placeholder,
-      //   чтобы можно было сразу зайти в кабинет и диагностировать.
-      if (!isAdminImpersonation) {
+      if (isDev) {
+        // Разработчик: авто-выдаём РЕАЛЬНЫЙ enterprise-ключ, чтобы можно
+        // было сразу тестировать платформенные вызовы (fiscalize и т.д.).
+        console.log('[platform/my-account] dev auto-provision for', userId);
+        row = await _provisionApiKey(userId);
+      } else if (isAdminImpersonation) {
+        // Super-admin через impersonation: виртуальный просмотр без записи в БД.
+        console.log('[platform/my-account] admin bypass for user', userId, '(no api key row)');
+        row = {
+          id: null,
+          api_key: 'pk_admin_view_no_key',
+          client_name: '[admin view] ' + (req.user.email || 'Enterprise клиент'),
+          client_bin: null,
+          features: DEFAULT_ENTERPRISE_FEATURES,
+          monthly_quota: 0,
+          requests_this_month: 0,
+          requests_total: 0,
+          created_at: null,
+          last_used_at: null,
+        };
+      } else {
+        // Обычный enterprise-юзер без ключа: 403, менеджер Esep оформит.
         return res.status(403).json({
           error: 'NO_PLATFORM_ACCESS',
           has_platform_access: false,
@@ -114,20 +136,6 @@ router.get('/', authMiddleware, async (req, res) => {
                    'Менеджер Esep оформит ваш ключ в течение рабочего дня.',
         });
       }
-      // Admin-bypass: даём виртуальный аккаунт без записи в БД.
-      console.log('[platform/my-account] admin bypass for user', userId, '(no api key row)');
-      row = {
-        id: null,
-        api_key: 'pk_admin_view_no_key',
-        client_name: '[admin view] ' + (req.user.email || 'Enterprise клиент'),
-        client_bin: null,
-        features: DEFAULT_ENTERPRISE_FEATURES,
-        monthly_quota: 0,
-        requests_this_month: 0,
-        requests_total: 0,
-        created_at: null,
-        last_used_at: null,
-      };
     }
 
     // Считаем сколько чеков обработано (если api_key_id есть)
