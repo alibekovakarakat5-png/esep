@@ -31,14 +31,9 @@ const SEED = [
   { key: 'ee_vosms_rate',       value: '0.02',   label: 'ВОСМС с сотрудника' },
   { key: 'ee_vosms_max_mult',   value: '20',     label: 'ВОСМС макс. база (×МЗП)' },
 
-  // ── ЕСП ──
-  { key: 'esp_mrp_city_mult',   value: '1',      label: 'ЕСП город (×МРП/мес)' },
-  { key: 'esp_mrp_rural_mult',  value: '0.5',    label: 'ЕСП село (×МРП/мес)' },
-  { key: 'esp_year_mrp_limit',  value: '1175',   label: 'ЕСП лимит дохода (МРП/год)' },
-
   // ── Самозанятые ──
   { key: 'self_emp_rate',       value: '0.04',   label: 'Самозанятый ставка' },
-  { key: 'self_emp_year_limit', value: '3600',   label: 'Самозанятый лимит (МРП/год)' },
+  { key: 'self_emp_month_limit', value: '300',    label: 'Самозанятый лимит (МРП/мес, ст.715 НК)' },
 
   // ── НДС (новый НК РК 2026) ──
   { key: 'vat_rate',            value: '0.16',   label: 'НДС ставка (16% с 2026)' },

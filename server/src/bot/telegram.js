@@ -75,7 +75,7 @@ async function getTaxConfig() {
     ipn_rate_910: 0.04, sn_rate_910: 0,
     opv_rate: 0.10, opvr_rate: 0.035, so_rate: 0.05,
     vosms_rate_self: 0.05, vosms_base_mult: 1.4,
-    self_emp_rate: 0.04, self_emp_year_limit: 3600,
+    self_emp_rate: 0.04, self_emp_month_limit: 300,
     vat_rate: 0.16, vat_threshold_mrp: 10000,
     '910_year_mrp': 600000,
   };
@@ -367,7 +367,7 @@ async function handleRates(chatId) {
     `  ОПВ: ${c.opv_rate * 100}% | ОПВР: ${c.opvr_rate * 100}%\n` +
     `  СО: ${c.so_rate * 100}% | ВОСМС: ${c.vosms_rate_self * 100}%×${c.vosms_base_mult}МЗП\n\n` +
     `<b>Другие режимы:</b>\n` +
-    `  Самозанятый: ${formatRate(c.self_emp_rate)}, лимит ${fmt(c.self_emp_year_limit)} МРП/год\n` +
+    `  Самозанятый: ${formatRate(c.self_emp_rate)}, лимит ${fmt(c.self_emp_month_limit)} МРП/мес\n` +
     `  НДС: ${formatRate(c.vat_rate)}, порог ${fmt(c.vat_threshold_mrp)} МРП`,
   );
 }
@@ -375,22 +375,22 @@ async function handleRates(chatId) {
 async function handleSelf(chatId, args) {
   const income = parseFloat(args.replace(/\s/g, ''));
   if (!income || income <= 0) {
-    return send(chatId, 'Укажите доход: <code>/self 1000000</code>');
+    return send(chatId, 'Укажите доход в месяц: <code>/self 1000000</code>');
   }
   const c = await getTaxConfig();
   const tax   = income * c.self_emp_rate;
-  const limit = c.mrp * c.self_emp_year_limit;
+  const limit = c.mrp * c.self_emp_month_limit;
   const fmt = (n) => Math.round(n).toLocaleString('ru-RU');
   const warn = income > limit
-    ? `\n\n⚠️ Доход превышает лимит (${fmt(limit)} ₸/год)`
+    ? `\n\n⚠️ Доход за месяц превышает лимит (${fmt(limit)} ₸/мес)`
     : '';
 
   send(chatId,
     `👤 <b>Режим самозанятого</b>\n\n` +
-    `Доход: <b>${fmt(income)} ₸</b>\n` +
+    `Доход/мес: <b>${fmt(income)} ₸</b>\n` +
     `Ставка: ${c.self_emp_rate * 100}%\n` +
     `Налог: <b>${fmt(tax)} ₸</b>\n\n` +
-    `Лимит: ${fmt(limit)} ₸/год (${c.self_emp_year_limit} МРП)` + warn,
+    `Лимит: ${fmt(limit)} ₸/мес (${c.self_emp_month_limit} МРП/мес)` + warn,
     {
       reply_markup: {
         inline_keyboard: [
@@ -797,13 +797,13 @@ async function handleFreeText(chatId, text) {
     return send(chatId,
       'ЕСП (единый совокупный платёж) отменён с 1 января 2026 года.\n\n' +
       'Его заменил <b>режим самозанятых</b>: 4% от дохода (ИПН 0% + соцплатежи ' +
-      'ОПВ/ОПВР/СО/ОСМС по 1%), лимит 3 600 МРП/год, учёт через приложение ' +
+      'ОПВ/ОПВР/СО/ОСМС по 1%), лимит 300 МРП/мес, учёт через приложение ' +
       'E-Salyq Business.\n\n' +
       'Расчёт: <code>/self 1000000</code>');
   }
   if (lower.includes('самозаня')) {
     if (num) return handleSelf(chatId, String(num));
-    return send(chatId, 'Режим самозанятого: 4% от дохода, лимит 3 600 МРП/год.\nУкажите сумму: <code>/self 1000000</code>');
+    return send(chatId, 'Режим самозанятого: 4% от дохода, лимит 300 МРП/мес.\nУкажите сумму: <code>/self 1000000</code>');
   }
   if (lower.includes('срок') || lower.includes('дедлайн') || lower.includes('когда сдавать')) {
     return handleDeadlines(chatId);
@@ -1105,7 +1105,7 @@ async function handleCallbackQuery(cb) {
       `👤 <b>Режим самозанятого</b>\n\n` +
       `Минимум бюрократии, без регистрации ИП.\n\n` +
       `<b>Ставка:</b> 4% от дохода (ИПН 0% + ОПВ/ОПВР/СО/ОСМС по 1%)\n` +
-      `<b>Лимит:</b> 3 600 МРП/год (300 МРП/мес)\n` +
+      `<b>Лимит:</b> 300 МРП/мес (≈1,3 млн ₸)\n` +
       `<b>Нельзя:</b> нанимать сотрудников\n` +
       `<b>Оплата:</b> через приложение E-Salyq Business\n\n` +
       `Попробуйте расчёт:`,
@@ -1148,7 +1148,7 @@ async function handleCallbackQuery(cb) {
     return send(chatId,
       `❓ <b>Какой режим выбрать?</b>\n\n` +
       `Кратко:\n\n` +
-      `👤 <b>Самозанятый</b> — доход до 3 600 МРП/год, 4%, без сотрудников\n` +
+      `👤 <b>Самозанятый</b> — доход до 300 МРП/мес, 4%, без сотрудников\n` +
       `📋 <b>Упрощёнка 910</b> — до 300 000 МРП/полугодие, 4%\n` +
       `🏢 <b>ОУР</b> — без лимитов, 10% + НДС\n\n` +
       `Большинство ИП работают на <b>упрощёнке (910)</b>.\n` +
@@ -1319,7 +1319,7 @@ const TAX_TIPS = [
   },
   {
     title: 'Сравнение режимов',
-    body: 'Упрощёнка (910): 4% от дохода + соцплатежи.\nСамозанятый: 4% (ИПН 0%), лимит 3 600 МРП/год, без найма сотрудников.\nОУР: 10% ИПН с прибыли, без лимита дохода.\n\nВыбирайте режим под свой масштаб!',
+    body: 'Упрощёнка (910): 4% от дохода + соцплатежи.\nСамозанятый: 4% (ИПН 0%), лимит 300 МРП/мес, без найма сотрудников.\nОУР: 10% ИПН с прибыли, без лимита дохода.\n\nВыбирайте режим под свой масштаб!',
   },
   {
     title: 'Срок подачи 910.00',
@@ -1327,7 +1327,7 @@ const TAX_TIPS = [
   },
   {
     title: 'Режим самозанятых с 2026',
-    body: 'С 2026 года патент и ЕСП отменены — вместо них режим самозанятых.\nПлатёж 4% от дохода: ИПН 0% + ОПВ, ОПВР, СО, ОСМС по 1%.\nЛимит дохода — 3 600 МРП/год. Учёт через приложение E-Salyq Business.',
+    body: 'С 2026 года патент и ЕСП отменены — вместо них режим самозанятых.\nПлатёж 4% от дохода: ИПН 0% + ОПВ, ОПВР, СО, ОСМС по 1%.\nЛимит дохода — 300 МРП/мес. Учёт через приложение E-Salyq Business.',
   },
   {
     title: 'ВОСМС в 2026',
