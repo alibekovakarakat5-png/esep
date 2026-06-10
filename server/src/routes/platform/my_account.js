@@ -171,9 +171,11 @@ router.get('/', authMiddleware, async (req, res) => {
       client_bin: row.client_bin,
       tier: 'enterprise',
       features: row.features || DEFAULT_ENTERPRISE_FEATURES,
-      monthly_quota: row.monthly_quota,
-      requests_this_month: row.requests_this_month,
-      requests_total: row.requests_total,
+      // Приводим к числам: BIGINT-колонки pg отдаёт строками ("0"), а Flutter
+      // кастует `as num?` → краш парсинга и кабинет не рисуется. Всегда number.
+      monthly_quota: Number(row.monthly_quota) || 0,
+      requests_this_month: Number(row.requests_this_month) || 0,
+      requests_total: Number(row.requests_total) || 0,
       created_at: row.created_at,
       last_used_at: row.last_used_at,
       receipts: {
