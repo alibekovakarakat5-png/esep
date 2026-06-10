@@ -462,7 +462,7 @@ class _PaywallSheetState extends State<_PaywallSheet> {
     if (!mounted) return;
     Navigator.pop(context);
     await launchUrl(
-      Uri.parse('https://wa.me/77075884651?text=$msg'),
+      Uri.parse('https://wa.me/77059914789?text=$msg'),
       mode: LaunchMode.externalApplication,
     );
   }

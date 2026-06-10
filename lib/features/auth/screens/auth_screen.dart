@@ -605,7 +605,7 @@ class _HelpRequestDialogState extends State<_HelpRequestDialog> {
       if (mounted) setState(() { _error = e.message; _loading = false; });
     } catch (_) {
       if (mounted) setState(() {
-        _error = 'Нет соединения. Напишите в WhatsApp на +7 707 588 46 51';
+        _error = 'Нет соединения. Напишите в WhatsApp на +7 705 991 47 89';
         _loading = false;
       });
     }

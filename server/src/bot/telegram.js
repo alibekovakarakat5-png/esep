@@ -239,7 +239,7 @@ async function sendBuhOffer(chatId, from = {}) {
     {
       reply_markup: {
         inline_keyboard: [
-          [{ text: '💬 Записаться на демо', url: 'https://t.me/alibekovakarakat' }],
+          [{ text: '💬 Записаться на демо', url: 'https://wa.me/77059914789' }],
           [{ text: '🌐 Подробнее', url: 'https://business.esepkz.com' }],
         ],
       },
@@ -252,7 +252,7 @@ async function sendBuhOffer(chatId, from = {}) {
     `Имя: ${from.first_name || ''} ${from.last_name || ''}\n` +
     `Username: @${from.username || '—'}\n` +
     `Chat ID: <code>${chatId}</code>\n\n` +
-    `Показан оффер бухфирм (пилот 50% + партнёрка 30%). Напишет на @alibekovakarakat для демо.`,
+    `Показан оффер бухфирм (пилот 50% + партнёрка 30%). Напишет на WhatsApp +7 705 991 47 89 для демо.`,
   );
 }
 
@@ -885,7 +885,7 @@ async function handleUpdate(update) {
           reply_markup: {
             inline_keyboard: [
               [{ text: '🌐 Открыть Esep', url: 'https://esepkz.com' }],
-              [{ text: '💬 Консультация', url: 'https://t.me/alibekovakarakat' }],
+              [{ text: '💬 Консультация', url: 'https://wa.me/77059914789' }],
             ],
           },
         },
@@ -1293,7 +1293,7 @@ const CHANNEL_CTA_KEYBOARD = {
         { text: '🧮 Калькулятор', url: 'https://t.me/EsepKZ_bot' },
       ],
       [
-        { text: '💬 Консультация', url: 'https://t.me/alibekovakarakat' },
+        { text: '💬 Консультация', url: 'https://wa.me/77059914789' },
       ],
     ],
   },

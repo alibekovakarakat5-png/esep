@@ -213,7 +213,7 @@ class _PartnerDashboardScreenState
             ),
             const SizedBox(height: 10),
             const Text(
-              'Напишите фаундеру Esep в WhatsApp +7 707 588 46 51 — оформим в течение часа.',
+              'Напишите фаундеру Esep в WhatsApp +7 705 991 47 89 — оформим в течение часа.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, color: _Brand.textSecondary, height: 1.45),
             ),
