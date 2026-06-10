@@ -2,7 +2,7 @@
 // Версия: 1.0.0
 // Функции: офлайн-кэш, получение push-уведомлений
 
-const CACHE_NAME = 'esep-v1';
+const CACHE_NAME = 'esep-v2';
 const OFFLINE_URL = '/';
 
 // ─── Установка и кэш shell ───────────────────────────────────────────────────
@@ -31,6 +31,15 @@ self.addEventListener('activate', function (event) {
 self.addEventListener('fetch', function (event) {
   // Только GET запросы
   if (event.request.method !== 'GET') return;
+
+  // НИКОГДА не перехватываем API и кросс-доменные запросы (api.esepkz.com).
+  // Иначе SW отдаёт устаревший кэш ответов доступа/данных — из-за этого
+  // /platform/my-account возвращался старый «нет доступа». Отдаём браузеру →
+  // всегда свежая сеть, уважается Cache-Control: no-store.
+  var reqUrl = new URL(event.request.url);
+  if (reqUrl.hostname !== self.location.hostname || reqUrl.pathname.indexOf('/api/') === 0) {
+    return;
+  }
 
   event.respondWith(
     fetch(event.request)
