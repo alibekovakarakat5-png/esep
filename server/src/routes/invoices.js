@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const crypto = require('crypto');
 const db     = require('../db');
 const { limitsFor } = require('../tiers');
 const requireSubscription = require('../middleware/requireSubscription');
@@ -95,11 +96,14 @@ router.post('/', requireSubscription, async (req, res) => {
       );
 
       for (const item of items) {
+        // invoice_items.id is a NOT NULL PRIMARY KEY; clients should send an id,
+        // but generate one when missing so a malformed item can't 500 the request.
+        const itemId = item.id || crypto.randomUUID();
         await client.query(
           `INSERT INTO invoice_items (id, invoice_id, description, quantity, unit_price)
            VALUES ($1,$2,$3,$4,$5)
            ON CONFLICT (id) DO NOTHING`,
-          [item.id, id, item.description, item.quantity, item.unitPrice],
+          [itemId, id, item.description, item.quantity, item.unitPrice],
         );
       }
 
