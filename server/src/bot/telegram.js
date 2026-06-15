@@ -946,9 +946,81 @@ async function handleUpdate(update) {
   }
 }
 
+// ── Визард «не знаю свой режим»: 3 вопроса → режим + расчёт + гайд по выписке ──
+function startRegimeQuiz(chatId) {
+  return send(chatId,
+    `❓ <b>Не знаете свой режим?</b> Ответьте на 3 вопроса — подскажу.\n\n<b>1/3.</b> Вы оформили ИП?`,
+    { reply_markup: { inline_keyboard: [
+      [{ text: '✅ Да, ИП оформлено', callback_data: 'quiz:ip=1' }],
+      [{ text: '🙅 Нет, работаю без ИП', callback_data: 'quiz:ip=0' }],
+    ] } });
+}
+function quizAskIncome(chatId, ip) {
+  return send(chatId, `<b>2/3.</b> Доход примерно в месяц?`,
+    { reply_markup: { inline_keyboard: [
+      [{ text: 'До 1,3 млн ₸', callback_data: `quiz:ip=${ip}:inc=low` }],
+      [{ text: '1,3 – 3,6 млн ₸', callback_data: `quiz:ip=${ip}:inc=mid` }],
+      [{ text: 'Больше 3,6 млн ₸', callback_data: `quiz:ip=${ip}:inc=high` }],
+    ] } });
+}
+function quizAskEmployees(chatId, ip, inc) {
+  return send(chatId, `<b>3/3.</b> Есть наёмные сотрудники?`,
+    { reply_markup: { inline_keyboard: [
+      [{ text: '👤 Нет, работаю один', callback_data: `quiz:ip=${ip}:inc=${inc}:emp=0` }],
+      [{ text: '👥 Есть сотрудники', callback_data: `quiz:ip=${ip}:inc=${inc}:emp=1` }],
+    ] } });
+}
+function regimeResult(chatId, ip, inc, emp) {
+  let title, body;
+  if (ip === '0' && inc === 'low' && emp === '0') {
+    title = '👤 Вам подходит САМОЗАНЯТЫЙ';
+    body = `Налог <b>4%</b> от дохода, <b>без деклараций</b>, регистрация в e-Salyq Business. ` +
+      `Лимит 300 МРП/мес (~1,3 млн ₸), без сотрудников.\n\nРасчёт: /self`;
+  } else if (inc === 'high' || (ip === '0' && (inc === 'mid' || emp === '1'))) {
+    title = '🏢 У вас, скорее всего, ОУР (общий режим)';
+    body = `Доход в зоне НДС/общего режима — сложнее (ИПН 10%, возможно НДС 16%). ` +
+      `Лучше разобрать индивидуально — мы поможем. Прикинуть: /calc`;
+  } else {
+    title = '📋 Ваш режим — УПРОЩЁНКА (форма 910)';
+    body = `Налог <b>4%</b> от дохода + соцплатежи «за себя» ~21 675 ₸/мес. Декларация 910 — раз в полгода.` +
+      (emp === '1' ? ` С сотрудниками — ещё форма 200 ежеквартально.` : '') +
+      `\n\nНапишите доход (например, <code>5000000</code>) — посчитаю точно.`;
+  }
+  return send(chatId, `${title}\n\n${body}`,
+    { reply_markup: { inline_keyboard: [
+      [{ text: '📎 Как выгрузить выписку Kaspi', callback_data: 'kaspi_guide' }],
+      [{ text: '✨ Попробовать Esep бесплатно', url: 'https://app.esepkz.com' }],
+      [{ text: '🔔 Напоминать о сроках', callback_data: 'remind_on' }],
+    ] } });
+}
+function handleQuizStep(cb, data) {
+  botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+  const chatId = cb.from.id;
+  const p = {};
+  data.replace(/^quiz:/, '').split(':').forEach((kv) => { const [k, v] = kv.split('='); if (k) p[k] = v; });
+  if (p.emp !== undefined) return regimeResult(chatId, p.ip, p.inc, p.emp);
+  if (p.inc !== undefined) return quizAskEmployees(chatId, p.ip, p.inc);
+  if (p.ip !== undefined) return quizAskIncome(chatId, p.ip);
+  return startRegimeQuiz(chatId);
+}
+function sendKaspiGuide(chatId) {
+  return send(chatId,
+    `📎 <b>Как выгрузить выписку — за 1 минуту</b>\n\n` +
+    `<b>Kaspi (счёт ИП):</b>\n1. Приложение Kaspi → «Мой банк» → счёт\n` +
+    `2. «Выписка» → период (за полугодие)\n3. Формат <b>Excel</b> → сохранить\n\n` +
+    `<b>Kaspi Business:</b> kaspi.kz/pay → Счета → Выписка → Excel\n` +
+    `<b>Halyk / Forte:</b> онлайн-банк → Счета → Выписка → XLS\n\n` +
+    `Готовый файл загрузите в Esep или пришлите нам — посчитаем сами. Не получается? Поможем 👇`,
+    { reply_markup: { inline_keyboard: [
+      [{ text: '💬 Помочь с выпиской', url: 'https://wa.me/77059914789' }],
+      [{ text: '✨ Открыть Esep', url: 'https://app.esepkz.com' }],
+    ] } });
+}
+
 // ── Callback queries ────────────────────────────────────────────────────────
 async function handleCallbackQuery(cb) {
   const data = cb.data || '';
+  if (data.startsWith('quiz:')) return handleQuizStep(cb, data);
 
   // Привязка Telegram (одноразовый токен с сайта)
   if (data.startsWith('bind_yes:')) {
@@ -1192,24 +1264,11 @@ async function handleCallbackQuery(cb) {
 
   if (data === 'regime_unknown') {
     botRequest('answerCallbackQuery', { callback_query_id: cb.id });
-    return send(chatId,
-      `❓ <b>Какой режим выбрать?</b>\n\n` +
-      `Кратко:\n\n` +
-      `👤 <b>Самозанятый</b> — доход до 300 МРП/мес, 4%, без сотрудников\n` +
-      `📋 <b>Упрощёнка 910</b> — до 300 000 МРП/полугодие, 4%\n` +
-      `🏢 <b>ОУР</b> — без лимитов, 10% + НДС\n\n` +
-      `Большинство ИП работают на <b>упрощёнке (910)</b>.\n` +
-      `Попробуйте рассчитать:`,
-      {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '🧮 Рассчитать 5 000 000 ₸ (910)', callback_data: 'demo_calc_5000000' }],
-            [{ text: '👤 Рассчитать 1 000 000 ₸ (самозан.)', callback_data: 'demo_self_1000000' }],
-            [{ text: '📖 Все команды', callback_data: 'show_help' }],
-          ],
-        },
-      },
-    );
+    return startRegimeQuiz(chatId);
+  }
+  if (data === 'kaspi_guide') {
+    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    return sendKaspiGuide(chatId);
   }
 
   // Demo calculations from welcome series (don't consume rate limit)
