@@ -57,6 +57,14 @@ router.post('/register', async (req, res) => {
       name,
       phone: normalizedPhone,
     });
+    // Единая база лидов: регистрация в приложении
+    require('../services/leads_db').upsertLead({
+      esep_user_id: rows[0].id,
+      name,
+      phone: normalizedPhone,
+      source: 'app_signup',
+      intent: /^ИП\b|^IP\b/i.test((name || '').trim()) ? 'ip' : 'unknown',
+    }).catch(e => console.error('[leads] upsert (signup):', e.message));
     res.status(201).json({
       token: sign(rows[0].id),
       userId: rows[0].id,

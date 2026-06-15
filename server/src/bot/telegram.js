@@ -12,6 +12,7 @@
 const https     = require('https');
 const db        = require('../db');
 const marketing = require('./marketing');
+const { upsertLead, detectIntent } = require('../services/leads_db');
 
 const TOKEN      = process.env.TELEGRAM_BOT_TOKEN;
 const ADMIN_ID   = process.env.TELEGRAM_ADMIN_CHAT_ID;
@@ -186,14 +187,18 @@ async function handleStart(chatId, from, payload) {
     }
   }
 
-  // Welcome series: regime selection
+  // Welcome series: instant value first, then regime selection
   send(chatId,
-    `Привет, ${from.first_name || 'друг'}! Я — <b>Esep Bot</b>\n\n` +
-    `Помогаю с налогами 2026 — ИП, самозанятым и бухгалтерам.\n\n` +
-    `<b>Что вам ближе?</b>`,
+    `Привет, ${from.first_name || 'друг'}! Я — <b>Esep Bot</b> 🤖\n\n` +
+    `💡 Узнай свой налог за 10 секунд: напиши доход за полугодие ` +
+    `(например, <code>5000000</code>) — посчитаю сам.\n\n` +
+    `Или выбери, что тебе ближе 👇`,
     {
       reply_markup: {
         inline_keyboard: [
+          [
+            { text: '🧮 Показать пример расчёта', callback_data: 'demo_calc_5000000' },
+          ],
           [
             { text: '📋 Упрощёнка (910)', callback_data: 'regime_910' },
             { text: '👤 Самозанятый', callback_data: 'regime_self' },
@@ -219,6 +224,14 @@ async function handleStart(chatId, from, payload) {
     `Username: @${from.username || '—'}\n` +
     `Chat ID: <code>${chatId}</code>`,
   );
+  // Единая база лидов: новый контакт из бота
+  upsertLead({
+    tg_chat_id: chatId,
+    tg_username: from.username,
+    name: [from.first_name, from.last_name].filter(Boolean).join(' '),
+    source: 'tg_bot',
+    intent: detectIntent(payload || ''),
+  }).catch(e => console.error('[leads] upsert (start):', e.message));
 }
 
 // ── Оффер для бухгалтерских фирм (B2B-ветка) ─────────────────────────────────
@@ -254,6 +267,14 @@ async function sendBuhOffer(chatId, from = {}) {
     `Chat ID: <code>${chatId}</code>\n\n` +
     `Показан оффер бухфирм (пилот 50% + партнёрка 30%). Напишет на WhatsApp +7 705 991 47 89 для демо.`,
   );
+  // Единая база лидов: горячий B2B (бухгалтер)
+  upsertLead({
+    tg_chat_id: chatId,
+    tg_username: from.username,
+    name: [from.first_name, from.last_name].filter(Boolean).join(' '),
+    source: 'tg_bot',
+    intent: 'b2b',
+  }).catch(e => console.error('[leads] upsert (buh):', e.message));
 }
 
 async function handleCalc(chatId, args) {
@@ -298,10 +319,15 @@ async function handleCalc(chatId, args) {
     `  6 мес: <b>${fmt(social6)} ₸</b>\n\n` +
     `💰 <b>Общий итог: ${fmt(grand)} ₸</b>\n` +
     `📊 Эффективная ставка: ${(grand / income * 100).toFixed(1)}%` +
-    warn,
+    warn +
+    `\n\n✨ <b>А в приложении Esep это считается само</b> — загрузил выписку Kaspi, и налог готов. ` +
+    `Сроки и форму 910 тоже не пропустишь. Для ИП — 8 900 ₸/мес, первые 7 дней бесплатно.`,
     {
       reply_markup: {
         inline_keyboard: [
+          [
+            { text: '✨ Попробовать Esep бесплатно', url: 'https://app.esepkz.com' },
+          ],
           [
             { text: '📊 Помесячная разбивка', callback_data: `monthly_${Math.round(income)}` },
             { text: '💼 Соцплатежи', callback_data: 'go_social' },
@@ -416,6 +442,13 @@ function handleDeadlines(chatId) {
     `<b>Соцплатежи:</b>\n` +
     `  Ежемесячно до 25 числа следующего месяца\n` +
     `  Январь → до 25 февраля и т.д.`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🔔 Напоминать мне о сроках', callback_data: 'remind_on' }],
+        ],
+      },
+    },
   );
 }
 
@@ -1056,6 +1089,20 @@ async function handleCallbackQuery(cb) {
     botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return handleDeadlines(chatId);
   }
+  if (data === 'remind_on' || data === 'remind_off') {
+    const on = data === 'remind_on';
+    try {
+      await db.query(
+        `INSERT INTO bot_users (chat_id, reminders_on) VALUES ($1, $2)
+         ON CONFLICT (chat_id) DO UPDATE SET reminders_on = $2`,
+        [String(cb.from.id), on],
+      );
+    } catch (e) { console.error('[bot] remind toggle:', e.message); }
+    botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: on ? '🔔 Напоминания включены' : 'Выключено' });
+    if (on) return send(cb.from.id,
+      '🔔 Готово! Заранее напомню про сдачу 910, оплату налога и соцплатежи — чтобы вы не попали на штраф.');
+    return;
+  }
   if (data === 'go_rates') {
     botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return handleRates(chatId);
@@ -1673,6 +1720,7 @@ async function setupWebhook(baseUrl) {
 
 module.exports = {
   handleUpdate,
+  send,
   notifyNewUser,
   notifyTaxCheck,
   notifyTaxAutoUpdate,

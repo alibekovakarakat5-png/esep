@@ -25,6 +25,7 @@ const { startMonitor }                    = require('./jobs/taxMonitor');
 const { startLeadMonitor }                = require('./jobs/leadMonitor');
 const { startPaymentMonitor }             = require('./jobs/paymentMonitor');
 const { startTrialMonitor }               = require('./jobs/trialMonitor');
+const { startDeadlineReminders }          = require('./jobs/deadlineReminders');
 const { seedMarketingContent }            = require('./bot/marketing');
 const { migrateKnowledge }                = require('./services/knowledge_db');
 const { seedEsepPlatformKnowledge }       = require('./jobs/seedPlatformKnowledge');
@@ -40,6 +41,7 @@ const { migratePlatform }                 = require('./services/platform_db');
 const platformRoutes                      = require('./routes/platform');
 const { router: partnerRoutes,
         migratePartner }                  = require('./routes/partner');
+const { migrateLeads }                    = require('./services/leads_db');
 
 // ── Env validation ───────────────────────────────────────────────────────────
 const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET'];
@@ -229,6 +231,8 @@ async function migrate() {
       last_query_date TEXT,
       created_at      TIMESTAMPTZ DEFAULT NOW()
     );
+    -- Подписка на напоминания о налоговых сроках (бот пишет только подписавшимся)
+    ALTER TABLE bot_users ADD COLUMN IF NOT EXISTS reminders_on BOOLEAN NOT NULL DEFAULT false;
 
     CREATE TABLE IF NOT EXISTS marketing_posts (
       id          SERIAL      PRIMARY KEY,
@@ -312,6 +316,13 @@ async function migrate() {
     await migratePartner();
   } catch (err) {
     console.error('[platform] migration failed:', err.message);
+  }
+
+  // Единая база лидов (TG + WhatsApp + приложение)
+  try {
+    await migrateLeads();
+  } catch (err) {
+    console.error('[leads] migration failed:', err.message);
   }
 }
 
@@ -481,6 +492,7 @@ app.listen(PORT, () => {
   startLeadMonitor();
   startPaymentMonitor();
   startTrialMonitor().catch(err => console.error('[trialMonitor] failed to start:', err.message));
+  startDeadlineReminders();
 
   // Auto-register Telegram webhook
   const baseUrl = process.env.ADMIN_URL ?? `https://api.esepkz.com`;
