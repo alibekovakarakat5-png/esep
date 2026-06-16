@@ -134,11 +134,12 @@ class Form200Service {
     final oosmsBase = min(g, KzTax.currentMzp * 40);
     final oosms = oosmsBase * KzTax.employerVosmsRate;
 
-    // СН (социальный налог). ⚠ Реформа 2026 уточняется.
-    // Используем классическую формулу: (ЗП − ОПВ) × ставка − СО, не ниже 0.
-    // Ставка берётся из constants (по умолчанию социальный налог за работника).
-    final snBase = max(0.0, g - opv);
-    final sn = max(0.0, snBase * KzTax.employeeSocialTaxRate - so);
+    // СН (социальный налог), НК-2026: 6% от (доход − ОПВ − ВОСМС), БЕЗ взаимозачёта СО.
+    // Взаимозачёт СО отменён с 2026. Мин. база — 14 МРП, если объект меньше.
+    final snObject = max(0.0, g - opv - vosms);
+    final minSnBase = KzTax.currentMrp * 14;
+    final snBase = snObject < minSnBase ? minSnBase : snObject;
+    final sn = snBase * KzTax.employeeSocialTaxRate;
 
     return _MonthlyPerEmployee(
       ipn: ipn,
