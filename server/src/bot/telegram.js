@@ -239,7 +239,7 @@ async function handleStart(chatId, from, payload) {
 async function sendBuhOffer(chatId, from = {}) {
   await send(chatId,
     `🧮 <b>Esep для бухгалтерских фирм</b>\n\n` +
-    `Ведёте несколько клиентов? Esep — кабинет бухгалтера под Налоговый кодекс 2026:\n\n` +
+    `Ведёте несколько клиентов? Esep — система управления бухгалтерской фирмой под НК 2026:\n\n` +
     `• Все клиенты (ИП и ТОО) в одном окне\n` +
     `• Формы <b>910 / 200 / 300</b> — автоматически в формат ИСНА\n` +
     `• Расчёт зарплат и соцплатежей, дедлайны по каждому клиенту\n` +
@@ -252,8 +252,9 @@ async function sendBuhOffer(chatId, from = {}) {
     {
       reply_markup: {
         inline_keyboard: [
+          [{ text: '📊 Посчитать мою выгоду', callback_data: 'roi:start' }],
           [{ text: '💬 Записаться на демо', url: 'https://wa.me/77059914789' }],
-          [{ text: '🌐 Подробнее', url: 'https://business.esepkz.com' }],
+          [{ text: '🌐 Подробнее', url: 'https://buhfirma.esepkz.com' }],
         ],
       },
     },
@@ -275,6 +276,104 @@ async function sendBuhOffer(chatId, from = {}) {
     source: 'tg_bot',
     intent: 'b2b',
   }).catch(e => console.error('[leads] upsert (buh):', e.message));
+}
+
+// ── ROI-визард для бухфирм: 3 вопроса → выгода от автоматизации → демо ──
+// Логика как на лендинге buhfirma: освобождённые часы + доп. ёмкость клиентов.
+function roiStart(chatId) {
+  return send(chatId,
+    `📊 <b>Посчитаем вашу выгоду от Esep</b>\n\nОтветьте на 3 вопроса.\n\n<b>1/3.</b> Сколько бухгалтеров в фирме?`,
+    { reply_markup: { inline_keyboard: [
+      [{ text: '1', callback_data: 'roi:acc=1' }, { text: '2–3', callback_data: 'roi:acc=3' }],
+      [{ text: '4–7', callback_data: 'roi:acc=5' }, { text: '8+', callback_data: 'roi:acc=8' }],
+    ] } });
+}
+function roiAskClients(chatId, acc) {
+  return send(chatId, `<b>2/3.</b> Клиентов на одного бухгалтера?`,
+    { reply_markup: { inline_keyboard: [
+      [{ text: 'до 10', callback_data: `roi:acc=${acc}:cpa=8` }, { text: '10–20', callback_data: `roi:acc=${acc}:cpa=15` }],
+      [{ text: '20–40', callback_data: `roi:acc=${acc}:cpa=30` }, { text: '40+', callback_data: `roi:acc=${acc}:cpa=45` }],
+    ] } });
+}
+function roiAskHours(chatId, acc, cpa) {
+  return send(chatId, `<b>3/3.</b> Часов на одного клиента в месяц (учёт + отчётность)?`,
+    { reply_markup: { inline_keyboard: [
+      [{ text: '1–2 ч', callback_data: `roi:acc=${acc}:cpa=${cpa}:hrs=2` }, { text: '3–4 ч', callback_data: `roi:acc=${acc}:cpa=${cpa}:hrs=4` }],
+      [{ text: '5+ ч', callback_data: `roi:acc=${acc}:cpa=${cpa}:hrs=6` }],
+    ] } });
+}
+function roiResult(chatId, acc, cpa, hrs) {
+  const f = (x) => Math.round(x).toLocaleString('ru-RU');
+  const SHARE = 0.4, FEE = 20000; // доля автоматизируемой рутины; средний чек/клиент
+  const total = acc * cpa;
+  const hoursSaved = total * hrs * SHARE;
+  const extra = Math.floor(total * SHARE);
+  const rev = extra * FEE;
+  return send(chatId,
+    `📊 <b>Ваша выгода с Esep</b> (оценка по вашим ответам)\n\n` +
+    `• Высвободится <b>~${f(hoursSaved)} ч/мес</b> рутины\n` +
+    `• Это <b>+${f(extra)} клиентов</b> той же командой — без найма\n` +
+    `• ≈ <b>+${f(rev)} ₸/мес</b> выручки (при среднем чеке 20 000 ₸/клиент)\n\n` +
+    `Рутину (выписка → налог → формы, ЭСФ) Esep берёт на себя. Покажу на ваших клиентах за 15 минут — посчитаем точнее под вашу фирму 👇`,
+    { reply_markup: { inline_keyboard: [
+      [{ text: '💬 Записаться на демо', url: 'https://wa.me/77059914789' }],
+      [{ text: '🌐 Подробнее', url: 'https://buhfirma.esepkz.com' }],
+    ] } });
+}
+function handleRoiStep(cb, data) {
+  botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+  const chatId = cb.from.id;
+  const p = {};
+  data.replace(/^roi:/, '').split(':').forEach((kv) => { const [k, v] = kv.split('='); if (k) p[k] = v; });
+  if (p.hrs !== undefined) return roiResult(chatId, +p.acc, +p.cpa, +p.hrs);
+  if (p.cpa !== undefined) return roiAskHours(chatId, +p.acc, +p.cpa);
+  if (p.acc !== undefined) return roiAskClients(chatId, +p.acc);
+  return roiStart(chatId);
+}
+
+// ── /salary — расчёт зарплаты сотрудника (НК-2026).
+// Логика 1:1 из lib/.../salary_calculator_screen.dart (выверенный источник).
+function handleSalary(chatId, args) {
+  const gross = parseFloat((args || '').replace(/\s/g, ''));
+  if (!gross || gross <= 0) {
+    return send(chatId, 'Укажите зарплату (gross): <code>/salary 300000</code>');
+  }
+  const MZP = 85000, MRP = 4325; // НК-2026, см. kz_tax_constants.dart
+  const f = (x) => Math.round(x).toLocaleString('ru-RU');
+  // Удержания с сотрудника
+  const opv = Math.min(gross, MZP * 50) * 0.10;
+  const ipnBase = Math.max(0, gross - opv - 30 * MRP);
+  const ipn = ipnBase * 0.10;
+  const vosmsEe = Math.min(gross, MZP * 20) * 0.02;
+  const deductions = opv + ipn + vosmsEe;
+  const net = gross - deductions;
+  // Расходы работодателя (сверху)
+  const so = Math.max(MZP, Math.min(gross - opv, MZP * 7)) * 0.05;
+  const opvr = Math.min(gross, MZP * 50) * 0.035;
+  const oosms = Math.min(gross, MZP * 40) * 0.03;
+  const empCosts = so + opvr + oosms;
+  const totalCost = gross + empCosts;
+  return send(chatId,
+    `💼 <b>Расчёт зарплаты</b> (НК 2026)\n` +
+    `Начислено (gross): <b>${f(gross)} ₸</b>\n\n` +
+    `<b>Удержания с сотрудника:</b>\n` +
+    `• ОПВ 10%: ${f(opv)} ₸\n` +
+    `• ИПН 10%: ${f(ipn)} ₸ <i>(база: ЗП − ОПВ − 30 МРП)</i>\n` +
+    `• ВОСМС 2%: ${f(vosmsEe)} ₸\n` +
+    `  Итого удержано: ${f(deductions)} ₸\n\n` +
+    `💰 <b>На руки: ${f(net)} ₸</b>\n\n` +
+    `<b>Платит работодатель сверху:</b>\n` +
+    `• СО 5%: ${f(so)} ₸\n` +
+    `• ОПВР 3.5%: ${f(opvr)} ₸\n` +
+    `• ООСМС 3%: ${f(oosms)} ₸\n` +
+    `  Итого взносов: ${f(empCosts)} ₸\n\n` +
+    `🏢 <b>Стоимость для работодателя: ${f(totalCost)} ₸</b>\n\n` +
+    `<i>ОПВР не начисляется на пенсионеров (рожд. до 1975). Для дохода свыше 8500 МРП/год ИПН — 15%.</i>\n` +
+    `Зарплату и форму 200 считаем за вас — Esep.`,
+    { reply_markup: { inline_keyboard: [
+      [{ text: '🧮 Налог 910', callback_data: 'prompt_calc' }],
+      [{ text: '✨ Попробовать Esep', url: 'https://app.esepkz.com' }],
+    ] } });
 }
 
 async function handleCalc(chatId, args) {
@@ -501,6 +600,7 @@ function handleHelp(chatId) {
     `/social — соцплатежи за себя\n` +
     `/rates — актуальные ставки 2026\n` +
     `/self 1000000 — налог самозанятого\n` +
+    `/salary 300000 — зарплата сотрудника (на руки + взносы)\n` +
     `/deadlines — сроки сдачи\n` +
     `/status — ваш статус и лимиты\n` +
     `/link email — привязать аккаунт Esep\n` +
@@ -934,6 +1034,7 @@ async function handleUpdate(update) {
       case '/social':    return handleSocial(chatId);
       case '/rates':     return handleRates(chatId);
       case '/self':      return handleSelf(chatId, args);
+      case '/salary':    return handleSalary(chatId, args);
       case '/deadlines': return handleDeadlines(chatId);
       case '/link':      return handleLink(chatId, args);
       case '/reset':     return handleReset(chatId, args);
@@ -1021,6 +1122,7 @@ function sendKaspiGuide(chatId) {
 async function handleCallbackQuery(cb) {
   const data = cb.data || '';
   if (data.startsWith('quiz:')) return handleQuizStep(cb, data);
+  if (data.startsWith('roi:')) return handleRoiStep(cb, data);
 
   // Привязка Telegram (одноразовый токен с сайта)
   if (data.startsWith('bind_yes:')) {
