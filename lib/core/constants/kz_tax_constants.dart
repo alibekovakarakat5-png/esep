@@ -33,16 +33,18 @@ class KzTax {
   // ═══════════════════════════════════════════════════════════════════════════
 
   /// Максимальный доход за год (МРП × множитель).
-  /// НК-2026: лимит 24 038 МРП за ПОЛУГОДИЕ (≈104 млн ₸) → 48 076 МРП/год.
+  /// НК-2026 (Закон 214-VIII): лимит упрощёнки 600 000 МРП/год (≈2,6 млрд ₸).
+  /// Источник: КГД / НК-2026 (подтв. bcc.kz, mybuh.kz). Старый лимит 24 038 МРП/полуг отменён.
   static double get simplified910YearLimit =>
-      currentMrp * _cfg('910_year_mrp', 48076);
+      currentMrp * _cfg('910_year_mrp', 600000);
 
   /// Лимит за полугодие (для обратной совместимости)
   static double get simplified910HalfYearLimit => simplified910YearLimit / 2;
 
-  /// Ограничение на кол-во сотрудников (НК-2026: не более 30 чел.)
+  /// НК-2026 (Закон 214-VIII): лимит сотрудников на упрощёнке СНЯТ (был 30).
+  /// Fallback — большое число; на проде приходит 999999 из tax-config.
   static int get simplified910MaxEmployees =>
-      TaxConfigService.getInt('910_max_employees', 30);
+      TaxConfigService.getInt('910_max_employees', 999999);
 
   /// Ставка 910: 4% (ИПН)
   static double get ipnRate => _cfg('ipn_rate_910', 0.04);
