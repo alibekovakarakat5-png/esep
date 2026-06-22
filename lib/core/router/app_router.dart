@@ -10,6 +10,7 @@ import '../../features/invoices/screens/invoice_detail_screen.dart';
 import '../../features/transactions/screens/transactions_screen.dart';
 import '../../features/taxes/screens/taxes_screen.dart';
 import '../../features/clients/screens/clients_screen.dart';
+import '../../features/debtors/screens/debtors_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
 import '../../features/accountant/screens/accountant_dashboard_screen.dart';
 import '../../features/accountant/screens/accountant_client_detail_screen.dart';
@@ -232,6 +233,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/clients',
             builder: (_, __) => const ClientsScreen(),
+          ),
+          GoRoute(
+            path: '/debtors',
+            builder: (_, __) => const DebtorsScreen(),
           ),
           GoRoute(
             path: '/settings',

@@ -305,15 +305,15 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ],
 
-          // 5. Неоплаченные счета
+          // 5. Кто вам должен (дебиторка)
           if (unpaidCount > 0) ...[
             const SizedBox(height: 12),
             GestureDetector(
-              onTap: () => context.go('/invoices'),
+              onTap: () => context.go('/debtors'),
               child: _EventCard(
-                icon: Iconsax.receipt_item,
-                title: '$unpaidCount ${_invoiceWord(unpaidCount)} на ${fmt.format(unpaidTotal)} ₸',
-                subtitle: 'Нажмите чтобы перейти к счетам',
+                icon: Iconsax.money_recive,
+                title: 'Вам должны ${fmt.format(unpaidTotal)} ₸',
+                subtitle: '$unpaidCount ${_invoiceWord(unpaidCount)} · кто должен и напомнить в WhatsApp',
                 daysLeft: null,
                 color: EsepColors.info,
               ),

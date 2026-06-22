@@ -140,3 +140,76 @@ final unpaidInvoicesProvider = Provider<List<Invoice>>((ref) {
 final totalUnpaidProvider = Provider<double>((ref) {
   return ref.watch(unpaidInvoicesProvider).fold(0.0, (sum, i) => sum + i.totalAmount);
 });
+
+/// Сводка по одному должнику — агрегат неоплаченных счетов одного клиента.
+/// Используется экраном «Кто мне должен» (дебиторка, ДНК Vyapar).
+class Debtor {
+  final String? clientId;
+  final String clientName;
+  final double totalOwed;
+  final int invoiceCount;
+
+  /// Самая ранняя дата оплаты среди неоплаченных счетов (для «просрочено N дней»).
+  final DateTime? oldestDue;
+
+  /// true → хотя бы один счёт просрочен (статус overdue ИЛИ dueDate в прошлом).
+  final bool hasOverdue;
+
+  /// Неоплаченные счета этого клиента, от старых к новым.
+  final List<Invoice> invoices;
+
+  const Debtor({
+    required this.clientId,
+    required this.clientName,
+    required this.totalOwed,
+    required this.invoiceCount,
+    required this.oldestDue,
+    required this.hasOverdue,
+    required this.invoices,
+  });
+}
+
+/// Должники: неоплаченные счета (sent + overdue), сгруппированные по клиенту.
+/// Сортировка — по убыванию суммы долга (сначала кто должен больше).
+final debtorsProvider = Provider<List<Debtor>>((ref) {
+  final unpaid = ref.watch(unpaidInvoicesProvider);
+  final now = DateTime.now();
+
+  // Группируем по clientId (если есть) либо по имени клиента.
+  final groups = <String, List<Invoice>>{};
+  for (final inv in unpaid) {
+    final key = (inv.clientId != null && inv.clientId!.isNotEmpty)
+        ? 'id:${inv.clientId}'
+        : 'name:${inv.clientName.trim().toLowerCase()}';
+    groups.putIfAbsent(key, () => []).add(inv);
+  }
+
+  final debtors = groups.values.map((invs) {
+    invs.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    final total = invs.fold(0.0, (s, i) => s + i.totalAmount);
+    DateTime? oldestDue;
+    var hasOverdue = false;
+    for (final i in invs) {
+      if (i.status == InvoiceStatus.overdue ||
+          (i.dueDate != null && i.dueDate!.isBefore(now))) {
+        hasOverdue = true;
+      }
+      if (i.dueDate != null &&
+          (oldestDue == null || i.dueDate!.isBefore(oldestDue))) {
+        oldestDue = i.dueDate;
+      }
+    }
+    return Debtor(
+      clientId: invs.first.clientId,
+      clientName: invs.first.clientName,
+      totalOwed: total,
+      invoiceCount: invs.length,
+      oldestDue: oldestDue,
+      hasOverdue: hasOverdue,
+      invoices: invs,
+    );
+  }).toList()
+    ..sort((a, b) => b.totalOwed.compareTo(a.totalOwed));
+
+  return debtors;
+});
