@@ -691,4 +691,349 @@ class PdfService {
       ),
     ]);
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // НАКЛАДНАЯ НА ОТПУСК ЗАПАСОВ НА СТОРОНУ — Форма З-2
+  // (Приказ Минфина РК №562, прил.26). Данные берём из счёта (Invoice).
+  // ⚠ Точность бланка/граф валидируется бухгалтером-тестировщиком.
+  // ═══════════════════════════════════════════════════════════════════════════
+  static Future<pw.Document> generateWaybillZ2(
+    Invoice invoice, {
+    String? companyName,
+    String? companyBin,
+    String? companyAddress,
+    bool isVatPayer = false,
+  }) async {
+    final pdf = pw.Document(
+      title: 'Накладная З-2 ${invoice.number}',
+      author: companyName ?? 'Esep',
+    );
+    final company = companyName ?? 'ИП «Моя компания»';
+    final bin = companyBin ?? '';
+    final shipper = invoice.consignorSameAsSeller
+        ? company
+        : (invoice.consignorName ?? company);
+    final receiver = invoice.consigneeSameAsCustomer
+        ? invoice.clientName
+        : (invoice.consigneeName ?? invoice.clientName);
+    final net = invoice.totalAmount;
+    final vat = isVatPayer ? net * KzTax.vatRate : 0.0;
+    final gross = net + vat;
+
+    pdf.addPage(pw.Page(
+      pageFormat: PdfPageFormat.a4.landscape,
+      margin: const pw.EdgeInsets.all(28),
+      build: (context) => pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          _docTitle('НАКЛАДНАЯ № ${invoice.number}',
+              'на отпуск запасов на сторону (форма З-2)',
+              'от ${_dateFmt.format(invoice.createdAt)}'),
+          pw.SizedBox(height: 14),
+          pw.Row(children: [
+            pw.Expanded(child: _docBox('Организация-отправитель', [
+              shipper,
+              if (bin.isNotEmpty) 'БИН/ИИН: $bin',
+              if (companyAddress != null && companyAddress.isNotEmpty)
+                companyAddress,
+            ])),
+            pw.SizedBox(width: 12),
+            pw.Expanded(child: _docBox('Организация-получатель', [
+              receiver,
+              if (invoice.buyerIin != null && invoice.buyerIin!.isNotEmpty)
+                'БИН/ИИН: ${invoice.buyerIin}',
+            ])),
+          ]),
+          pw.SizedBox(height: 6),
+          pw.Row(children: [
+            pw.Expanded(child: _infoLine('Через кого затребовано', '')),
+            pw.Expanded(child: _infoLine('Транспортная организация', '')),
+            pw.Expanded(child: _infoLine('ТТН (№, дата)',
+                invoice.deliveryDocNum ?? '')),
+          ]),
+          pw.SizedBox(height: 12),
+          pw.TableHelper.fromTextArray(
+            border: pw.TableBorder.all(color: _divider),
+            headerStyle: pw.TextStyle(
+                fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+            headerDecoration: const pw.BoxDecoration(color: _blue),
+            cellStyle: const pw.TextStyle(fontSize: 8, color: _dark),
+            cellPadding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            columnWidths: {
+              0: const pw.FixedColumnWidth(22),
+              1: const pw.FlexColumnWidth(4),
+              2: const pw.FlexColumnWidth(1.4),
+              3: const pw.FlexColumnWidth(1),
+              4: const pw.FlexColumnWidth(1.1),
+              5: const pw.FlexColumnWidth(1.1),
+              6: const pw.FlexColumnWidth(1.4),
+              7: const pw.FlexColumnWidth(1.4),
+              8: const pw.FlexColumnWidth(1.4),
+            },
+            headers: const [
+              '№', 'Наименование, характеристика', 'Номенкл. №', 'Ед.изм.',
+              'Кол-во подлежит', 'Кол-во отпущено', 'Цена, ₸', 'Сумма НДС, ₸',
+              'Сумма с НДС, ₸'
+            ],
+            data: List.generate(invoice.items.length, (i) {
+              final it = invoice.items[i];
+              final itVat = isVatPayer ? it.total * KzTax.vatRate : 0.0;
+              final qty = it.quantity == it.quantity.truncateToDouble()
+                  ? it.quantity.toInt().toString()
+                  : it.quantity.toString();
+              return [
+                '${i + 1}', it.description, it.catalogTruId, it.unitName,
+                qty, qty, _fmt.format(it.unitPrice),
+                isVatPayer ? _fmt.format(itVat) : '—',
+                _fmt.format(it.total + itVat),
+              ];
+            }),
+            cellAlignments: {
+              0: pw.Alignment.center, 3: pw.Alignment.center,
+              4: pw.Alignment.center, 5: pw.Alignment.center,
+              6: pw.Alignment.centerRight, 7: pw.Alignment.centerRight,
+              8: pw.Alignment.centerRight,
+            },
+            oddRowDecoration: const pw.BoxDecoration(color: _lightBg),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Text(
+              'Всего отпущено ${invoice.items.length} наименований на сумму ${_fmt.format(gross)} ₸',
+              style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: _dark)),
+          pw.Text('Сумма прописью: ${_amountInWords(gross)}',
+              style: const pw.TextStyle(fontSize: 9, color: _grey)),
+          pw.Spacer(),
+          _docSignatures3(),
+        ],
+      ),
+    ));
+    return pdf;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // АКТ ВЫПОЛНЕННЫХ РАБОТ (ОКАЗАННЫХ УСЛУГ) — Форма Р-1
+  // (Приказ Минфина РК №562, прил.50). Данные из счёта (Invoice).
+  // ═══════════════════════════════════════════════════════════════════════════
+  static Future<pw.Document> generateActR1(
+    Invoice invoice, {
+    String? companyName,
+    String? companyBin,
+    bool isVatPayer = false,
+  }) async {
+    final pdf = pw.Document(
+      title: 'Акт Р-1 ${invoice.number}',
+      author: companyName ?? 'Esep',
+    );
+    final company = companyName ?? 'ИП «Моя компания»';
+    final bin = companyBin ?? '';
+    final net = invoice.totalAmount;
+    final gross = net + (isVatPayer ? net * KzTax.vatRate : 0.0);
+
+    pdf.addPage(pw.Page(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.all(36),
+      build: (context) => pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          _docTitle('АКТ № ${invoice.number}',
+              'выполненных работ (оказанных услуг) — форма Р-1',
+              'от ${_dateFmt.format(invoice.createdAt)}'),
+          pw.SizedBox(height: 14),
+          pw.Row(children: [
+            pw.Expanded(child: _docBox('Исполнитель', [
+              company,
+              if (bin.isNotEmpty) 'БИН/ИИН: $bin',
+            ])),
+            pw.SizedBox(width: 12),
+            pw.Expanded(child: _docBox('Заказчик', [
+              invoice.clientName,
+              if (invoice.buyerIin != null && invoice.buyerIin!.isNotEmpty)
+                'БИН/ИИН: ${invoice.buyerIin}',
+            ])),
+          ]),
+          if (invoice.hasContract) ...[
+            pw.SizedBox(height: 6),
+            _infoLine('Договор',
+                '№ ${invoice.contractNum}'
+                '${invoice.contractDate != null ? ' от ${_dateFmt.format(invoice.contractDate!)}' : ''}'),
+          ],
+          pw.SizedBox(height: 12),
+          pw.TableHelper.fromTextArray(
+            border: pw.TableBorder.all(color: _divider),
+            headerStyle: pw.TextStyle(
+                fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+            headerDecoration: const pw.BoxDecoration(color: _blue),
+            cellStyle: const pw.TextStyle(fontSize: 9, color: _dark),
+            cellPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+            columnWidths: {
+              0: const pw.FixedColumnWidth(26),
+              1: const pw.FlexColumnWidth(4),
+              2: const pw.FlexColumnWidth(1.4),
+              3: const pw.FlexColumnWidth(1),
+              4: const pw.FlexColumnWidth(1),
+              5: const pw.FlexColumnWidth(1.5),
+              6: const pw.FlexColumnWidth(1.5),
+            },
+            headers: const [
+              '№', 'Наименование работ (услуг)', 'Дата', 'Ед.изм.',
+              'Кол-во', 'Цена, ₸', 'Стоимость, ₸'
+            ],
+            data: List.generate(invoice.items.length, (i) {
+              final it = invoice.items[i];
+              final qty = it.quantity == it.quantity.truncateToDouble()
+                  ? it.quantity.toInt().toString()
+                  : it.quantity.toString();
+              return [
+                '${i + 1}', it.description, _dateFmt.format(invoice.createdAt),
+                it.unitName, qty, _fmt.format(it.unitPrice), _fmt.format(it.total),
+              ];
+            }),
+            cellAlignments: {
+              0: pw.Alignment.center, 2: pw.Alignment.center,
+              3: pw.Alignment.center, 4: pw.Alignment.center,
+              5: pw.Alignment.centerRight, 6: pw.Alignment.centerRight,
+            },
+            oddRowDecoration: const pw.BoxDecoration(color: _lightBg),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Align(
+            alignment: pw.Alignment.centerRight,
+            child: pw.Text('Всего к оплате: ${_fmt.format(gross)} ₸'
+                '${isVatPayer ? ' (в т.ч. НДС 16%)' : ''}',
+                style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: _blue)),
+          ),
+          pw.Text('Сумма прописью: ${_amountInWords(gross)}',
+              style: const pw.TextStyle(fontSize: 9, color: _grey)),
+          pw.SizedBox(height: 6),
+          pw.Text(
+              'Вышеперечисленные работы (услуги) выполнены полностью и в срок. '
+              'Заказчик претензий по объёму, качеству и срокам оказания услуг не имеет.',
+              style: const pw.TextStyle(fontSize: 8, color: _grey)),
+          pw.Spacer(),
+          _docSignatures2('Сдал (Исполнитель)', 'Принял (Заказчик)'),
+        ],
+      ),
+    ));
+    return pdf;
+  }
+
+  // ── Общие хелперы для первичных документов ─────────────────────────────────
+  static pw.Widget _docTitle(String title, String subtitle, String date) {
+    return pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
+      pw.Center(child: pw.Text(title,
+          style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold, color: _dark))),
+      pw.SizedBox(height: 2),
+      pw.Center(child: pw.Text(subtitle,
+          style: const pw.TextStyle(fontSize: 10, color: _grey))),
+      pw.SizedBox(height: 2),
+      pw.Center(child: pw.Text(date, style: const pw.TextStyle(fontSize: 9, color: _grey))),
+    ]);
+  }
+
+  static pw.Widget _docBox(String label, List<String> lines) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(10),
+      decoration: pw.BoxDecoration(
+        color: _lightBg,
+        borderRadius: pw.BorderRadius.circular(6),
+        border: pw.Border.all(color: _divider),
+      ),
+      child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+        pw.Text(label,
+            style: pw.TextStyle(fontSize: 8, color: _grey, fontWeight: pw.FontWeight.bold)),
+        pw.SizedBox(height: 3),
+        ...lines.map((l) => pw.Text(l, style: const pw.TextStyle(fontSize: 10, color: _dark))),
+      ]),
+    );
+  }
+
+  static pw.Widget _docSignatures2(String left, String right) {
+    return pw.Row(children: [
+      pw.Expanded(child: _sigBlock(left)),
+      pw.SizedBox(width: 40),
+      pw.Expanded(child: _sigBlock(right)),
+    ]);
+  }
+
+  static pw.Widget _docSignatures3() {
+    return pw.Row(children: [
+      pw.Expanded(child: _sigBlock('Отпустил')),
+      pw.SizedBox(width: 20),
+      pw.Expanded(child: _sigBlock('Получил')),
+      pw.SizedBox(width: 20),
+      pw.Expanded(child: _sigBlock('Главный бухгалтер')),
+    ]);
+  }
+
+  static pw.Widget _sigBlock(String label) {
+    return pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+      pw.Text(label,
+          style: pw.TextStyle(fontSize: 9, color: _grey, fontWeight: pw.FontWeight.bold)),
+      pw.SizedBox(height: 20),
+      pw.Container(
+          decoration: const pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(color: _dark))),
+          height: 1),
+      pw.SizedBox(height: 3),
+      pw.Text('подпись / Ф.И.О. / печать',
+          style: const pw.TextStyle(fontSize: 8, color: _grey)),
+    ]);
+  }
+
+  // ── Сумма прописью (тенге) ─────────────────────────────────────────────────
+  static const _ones = ['', 'один', 'два', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять'];
+  static const _onesF = ['', 'одна', 'две', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять'];
+  static const _teens = ['десять', 'одиннадцать', 'двенадцать', 'тринадцать', 'четырнадцать', 'пятнадцать', 'шестнадцать', 'семнадцать', 'восемнадцать', 'девятнадцать'];
+  static const _tens = ['', '', 'двадцать', 'тридцать', 'сорок', 'пятьдесят', 'шестьдесят', 'семьдесят', 'восемьдесят', 'девяносто'];
+  static const _hundreds = ['', 'сто', 'двести', 'триста', 'четыреста', 'пятьсот', 'шестьсот', 'семьсот', 'восемьсот', 'девятьсот'];
+
+  static String _triad(int n, bool feminine) {
+    final h = n ~/ 100, t = (n % 100) ~/ 10, o = n % 10;
+    final parts = <String>[];
+    if (h > 0) parts.add(_hundreds[h]);
+    if (t == 1) {
+      parts.add(_teens[o]);
+    } else {
+      if (t > 1) parts.add(_tens[t]);
+      if (o > 0) parts.add(feminine ? _onesF[o] : _ones[o]);
+    }
+    return parts.join(' ');
+  }
+
+  static String _plural(int n, String one, String few, String many) {
+    final n10 = n % 10, n100 = n % 100;
+    if (n10 == 1 && n100 != 11) return one;
+    if (n10 >= 2 && n10 <= 4 && (n100 < 10 || n100 >= 20)) return few;
+    return many;
+  }
+
+  static String _intToWords(int n) {
+    if (n == 0) return 'ноль';
+    final parts = <String>[];
+    var rem = n;
+    final scales = [
+      [1000000000, 'миллиард', 'миллиарда', 'миллиардов', 0],
+      [1000000, 'миллион', 'миллиона', 'миллионов', 0],
+      [1000, 'тысяча', 'тысячи', 'тысяч', 1],
+    ];
+    for (final s in scales) {
+      final div = s[0] as int;
+      final cnt = rem ~/ div;
+      if (cnt > 0) {
+        parts.add(_triad(cnt, (s[4] as int) == 1));
+        parts.add(_plural(cnt, s[1] as String, s[2] as String, s[3] as String));
+        rem %= div;
+      }
+    }
+    if (rem > 0) parts.add(_triad(rem, false));
+    return parts.where((p) => p.isNotEmpty).join(' ');
+  }
+
+  static String _amountInWords(double amount) {
+    final whole = amount.floor();
+    final kop = ((amount - whole) * 100).round();
+    final w = _intToWords(whole);
+    final cap = w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}';
+    return '$cap тенге ${kop.toString().padLeft(2, '0')} тиын';
+  }
 }

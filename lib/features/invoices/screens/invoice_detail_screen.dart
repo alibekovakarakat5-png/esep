@@ -45,6 +45,11 @@ class InvoiceDetailScreen extends ConsumerWidget {
             tooltip: 'Поделиться',
             onPressed: () => _sharePdf(context, invoice, company.isVatPayer),
           ),
+          IconButton(
+            icon: const Icon(Icons.description_outlined),
+            tooltip: 'Документы: накладная, акт',
+            onPressed: () => _docsMenu(context, invoice, company.isVatPayer),
+          ),
           const SizedBox(width: 4),
         ],
       ),
@@ -210,6 +215,54 @@ class InvoiceDetailScreen extends ConsumerWidget {
     await Printing.sharePdf(
       bytes: await pdf.save(),
       filename: '${invoice.number}.pdf',
+    );
+  }
+
+  // Меню первичных документов из одного счёта: счёт / накладная З-2 / акт Р-1.
+  void _docsMenu(BuildContext context, Invoice invoice, bool isVatPayer) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('Сформировать документ', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.receipt_long, color: EsepColors.primary),
+            title: const Text('Счёт на оплату'),
+            onTap: () async {
+              Navigator.pop(ctx);
+              final pdf = await PdfService.generateInvoice(invoice, isVatPayer: isVatPayer);
+              await Printing.sharePdf(bytes: await pdf.save(), filename: 'Счёт-${invoice.number}.pdf');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.local_shipping_outlined, color: EsepColors.primary),
+            title: const Text('Накладная (форма З-2)'),
+            subtitle: const Text('на отпуск запасов на сторону'),
+            onTap: () async {
+              Navigator.pop(ctx);
+              final pdf = await PdfService.generateWaybillZ2(invoice, isVatPayer: isVatPayer);
+              await Printing.sharePdf(bytes: await pdf.save(), filename: 'Накладная-${invoice.number}.pdf');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.assignment_turned_in_outlined, color: EsepColors.primary),
+            title: const Text('Акт выполненных работ (Р-1)'),
+            subtitle: const Text('оказанных услуг'),
+            onTap: () async {
+              Navigator.pop(ctx);
+              final pdf = await PdfService.generateActR1(invoice, isVatPayer: isVatPayer);
+              await Printing.sharePdf(bytes: await pdf.save(), filename: 'Акт-${invoice.number}.pdf');
+            },
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
     );
   }
 
