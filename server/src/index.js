@@ -12,6 +12,7 @@ const authRoutes                          = require('./routes/auth');
 const txRoutes                            = require('./routes/transactions');
 const invoiceRoutes                       = require('./routes/invoices');
 const feedbackRoutes                      = require('./routes/feedback');
+const leadRoutes                          = require('./routes/lead');
 const { router: adminRoutes }             = require('./routes/admin');
 const { router: taxConfigRoutes,
         seedTaxConfig }                   = require('./routes/tax-config');
@@ -376,6 +377,7 @@ app.use('/api/auth',         authRoutes);
 app.use('/api/transactions', authMiddleware, txRoutes);
 app.use('/api/invoices',     authMiddleware, invoiceRoutes);
 app.use('/api/feedback',     feedbackRoutes); // auth внутри роутера, плюс is_beta_tester проверка
+app.use('/api/lead',         leadRoutes);    // ПУБЛИЧНО — приём заявок с лендинга (rate-limit внутри)
 app.use('/api/admin',        adminRoutes);
 app.use('/api/config/tax',   taxConfigRoutes);
 app.use('/api/promos',       promoRoutes);
