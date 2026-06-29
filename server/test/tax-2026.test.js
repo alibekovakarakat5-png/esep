@@ -52,5 +52,17 @@ ok(dint('910_max_employees') === '999999', `910_max_employees fallback = 999999 
 // 3) Нет старого лимита нигде в Dart-исходнике
 ok(!/48076|24038/.test(dart), 'в kz_tax_constants нет старого лимита 48076/24038');
 
+// 4) Ставки КПН по видам деятельности (НК-2026, ст. 357) — форма 100.
+//    Источник: docs/forms/form-100-00-2026-spec.md. Стережём, чтобы не зашили «20% всем».
+console.log('4) КПН kpnActivityRates (ст. 357):');
+ok(/kpnActivityRates/.test(dart), 'список kpnActivityRates присутствует');
+for (const [label, re] of [
+  ['обычная 20%',      /Обычная деятельность', rate: 0\.20/],
+  ['сельхоз 3%',       /rate: 0\.03/],
+  ['кооператив 6%',    /rate: 0\.06/],
+  ['соцсфера 5%',      /rate: 0\.05/],
+  ['банк/игорный 25%', /rate: 0\.25/],
+]) ok(re.test(dart), `КПН: ${label}`);
+
 console.log(fails === 0 ? '\nPASS — все цифры НК-2026 согласованы' : `\nFAIL — расхождений: ${fails}`);
 process.exit(fails === 0 ? 0 : 1);

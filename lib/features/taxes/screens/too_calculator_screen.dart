@@ -18,6 +18,7 @@ class _TooCalculatorScreenState extends State<TooCalculatorScreen> {
   bool _isVatPayer = false;
   int _employeeCount = 0;
   double _monthlyPayroll = 0;
+  int _kpnActivityIndex = 0; // 0 = обычная деятельность (КПН 20%), см. KzTax.kpnActivityRates
 
   final _incomeController = TextEditingController(text: '10000000');
   final _expensesController = TextEditingController(text: '6000000');
@@ -36,12 +37,15 @@ class _TooCalculatorScreenState extends State<TooCalculatorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final kpnRate = KzTax.kpnActivityRates[_kpnActivityIndex].rate;
+    final kpnPct = (kpnRate * 100).toStringAsFixed(0);
     final calc = KzTax.calculateToo(
       income: _income,
       expenses: _expenses,
       isVatPayer: _isVatPayer,
       employeeCount: _employeeCount,
       monthlyPayroll: _monthlyPayroll,
+      kpnRateOverride: kpnRate,
     );
 
     return Scaffold(
@@ -86,6 +90,34 @@ class _TooCalculatorScreenState extends State<TooCalculatorScreen> {
             onChanged: (v) {
               final val = double.tryParse(v.replaceAll(' ', ''));
               if (val != null && val >= 0) setState(() => _expenses = val);
+            },
+          ),
+          const SizedBox(height: 12),
+
+          const Text(
+            'Вид деятельности (ставка КПН)',
+            style: TextStyle(fontSize: 13, color: EsepColors.textSecondary),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<int>(
+            initialValue: _kpnActivityIndex,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Iconsax.briefcase, color: EsepColors.primary),
+            ),
+            items: [
+              for (int i = 0; i < KzTax.kpnActivityRates.length; i++)
+                DropdownMenuItem(
+                  value: i,
+                  child: Text(
+                    '${KzTax.kpnActivityRates[i].name} — ${(KzTax.kpnActivityRates[i].rate * 100).toStringAsFixed(0)}%',
+                    style: const TextStyle(fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+            onChanged: (v) {
+              if (v != null) setState(() => _kpnActivityIndex = v);
             },
           ),
           const SizedBox(height: 12),
@@ -149,10 +181,10 @@ class _TooCalculatorScreenState extends State<TooCalculatorScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(children: [
-                    Icon(Iconsax.building_4, color: EsepColors.primary, size: 20),
-                    SizedBox(width: 8),
-                    Text('КПН (20%)', style: TextStyle(fontWeight: FontWeight.w600)),
+                  Row(children: [
+                    const Icon(Iconsax.building_4, color: EsepColors.primary, size: 20),
+                    const SizedBox(width: 8),
+                    Text('КПН ($kpnPct%)', style: const TextStyle(fontWeight: FontWeight.w600)),
                   ]),
                   const Divider(height: 24),
                   _TaxRow('Доход', _fmt.format(calc.income), EsepColors.income),
@@ -162,7 +194,7 @@ class _TooCalculatorScreenState extends State<TooCalculatorScreen> {
                   _TaxRow('Налогооблагаемый доход', _fmt.format(calc.taxableIncome), EsepColors.textPrimary),
                   const Divider(height: 24),
                   Row(children: [
-                    const Text('КПН (20%)', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                    Text('КПН ($kpnPct%)', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                     const Spacer(),
                     Text(
                       '${_fmt.format(calc.kpn)} ₸',

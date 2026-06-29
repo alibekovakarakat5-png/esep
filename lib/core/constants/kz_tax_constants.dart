@@ -316,6 +316,18 @@ class KzTax {
   /// КПН: 20%
   static double get kpnRate => _cfg('kpn_rate', 0.20);
 
+  /// Ставки КПН по видам деятельности (НК-2026, ст. 357). База — «обычная» 20%.
+  /// Источник: docs/forms/form-100-00-2026-spec.md. Банк и игорный — одинаковые
+  /// 25%, поэтому в UI выбираем по индексу, а не по значению ставки.
+  static const List<({String name, double rate})> kpnActivityRates = [
+    (name: 'Обычная деятельность', rate: 0.20),
+    (name: 'Сельхозпроизводитель', rate: 0.03),
+    (name: 'Сельхозкооператив', rate: 0.06),
+    (name: 'Соцсфера: образование, медицина', rate: 0.05),
+    (name: 'Банк / финансовая деятельность', rate: 0.25),
+    (name: 'Игорный бизнес', rate: 0.25),
+  ];
+
   /// КПН для малого бизнеса на упрощёнке: 0% (до 2028)
   static const double kpnSmallBusinessRate = 0.0;
 
@@ -345,9 +357,10 @@ class KzTax {
     bool isVatPayer = false,
     int employeeCount = 0,
     double monthlyPayroll = 0,
+    double? kpnRateOverride, // ставка по виду деятельности (ст. 357); null → база 20%
   }) {
     final taxableIncome = max(0.0, income - expenses);
-    final kpn = taxableIncome * kpnRate;
+    final kpn = taxableIncome * (kpnRateOverride ?? kpnRate);
 
     // НДС
     final vatReceived = isVatPayer ? income * vatRate : 0.0;
