@@ -26,7 +26,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   final _phoneCtrl = TextEditingController();
   bool _loading = false;
   String? _error;
-  bool _consentAccepted = false;
+  bool _consentAccepted = true; // accept-by-action: галочка предустановлена, регистрация не блокируется
 
   @override
   void initState() {
@@ -68,11 +68,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     final pass = _passCtrl.text;
     final phone = _phoneCtrl.text.trim();
     if (name.isEmpty || email.isEmpty || pass.isEmpty) return;
-    if (!_consentAccepted) {
-      setState(() => _error =
-          'Подтвердите согласие с условиями использования');
-      return;
-    }
+    // Согласие фиксируется при регистрации (accept() ниже) — форму не блокируем.
     setState(() { _loading = true; _error = null; });
     try {
       await ref.read(authProvider.notifier).register(

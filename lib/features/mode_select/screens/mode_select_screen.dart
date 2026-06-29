@@ -22,7 +22,7 @@ class ModeSelectScreen extends ConsumerWidget {
                 mode: UserMode.ip,
                 icon: Iconsax.user_square,
                 title: 'Индивидуальный предприниматель',
-                subtitle: 'Веду свой бизнес',
+                subtitle: 'Работаю на себя как ИП',
                 color: EsepColors.primary,
                 features: const [
                   (Iconsax.wallet_2,    'Доходы и расходы'),
@@ -35,8 +35,8 @@ class ModeSelectScreen extends ConsumerWidget {
               _ModeCard(
                 mode: UserMode.too,
                 icon: Iconsax.building,
-                title: 'ТОО',
-                subtitle: 'Учёт компании',
+                title: 'ТОО (компания)',
+                subtitle: 'Есть совладельцы или сотрудники',
                 color: const Color(0xFF0D9488),
                 features: const [
                   (Iconsax.wallet_2,    'Доходы и расходы'),
