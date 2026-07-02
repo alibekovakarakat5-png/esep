@@ -149,6 +149,16 @@ async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_inv_user  ON invoices(user_id);
     CREATE INDEX IF NOT EXISTS idx_items_inv ON invoice_items(invoice_id);
 
+    -- Реквизиты счёта, которые модель Flutter шлёт с мая 2026 (ЭСФ + оплата).
+    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS buyer_iin    TEXT;
+    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS payment_link TEXT;
+    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS esf          JSONB;
+    ALTER TABLE invoice_items ADD COLUMN IF NOT EXISTS unit_code       TEXT;
+    ALTER TABLE invoice_items ADD COLUMN IF NOT EXISTS unit_name       TEXT;
+    ALTER TABLE invoice_items ADD COLUMN IF NOT EXISTS esf_unit_code   TEXT;
+    ALTER TABLE invoice_items ADD COLUMN IF NOT EXISTS catalog_tru_id  TEXT;
+    ALTER TABLE invoice_items ADD COLUMN IF NOT EXISTS tru_origin_code TEXT;
+
     CREATE TABLE IF NOT EXISTS tax_config (
       id         SERIAL      PRIMARY KEY,
       key        TEXT        UNIQUE NOT NULL,

@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/constants/kz_tax_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/models/invoice.dart';
 import '../../../core/providers/invoice_provider.dart';
@@ -11,6 +14,41 @@ import '../../../core/providers/company_provider.dart';
 import '../../../core/services/pdf_service.dart';
 import 'invoices_screen.dart'; // for InvoiceStatusExt
 import 'esf_preview_screen.dart';
+
+/// Цвет бренда WhatsApp (как на экране «Кто мне должен»).
+const _waGreen = Color(0xFF25D366);
+
+String? _nn(String? s) => (s == null || s.trim().isEmpty) ? null : s.trim();
+
+/// PDF счёта с реквизитами компании из настроек.
+Future<pw.Document> _invoicePdf(Invoice invoice, CompanyInfo c) =>
+    PdfService.generateInvoice(
+      invoice,
+      companyName: _nn(c.name),
+      companyBin: _nn(c.iin),
+      companyAddress: _nn(c.address),
+      companyPhone: _nn(c.phone),
+      companyBank: _nn(c.bankName),
+      companyIik: _nn(c.iik),
+      isVatPayer: c.isVatPayer,
+    );
+
+Future<pw.Document> _waybillPdf(Invoice invoice, CompanyInfo c) =>
+    PdfService.generateWaybillZ2(
+      invoice,
+      companyName: _nn(c.name),
+      companyBin: _nn(c.iin),
+      companyAddress: _nn(c.address),
+      isVatPayer: c.isVatPayer,
+    );
+
+Future<pw.Document> _actPdf(Invoice invoice, CompanyInfo c) =>
+    PdfService.generateActR1(
+      invoice,
+      companyName: _nn(c.name),
+      companyBin: _nn(c.iin),
+      isVatPayer: c.isVatPayer,
+    );
 
 class InvoiceDetailScreen extends ConsumerWidget {
   const InvoiceDetailScreen({super.key, required this.invoiceId});
@@ -36,19 +74,24 @@ class InvoiceDetailScreen extends ConsumerWidget {
         title: Text(invoice.number),
         actions: [
           IconButton(
+            icon: const Icon(Iconsax.copy),
+            tooltip: 'Дублировать счёт',
+            onPressed: () => _duplicate(context, ref, invoice),
+          ),
+          IconButton(
             icon: const Icon(Iconsax.printer),
             tooltip: 'Печать / PDF',
-            onPressed: () => _printPdf(context, invoice, company.isVatPayer),
+            onPressed: () => _printPdf(context, invoice, company),
           ),
           IconButton(
             icon: const Icon(Iconsax.share),
             tooltip: 'Поделиться',
-            onPressed: () => _sharePdf(context, invoice, company.isVatPayer),
+            onPressed: () => _sharePdf(context, invoice, company),
           ),
           IconButton(
             icon: const Icon(Icons.description_outlined),
             tooltip: 'Документы: накладная, акт',
-            onPressed: () => _docsMenu(context, invoice, company.isVatPayer),
+            onPressed: () => _docsMenu(context, invoice, company),
           ),
           const SizedBox(width: 4),
         ],
@@ -104,6 +147,8 @@ class InvoiceDetailScreen extends ConsumerWidget {
                   _InfoRow(label: 'Дата создания', value: dateFmt.format(invoice.createdAt)),
                   if (invoice.dueDate != null)
                     _InfoRow(label: 'Оплатить до', value: dateFmt.format(invoice.dueDate!)),
+                  if (invoice.paymentLink != null && invoice.paymentLink!.isNotEmpty)
+                    _InfoRow(label: 'Оплата онлайн', value: invoice.paymentLink!),
                 ],
               ),
             ),
@@ -185,41 +230,101 @@ class InvoiceDetailScreen extends ConsumerWidget {
             const SizedBox(width: 8),
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: () => _previewPdf(context, invoice, company.isVatPayer),
+                onPressed: () => _previewPdf(context, invoice, company),
                 icon: const Icon(Iconsax.document, size: 18),
                 label: const Text('PDF'),
               ),
             ),
           ]),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _sendWhatsApp(context, invoice, company),
+              icon: const Icon(Iconsax.message, size: 18, color: _waGreen),
+              label: const Text('Отправить клиенту в WhatsApp',
+                  style: TextStyle(fontWeight: FontWeight.w600, color: _waGreen)),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: _waGreen),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
           const SizedBox(height: 32),
         ],
       ),
     );
   }
 
-  Future<void> _previewPdf(BuildContext context, Invoice invoice, bool isVatPayer) async {
+  Future<void> _previewPdf(BuildContext context, Invoice invoice, CompanyInfo company) async {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => _PdfPreviewPage(invoice: invoice, isVatPayer: isVatPayer),
+        builder: (_) => _PdfPreviewPage(invoice: invoice, company: company),
       ),
     );
   }
 
-  Future<void> _printPdf(BuildContext context, Invoice invoice, bool isVatPayer) async {
-    final pdf = await PdfService.generateInvoice(invoice, isVatPayer: isVatPayer);
+  Future<void> _printPdf(BuildContext context, Invoice invoice, CompanyInfo company) async {
+    final pdf = await _invoicePdf(invoice, company);
     await Printing.layoutPdf(onLayout: (_) => pdf.save());
   }
 
-  Future<void> _sharePdf(BuildContext context, Invoice invoice, bool isVatPayer) async {
-    final pdf = await PdfService.generateInvoice(invoice, isVatPayer: isVatPayer);
+  Future<void> _sharePdf(BuildContext context, Invoice invoice, CompanyInfo company) async {
+    final pdf = await _invoicePdf(invoice, company);
     await Printing.sharePdf(
       bytes: await pdf.save(),
       filename: '${invoice.number}.pdf',
     );
   }
 
+  Future<void> _duplicate(BuildContext context, WidgetRef ref, Invoice invoice) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final number =
+          await ref.read(invoiceProvider.notifier).duplicate(invoice);
+      messenger.showSnackBar(
+          SnackBar(content: Text('Создана копия: $number (черновик)')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Не удалось: $e')));
+    }
+  }
+
+  /// Открывает WhatsApp с готовым текстом счёта (сумма с НДС, если платит НДС,
+  /// плюс ссылка на онлайн-оплату, если указана). Чат выбирает пользователь.
+  Future<void> _sendWhatsApp(
+      BuildContext context, Invoice invoice, CompanyInfo company) async {
+    final fmt = NumberFormat('#,##0', 'ru_RU');
+    final net = invoice.totalAmount;
+    final gross = company.isVatPayer ? net * (1 + KzTax.vatRate) : net;
+    final b = StringBuffer()
+      ..writeln('Здравствуйте! Счёт ${invoice.number} '
+          'от ${DateFormat('dd.MM.yyyy').format(invoice.createdAt)} '
+          'на сумму ${fmt.format(gross)} ₸.');
+    if (invoice.dueDate != null) {
+      b.writeln(
+          'Оплатить до ${DateFormat('dd.MM.yyyy').format(invoice.dueDate!)}.');
+    }
+    if (invoice.paymentLink != null && invoice.paymentLink!.isNotEmpty) {
+      b.writeln('Оплата онлайн: ${invoice.paymentLink}');
+    }
+    if (company.name.trim().isNotEmpty) b.write('— ${company.name.trim()}');
+    final uri = Uri.parse(
+        'https://wa.me/?text=${Uri.encodeComponent(b.toString())}');
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok) {
+        messenger.showSnackBar(
+            const SnackBar(content: Text('Не удалось открыть WhatsApp')));
+      }
+    } catch (_) {
+      messenger.showSnackBar(
+          const SnackBar(content: Text('Не удалось открыть WhatsApp')));
+    }
+  }
+
   // Меню первичных документов из одного счёта: счёт / накладная З-2 / акт Р-1.
-  void _docsMenu(BuildContext context, Invoice invoice, bool isVatPayer) {
+  void _docsMenu(BuildContext context, Invoice invoice, CompanyInfo company) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -236,7 +341,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
             title: const Text('Счёт на оплату'),
             onTap: () async {
               Navigator.pop(ctx);
-              final pdf = await PdfService.generateInvoice(invoice, isVatPayer: isVatPayer);
+              final pdf = await _invoicePdf(invoice, company);
               await Printing.sharePdf(bytes: await pdf.save(), filename: 'Счёт-${invoice.number}.pdf');
             },
           ),
@@ -246,7 +351,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
             subtitle: const Text('на отпуск запасов на сторону'),
             onTap: () async {
               Navigator.pop(ctx);
-              final pdf = await PdfService.generateWaybillZ2(invoice, isVatPayer: isVatPayer);
+              final pdf = await _waybillPdf(invoice, company);
               await Printing.sharePdf(bytes: await pdf.save(), filename: 'Накладная-${invoice.number}.pdf');
             },
           ),
@@ -256,7 +361,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
             subtitle: const Text('оказанных услуг'),
             onTap: () async {
               Navigator.pop(ctx);
-              final pdf = await PdfService.generateActR1(invoice, isVatPayer: isVatPayer);
+              final pdf = await _actPdf(invoice, company);
               await Printing.sharePdf(bytes: await pdf.save(), filename: 'Акт-${invoice.number}.pdf');
             },
           ),
@@ -313,9 +418,9 @@ class _InfoRow extends StatelessWidget {
 }
 
 class _PdfPreviewPage extends StatelessWidget {
-  const _PdfPreviewPage({required this.invoice, required this.isVatPayer});
+  const _PdfPreviewPage({required this.invoice, required this.company});
   final Invoice invoice;
-  final bool isVatPayer;
+  final CompanyInfo company;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -325,7 +430,7 @@ class _PdfPreviewPage extends StatelessWidget {
         IconButton(
           icon: const Icon(Iconsax.share),
           onPressed: () async {
-            final pdf = await PdfService.generateInvoice(invoice, isVatPayer: isVatPayer);
+            final pdf = await _invoicePdf(invoice, company);
             await Printing.sharePdf(
               bytes: await pdf.save(),
               filename: '${invoice.number}.pdf',
@@ -337,7 +442,7 @@ class _PdfPreviewPage extends StatelessWidget {
     ),
     body: PdfPreview(
       build: (_) async {
-        final pdf = await PdfService.generateInvoice(invoice, isVatPayer: isVatPayer);
+        final pdf = await _invoicePdf(invoice, company);
         return pdf.save();
       },
       canChangeOrientation: false,

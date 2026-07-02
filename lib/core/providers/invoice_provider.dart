@@ -84,6 +84,7 @@ class InvoiceNotifier extends StateNotifier<List<Invoice>> {
     required List<InvoiceItem> items,
     DateTime? dueDate,
     String? notes,
+    String? paymentLink,
     DateTime? turnoverDate,
     String? contractNum,
     DateTime? contractDate,
@@ -105,6 +106,7 @@ class InvoiceNotifier extends StateNotifier<List<Invoice>> {
       createdAt: DateTime.now(),
       dueDate: dueDate,
       notes: notes,
+      paymentLink: paymentLink,
       turnoverDate: turnoverDate,
       contractNum: contractNum,
       contractDate: contractDate,
@@ -118,6 +120,43 @@ class InvoiceNotifier extends StateNotifier<List<Invoice>> {
   Future<void> updateStatus(String id, InvoiceStatus status) async {
     await ApiClient.put('/invoices/$id', {'status': status.name});
     await _load();
+  }
+
+  /// Копия счёта: новый номер и дата, статус «черновик». Срок оплаты
+  /// сохраняется относительно даты выставления (у месячных счетов —
+  /// те же условия оплаты). Дата оборота и документ-основание относятся
+  /// к старому периоду — в копию не переносятся. Возвращает номер копии.
+  Future<String> duplicate(Invoice src) async {
+    final now = DateTime.now();
+    final number = _nextNumber();
+    final copy = Invoice(
+      id: _uuid.v4(),
+      number: number,
+      clientId: src.clientId,
+      clientName: src.clientName,
+      buyerIin: src.buyerIin,
+      items: src.items.map((i) => i.copyWith(id: _uuid.v4())).toList(),
+      status: InvoiceStatus.draft,
+      createdAt: now,
+      dueDate: src.dueDate == null
+          ? null
+          : now.add(Duration(days: src.dueDate!.difference(src.createdAt).inDays)),
+      notes: src.notes,
+      paymentLink: src.paymentLink,
+      contractNum: src.contractNum,
+      contractDate: src.contractDate,
+      consignorSameAsSeller: src.consignorSameAsSeller,
+      consignorName: src.consignorName,
+      consignorAddress: src.consignorAddress,
+      consignorTin: src.consignorTin,
+      consigneeSameAsCustomer: src.consigneeSameAsCustomer,
+      consigneeName: src.consigneeName,
+      consigneeAddress: src.consigneeAddress,
+      consigneeTin: src.consigneeTin,
+    );
+    await ApiClient.post('/invoices', copy.toJson());
+    await _load();
+    return number;
   }
 
   Future<void> remove(String id) async {

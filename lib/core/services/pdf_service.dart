@@ -67,6 +67,13 @@ class PdfService {
             _buildTotals(invoice, isVatPayer: isVatPayer),
             pw.SizedBox(height: 24),
 
+            // Онлайн-оплата: QR + ссылка (Kaspi «Удалённая оплата» и т.п.)
+            if (invoice.paymentLink != null &&
+                invoice.paymentLink!.isNotEmpty) ...[
+              _buildPaymentLink(invoice.paymentLink!),
+              pw.SizedBox(height: 16),
+            ],
+
             // Note
             if (invoice.notes != null && invoice.notes!.isNotEmpty) ...[
               pw.Text('Примечание:',
@@ -84,6 +91,7 @@ class PdfService {
 
             // Signature line
             _buildSignature(company),
+            _poweredBy(),
           ],
         ),
       ),
@@ -91,6 +99,58 @@ class PdfService {
 
     return pdf;
   }
+
+  /// Блок онлайн-оплаты: QR-код + кликабельная ссылка.
+  static pw.Widget _buildPaymentLink(String link) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        color: _lightBg,
+        borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(color: _divider),
+      ),
+      child: pw.Row(children: [
+        pw.BarcodeWidget(
+          barcode: pw.Barcode.qrCode(),
+          data: link,
+          width: 56,
+          height: 56,
+          color: _dark,
+        ),
+        pw.SizedBox(width: 12),
+        pw.Expanded(
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text('Оплата онлайн',
+                  style: pw.TextStyle(
+                      fontSize: 10,
+                      fontWeight: pw.FontWeight.bold,
+                      color: _dark)),
+              pw.SizedBox(height: 2),
+              pw.Text('Отсканируйте QR-код или перейдите по ссылке:',
+                  style: const pw.TextStyle(fontSize: 9, color: _grey)),
+              pw.SizedBox(height: 2),
+              pw.UrlLink(
+                destination: link,
+                child: pw.Text(link,
+                    style: const pw.TextStyle(fontSize: 9, color: _blue)),
+              ),
+            ],
+          ),
+        ),
+      ]),
+    );
+  }
+
+  /// Футер всех исходящих документов — ненавязчивая подпись сервиса.
+  static pw.Widget _poweredBy() => pw.Padding(
+        padding: const pw.EdgeInsets.only(top: 12),
+        child: pw.Center(
+          child: pw.Text('Сформировано в Esep — esepkz.com',
+              style: const pw.TextStyle(fontSize: 7, color: _grey)),
+        ),
+      );
 
   static pw.Widget _buildHeader(
       Invoice invoice, String company, String bin) {
@@ -804,6 +864,7 @@ class PdfService {
               style: const pw.TextStyle(fontSize: 9, color: _grey)),
           pw.Spacer(),
           _docSignatures3(),
+          _poweredBy(),
         ],
       ),
     ));
@@ -911,6 +972,7 @@ class PdfService {
               style: const pw.TextStyle(fontSize: 8, color: _grey)),
           pw.Spacer(),
           _docSignatures2('Сдал (Исполнитель)', 'Принял (Заказчик)'),
+          _poweredBy(),
         ],
       ),
     ));

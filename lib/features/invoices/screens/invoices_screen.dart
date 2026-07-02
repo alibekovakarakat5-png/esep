@@ -310,6 +310,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
     final buyerIinCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     final amountCtrl = TextEditingController();
+    final paymentLinkCtrl = TextEditingController();
     InvoiceUnit selectedUnit = InvoiceUnit.piece;
     // Реквизиты для ЭСФ
     final esfUnitCtrl = TextEditingController();
@@ -386,6 +387,17 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                   ),
                 ),
               ]),
+              const SizedBox(height: 12),
+              TextField(
+                controller: paymentLinkCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Ссылка на оплату (Kaspi)',
+                  prefixIcon: Icon(Iconsax.link),
+                  helperText:
+                      'Опционально. Попадёт в PDF (QR-код) и в сообщение клиенту.',
+                ),
+                keyboardType: TextInputType.url,
+              ),
               const SizedBox(height: 8),
               // ── Реквизиты для ЭСФ (опционально) ───────────────────────────
               Theme(
@@ -448,10 +460,12 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                   final esfUnit = esfUnitCtrl.text.trim();
                   final contractNum = contractNumCtrl.text.trim();
                   final deliveryDocNum = deliveryDocNumCtrl.text.trim();
+                  final paymentLink = paymentLinkCtrl.text.trim();
                   ref.read(invoiceProvider.notifier).add(
                         clientId: '',
                         clientName: clientNameCtrl.text.trim(),
                         buyerIin: iin.isEmpty ? null : iin,
+                        paymentLink: paymentLink.isEmpty ? null : paymentLink,
                         items: [InvoiceItem(
                           id: '',
                           description: descCtrl.text.trim(),

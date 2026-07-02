@@ -128,6 +128,10 @@ class Invoice {
   final DateTime? dueDate;
   final String? notes;
 
+  /// Ссылка на онлайн-оплату (Kaspi «Удалённая оплата» и т.п.).
+  /// Попадает в PDF (QR + строка) и в текст WhatsApp-сообщения клиенту.
+  final String? paymentLink;
+
   // ── Реквизиты для ЭСФ ──────────────────────────────────────────────
   /// Дата оборота по реализации. null → используется [createdAt].
   final DateTime? turnoverDate;
@@ -166,6 +170,7 @@ class Invoice {
     required this.createdAt,
     this.dueDate,
     this.notes,
+    this.paymentLink,
     this.turnoverDate,
     this.contractNum,
     this.contractDate,
@@ -201,6 +206,7 @@ class Invoice {
       createdAt: DateTime.parse(j['created_at'] as String),
       dueDate: parseDate('due_date'),
       notes: j['notes'] as String?,
+      paymentLink: j['payment_link'] as String?,
       turnoverDate: parseDate('turnover_date'),
       contractNum: j['contract_num'] as String?,
       contractDate: parseDate('contract_date'),
@@ -228,6 +234,8 @@ class Invoice {
         'created_at': createdAt.toIso8601String(),
         if (dueDate != null) 'due_date': dueDate!.toIso8601String().split('T').first,
         if (notes != null) 'notes': notes,
+        if (paymentLink != null && paymentLink!.isNotEmpty)
+          'payment_link': paymentLink,
         if (turnoverDate != null)
           'turnover_date': turnoverDate!.toIso8601String().split('T').first,
         if (contractNum != null) 'contract_num': contractNum,
@@ -257,6 +265,7 @@ class Invoice {
     DateTime? createdAt,
     DateTime? dueDate,
     String? notes,
+    String? paymentLink,
     DateTime? turnoverDate,
     String? contractNum,
     DateTime? contractDate,
@@ -282,6 +291,7 @@ class Invoice {
         createdAt: createdAt ?? this.createdAt,
         dueDate: dueDate ?? this.dueDate,
         notes: notes ?? this.notes,
+        paymentLink: paymentLink ?? this.paymentLink,
         turnoverDate: turnoverDate ?? this.turnoverDate,
         contractNum: contractNum ?? this.contractNum,
         contractDate: contractDate ?? this.contractDate,
