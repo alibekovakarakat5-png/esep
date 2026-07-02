@@ -126,7 +126,7 @@ class DebtorsScreen extends ConsumerWidget {
       b.writeln(
           'Напоминаю об оплате ${d.invoiceCount} ${_invoiceWord(d.invoiceCount)} на сумму $sum.');
     }
-    b.writeln('Если уже оплатили — спасибо, не обращайте внимания.');
+    b.writeln('Прошу оплатить в ближайшее время.');
     if (company.trim().isNotEmpty) b.write('С уважением, ${company.trim()}');
     return b.toString();
   }
