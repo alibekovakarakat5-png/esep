@@ -122,7 +122,7 @@ class AccountingClient {
 class ClientDeadline {
   final String clientId;
   final String clientName;
-  final String type;   // 'social', '910', '200', '700', 'esp', 'patent'
+  final String type;   // 'social', '910', '200', '100', '700', 'esp', 'patent'
   final String label;
   final DateTime date;
 
