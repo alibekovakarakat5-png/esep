@@ -348,11 +348,15 @@ const ALLOWED_ORIGINS = [
   'https://esepkz.vercel.app',
   'https://alibekovakarakat5-png.github.io',
   'https://esep-production.up.railway.app',
+  // Esep Automation (интеграторский сайт — форма заявок шлёт сюда /api/lead)
+  'https://automation.esepkz.com',
+  'https://esep-auto.vercel.app',
   // Local dev
   'http://localhost:5500',
   'http://localhost:8080',
   'http://localhost:3000',
   'http://localhost:3334',
+  'http://localhost:3336',
   'http://localhost:5173',
 ];
 app.use(cors({
