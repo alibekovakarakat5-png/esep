@@ -1,0 +1,62 @@
+# Ежесуточный шифрованный бэкап прод-Postgres Esep (Railway) в артефакты GitHub.
+#
+# Репозиторий ПУБЛИЧНЫЙ → дамп шифруется AES-256 до загрузки. Без passphrase
+# артефакт бесполезен. Ретенция 30 дней.
+#
+# Требуемые secrets (Settings → Secrets and variables → Actions → New repository secret):
+#   PROD_DATABASE_URL — публичный URL прод-Postgres из Railway
+#                       (Postgres → Connect → Public Network URL, начинается с
+#                        postgresql://...proxy.rlwy.net...)
+#   BACKUP_PASSPHRASE — длинная фраза; ей же расшифровывать при restore
+#                       (сохранить в менеджере паролей!)
+#
+# Восстановление — см. docs/CLOUD-BACKUP.md
+name: DB Backup
+
+on:
+  schedule:
+    - cron: '0 21 * * *' # 02:00 по Алматы (UTC+5), ежедневно
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Проверить, что secrets заданы
+        env:
+          DB: ${{ secrets.PROD_DATABASE_URL }}
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$DB" ] || [ -z "$PASS" ]; then
+            echo "::error::PROD_DATABASE_URL / BACKUP_PASSPHRASE не заданы в secrets репозитория"
+            exit 1
+          fi
+
+      - name: Установить pg_dump 16 (под Railway Postgres 16)
+        run: |
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-16
+          /usr/lib/postgresql/16/bin/pg_dump --version
+
+      - name: Снять дамп (custom format)
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: /usr/lib/postgresql/16/bin/pg_dump "$DATABASE_URL" -Fc --no-owner -f backup.dump
+
+      - name: Зашифровать (AES-256, pbkdf2)
+        env:
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          openssl enc -aes-256-cbc -pbkdf2 -salt \
+            -in backup.dump -out backup.dump.enc -pass env:PASS
+          rm backup.dump
+          ls -lh backup.dump.enc
+
+      - name: Загрузить артефакт (хранение 30 дней)
+        uses: actions/upload-artifact@v4
+        with:
+          name: esep-db-${{ github.run_id }}
+          path: backup.dump.enc
+          retention-days: 30
