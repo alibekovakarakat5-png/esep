@@ -35,7 +35,9 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
     try {
       final picked = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['csv', 'txt', 'xlsx', 'xls'],
+        // pdf разрешаем выбрать намеренно: парсер вернёт понятную инструкцию,
+        // где скачать Excel/CSV, вместо «файл недоступен для выбора».
+        allowedExtensions: ['csv', 'txt', 'xlsx', 'xls', 'pdf'],
         withData: true,
       );
 
@@ -76,12 +78,232 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
         _multiSelected.clear();
       });
 
-      if (result.warnings.isNotEmpty) {
+      // Формат не распознан, но таблица в файле есть — предлагаем разметить
+      // колонки вручную. Так заходит выписка любого банка.
+      if (result.canMapManually) {
+        _offerManualMapping();
+      } else if (result.warnings.isNotEmpty) {
         _showWarnings(result.warnings);
       }
     } catch (e) {
       setState(() => _loading = false);
       _showError('Ошибка: $e');
+    }
+  }
+
+  void _offerManualMapping() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Формат не распознан'),
+        content: const Text(
+          'Мы не смогли определить колонки автоматически. '
+          'Укажите их вручную — это займёт полминуты, и файл загрузится.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _openColumnMapper();
+            },
+            child: const Text('Указать колонки'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Лист ручного сопоставления: строка шапки + колонки даты/сумм/описания.
+  void _openColumnMapper() {
+    final matrix = _result?.matrix ?? const <List<String>>[];
+    if (matrix.isEmpty) return;
+
+    int ncol = 0;
+    for (final r in matrix) {
+      if (r.length > ncol) ncol = r.length;
+    }
+
+    int headerRow = 0;
+    int dateCol = -1, amountCol = -1, debitCol = -1, creditCol = -1, descCol = -1;
+
+    /// Подпись колонки: заголовок из строки шапки + пример значения ниже.
+    String label(int c) {
+      final head = (c < matrix[headerRow].length)
+          ? matrix[headerRow][c].trim()
+          : '';
+      String sample = '';
+      for (int i = headerRow + 1; i < matrix.length && i < headerRow + 4; i++) {
+        if (c < matrix[i].length && matrix[i][c].trim().isNotEmpty) {
+          sample = matrix[i][c].trim();
+          break;
+        }
+      }
+      final name = head.isNotEmpty ? head : 'Колонка ${c + 1}';
+      final shown = name.length > 22 ? '${name.substring(0, 22)}…' : name;
+      if (sample.isEmpty) return shown;
+      final s = sample.length > 16 ? '${sample.substring(0, 16)}…' : sample;
+      return '$shown  ·  $s';
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          Widget colPicker(String title, int value, void Function(int?) onChanged,
+              {bool optional = false}) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: DropdownButtonFormField<int>(
+                initialValue: value >= 0 ? value : null,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: optional ? '$title (необязательно)' : title,
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                ),
+                items: [
+                  if (optional)
+                    const DropdownMenuItem(value: -1, child: Text('— нет —')),
+                  for (int c = 0; c < ncol; c++)
+                    DropdownMenuItem(value: c, child: Text(label(c))),
+                ],
+                onChanged: onChanged,
+              ),
+            );
+          }
+
+          return Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            padding: EdgeInsets.fromLTRB(
+                16, 12, 16, MediaQuery.of(ctx).viewInsets.bottom + 20),
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.black12,
+                      borderRadius: BorderRadius.circular(2)),
+                ),
+                const SizedBox(height: 16),
+                const Text('Укажите колонки',
+                    style:
+                        TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                const Text(
+                  'Нужны дата и сумма. Если в выписке отдельные колонки '
+                  'прихода и расхода — укажите их вместо «Суммы».',
+                  style: TextStyle(fontSize: 13, color: Colors.black54),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<int>(
+                  initialValue: headerRow,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Строка с заголовками',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  items: [
+                    for (int i = 0; i < matrix.length && i < 25; i++)
+                      DropdownMenuItem(
+                        value: i,
+                        child: Text(
+                          'Строка ${i + 1}: '
+                          '${matrix[i].take(3).join(" | ")}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                  onChanged: (v) => setSheet(() => headerRow = v ?? 0),
+                ),
+                const SizedBox(height: 10),
+                colPicker('Дата', dateCol,
+                    (v) => setSheet(() => dateCol = v ?? -1)),
+                colPicker('Сумма', amountCol,
+                    (v) => setSheet(() => amountCol = v ?? -1),
+                    optional: true),
+                colPicker('Расход / списание', debitCol,
+                    (v) => setSheet(() => debitCol = v ?? -1),
+                    optional: true),
+                colPicker('Приход / поступление', creditCol,
+                    (v) => setSheet(() => creditCol = v ?? -1),
+                    optional: true),
+                colPicker('Описание', descCol,
+                    (v) => setSheet(() => descCol = v ?? -1),
+                    optional: true),
+                const SizedBox(height: 6),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _applyMapping(
+                        dateCol: dateCol,
+                        amountCol: amountCol,
+                        debitCol: debitCol,
+                        creditCol: creditCol,
+                        descCol: descCol,
+                        headerRow: headerRow,
+                      );
+                    },
+                    style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14)),
+                    child: const Text('Загрузить'),
+                  ),
+                ),
+              ]),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _applyMapping({
+    required int dateCol,
+    required int amountCol,
+    required int debitCol,
+    required int creditCol,
+    required int descCol,
+    required int headerRow,
+  }) {
+    final matrix = _result?.matrix ?? const <List<String>>[];
+    final mapped = KaspiParser.parseWithMapping(
+      matrix,
+      dateCol: dateCol,
+      amountCol: amountCol,
+      debitCol: debitCol,
+      creditCol: creditCol,
+      descCol: descCol,
+      headerRow: headerRow,
+    );
+
+    for (final row in mapped.rows) {
+      final remembered =
+          CategoryMemory.recall(row.description, row.counterparty);
+      row.category =
+          remembered ?? KaspiParser.autoCategory(row.description, row.isIncome);
+    }
+
+    setState(() {
+      _result = mapped;
+      _multiSelectMode = false;
+      _multiSelected.clear();
+    });
+
+    if (mapped.rows.isEmpty) {
+      _showWarnings(mapped.warnings);
     }
   }
 
@@ -376,13 +598,14 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
                   color: EsepColors.primary, size: 36),
             ),
             const SizedBox(height: 20),
-            const Text('Импорт выписки Kaspi',
+            const Text('Импорт банковской выписки',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             const Text(
-              'Поддерживаются выписки Kaspi Gold, Kaspi Business, Halyk и Forte '
-              'в форматах Excel (.xlsx) и CSV. '
-              'Скачайте выписку в личном кабинете банка.',
+              'Kaspi, Halyk, Forte, Jusan, БЦК, Bereke, Freedom и другие — '
+              'Excel (.xlsx) или CSV. Если формат не распознается '
+              'автоматически, подскажем, где какие колонки, и файл всё равно '
+              'загрузится.',
               style:
                   TextStyle(fontSize: 13, color: EsepColors.textSecondary),
               textAlign: TextAlign.center,
@@ -435,9 +658,13 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
             const SizedBox(height: 8),
             _hintLine(
                 'Kaspi Business', 'Личный кабинет → Счета → Выписка → Excel'),
-            _hintLine(
-                'Kaspi Gold', 'Приложение → Мой банк → Выписка → Экспорт'),
+            _hintLine('Kaspi Gold',
+                'Приложение → Мой банк → Выписка → на почту (xlsx)'),
             _hintLine('Halyk / Forte', 'Онлайн-банк → Счета → Выписка → XLS'),
+            _hintLine('Jusan / БЦК / Bereke',
+                'Интернет-банк → Счета → Выписка → Excel или CSV'),
+            _hintLine('Другой банк',
+                'Подойдёт любой Excel/CSV — колонки укажете сами'),
           ]),
     );
   }
