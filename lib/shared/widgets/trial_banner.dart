@@ -81,6 +81,13 @@ class TrialBanner extends ConsumerWidget {
               backgroundColor: Colors.white,
               foregroundColor: bg,
               elevation: 0,
+              // ⚠️ ОБЯЗАТЕЛЬНО: в теме приложения задан
+              // minimumSize: Size(double.infinity, 52) — кнопка требует всю
+              // ширину Row, Expanded с текстом сжимается до нуля, и текст
+              // переносится по одной букве (баннер вырастал на пол-экрана).
+              // Любой ElevatedButton внутри Row обязан переопределить это.
+              minimumSize: const Size(0, 36),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),

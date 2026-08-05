@@ -75,6 +75,14 @@ class AppTheme {
           style: ElevatedButton.styleFrom(
             backgroundColor: EsepColors.primary,
             foregroundColor: Colors.white,
+            // ⚠️ ЛОВУШКА: infinity делает КАЖДУЮ ElevatedButton во всём
+            // приложении полноширинной. Внутри Row такая кнопка съедает всю
+            // ширину, соседний Expanded(Text) сжимается до нуля и текст
+            // переносится по одной букве (так сломался TrialBanner).
+            // Кладя ElevatedButton в Row — переопредели minimumSize.
+            // TODO(ui): убрать infinity и обернуть 9 кнопок, которые на неё
+            // опираются, в SizedBox(width: double.infinity) — делать вместе
+            // с редизайном, чтобы проверить каждый экран визуально.
             minimumSize: const Size(double.infinity, 52),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
