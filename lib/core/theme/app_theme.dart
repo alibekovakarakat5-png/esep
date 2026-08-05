@@ -42,7 +42,7 @@ class AppTheme {
           surface: EsepColors.surface,
           brightness: Brightness.light,
         ),
-        // fontFamily: 'Inter', // добавить после загрузки шрифтов
+        fontFamily: 'Inter',
         scaffoldBackgroundColor: EsepColors.surface,
         cardTheme: CardThemeData(
           color: EsepColors.cardLight,
@@ -58,7 +58,7 @@ class AppTheme {
           elevation: 0,
           centerTitle: false,
           titleTextStyle: TextStyle(
-            // fontFamily: 'Inter', // добавить после загрузки шрифтов
+            fontFamily: 'Inter',
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: EsepColors.textPrimary,
@@ -88,7 +88,7 @@ class AppTheme {
               borderRadius: BorderRadius.circular(12),
             ),
             textStyle: const TextStyle(
-              // fontFamily: 'Inter', // добавить после загрузки шрифтов
+              fontFamily: 'Inter',
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -134,7 +134,7 @@ class AppTheme {
           surface: EsepColors.surfaceDark,
           brightness: Brightness.dark,
         ),
-        // fontFamily: 'Inter', // добавить после загрузки шрифтов
+        fontFamily: 'Inter',
         scaffoldBackgroundColor: EsepColors.surfaceDark,
         cardTheme: CardThemeData(
           color: EsepColors.cardDark,
