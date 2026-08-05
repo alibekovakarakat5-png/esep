@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
@@ -125,8 +126,13 @@ class DashboardScreen extends ConsumerWidget {
             const SizedBox(height: 10),
 
           // ── Диагностика «Что изменилось в 2026» ────────────────
-          _DiagnosisBanner(onTap: () => context.go('/diagnosis')),
-          const SizedBox(height: 12),
+          if (ref.watch(diagnosisBannerVisibleProvider)) ...[
+            _DiagnosisBanner(
+              onTap: () => context.go('/diagnosis'),
+              onDismiss: () => hideDiagnosisBanner(ref),
+            ),
+            const SizedBox(height: 12),
+          ],
 
           // ── "Кнопка Спокойствия" — главная карточка ─────────────
           _CalmCard(
@@ -1568,9 +1574,22 @@ class _TourTip {
 
 /// Промо-баннер для онбординг-диагностики «Что изменилось в 2026».
 /// Показывается всем — это лид-магнит и upsell-крючок.
+/// Показан ли ещё баннер диагностики. Раньше он висел на дашборде вечно —
+/// даже у тех, кто диагностику уже прошёл. Закрывается крестиком навсегда.
+final diagnosisBannerVisibleProvider = StateProvider<bool>((ref) {
+  return !(Hive.box('settings')
+      .get('diagnosis_banner_hidden', defaultValue: false) as bool);
+});
+
+void hideDiagnosisBanner(WidgetRef ref) {
+  Hive.box('settings').put('diagnosis_banner_hidden', true);
+  ref.read(diagnosisBannerVisibleProvider.notifier).state = false;
+}
+
 class _DiagnosisBanner extends StatelessWidget {
-  const _DiagnosisBanner({required this.onTap});
+  const _DiagnosisBanner({required this.onTap, required this.onDismiss});
   final VoidCallback onTap;
+  final VoidCallback onDismiss;
 
   @override
   Widget build(BuildContext context) {
@@ -1619,6 +1638,15 @@ class _DiagnosisBanner extends StatelessWidget {
               SizedBox(width: 4),
               Icon(Iconsax.arrow_right_3, color: Colors.white, size: 14),
             ]),
+          ),
+          const SizedBox(width: 2),
+          IconButton(
+            onPressed: onDismiss,
+            icon: const Icon(Iconsax.close_circle, color: Colors.white70, size: 18),
+            tooltip: 'Больше не показывать',
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
           ),
         ]),
       ),

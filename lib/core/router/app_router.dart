@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/screens/auth_screen.dart';
 import '../../features/onboarding/screens/onboarding_screen.dart';
+import '../../features/onboarding/screens/first_run_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/invoices/screens/invoices_screen.dart';
 import '../../features/invoices/screens/invoice_detail_screen.dart';
@@ -50,6 +51,7 @@ class _RouterListenable extends ChangeNotifier {
     ref.listen<AuthState>(authProvider, (_, __) => notifyListeners());
     ref.listen<UserMode?>(userModeProvider, (_, __) => notifyListeners());
     ref.listen<bool>(hasSeenOnboardingProvider, (_, __) => notifyListeners());
+    ref.listen<bool>(firstRunDoneProvider, (_, __) => notifyListeners());
     ref.listen<SubscriptionState>(subscriptionProvider, (_, __) => notifyListeners());
   }
 }
@@ -116,6 +118,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/mode-select';
       }
 
+      // ── Первый запуск: «Начало работы» ─────────────────────────────────
+      // На проде было 14 пользователей и ноль операций — люди упирались в
+      // пустой дашборд и уходили. Здесь одно действие на экране: загрузить
+      // выписку или пропустить. Бухгалтеру не показываем — у него другой
+      // первый шаг (клиенты), а не своя выписка.
+      if (authState == AuthState.authenticated &&
+          mode != null &&
+          mode != UserMode.accountant &&
+          !ref.read(firstRunDoneProvider) &&
+          location != '/start' &&
+          !location.startsWith('/legal/')) {
+        return '/start';
+      }
+
       return null;
     },
     routes: [
@@ -123,6 +139,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/onboarding',
         builder: (_, __) => const OnboardingScreen(),
+      ),
+
+      // ── Первый запуск после входа (вне shell — без нижнего меню) ────────
+      GoRoute(
+        path: '/start',
+        builder: (_, __) => const FirstRunScreen(),
       ),
 
       // ── Auth ─────────────────────────────────────────────────────────────
