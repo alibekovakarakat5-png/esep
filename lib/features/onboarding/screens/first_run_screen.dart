@@ -54,6 +54,20 @@ class _FirstRunScreenState extends ConsumerState<FirstRunScreen> {
   bool _imported = false;
   TaxRegimeKind? _pickedRegime;
 
+  @override
+  void initState() {
+    super.initState();
+    // Экран увидят и те, кто зарегистрировался раньше. Если операции уже
+    // есть — предлагать «загрузите выписку» глупо, начинаем со второго шага.
+    final tx = ref.read(transactionProvider);
+    final profile = ref.read(taxProfileProvider).valueOrNull;
+    if (tx.isNotEmpty) {
+      _imported = true;
+      _pickedRegime = profile?.regime;
+      _step = _pickedRegime == null ? 1 : 2;
+    }
+  }
+
   void _next() {
     if (_step < _totalSteps - 1) {
       setState(() => _step++);
