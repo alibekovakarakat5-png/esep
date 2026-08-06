@@ -38,11 +38,28 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      # Все Dart-тесты, включая паритет Dart ↔ Node на единых фикстурах
-      # tax core. Полный прогон блокирует сборку с 2026-08-06: первые
-      # прогоны показали, что весь набор зелёный.
-      - name: Flutter-тесты (все, включая паритет Dart ↔ Node)
-        run: flutter test
+      # Dart-тесты пофайлово: при падении сразу видно виновника по имени
+      # шага (логи джобов без админ-прав не читаются). if: !cancelled() —
+      # бегут все, джоба падает, если красный хотя бы один.
+      - name: "Dart: паритет tax core (Dart ↔ Node)"
+        if: ${{ !cancelled() }}
+        run: flutter test test/tax_core_fixtures_test.dart
+
+      - name: "Dart: ЭСФ-генератор"
+        if: ${{ !cancelled() }}
+        run: flutter test test/esf_service_test.dart
+
+      - name: "Dart: модель счетов"
+        if: ${{ !cancelled() }}
+        run: flutter test test/invoice_model_test.dart
+
+      - name: "Dart: парсер выписок"
+        if: ${{ !cancelled() }}
+        run: flutter test test/kaspi_parser_test.dart
+
+      - name: "Dart: смок приложения (widget_test)"
+        if: ${{ !cancelled() }}
+        run: flutter test test/widget_test.dart
 
       - name: Setup Node 20
         uses: actions/setup-node@v4
