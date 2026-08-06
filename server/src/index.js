@@ -16,6 +16,7 @@ const leadRoutes                          = require('./routes/lead');
 const { router: adminRoutes }             = require('./routes/admin');
 const { router: taxConfigRoutes,
         seedTaxConfig }                   = require('./routes/tax-config');
+const { router: taxRoutes }               = require('./routes/tax');
 const { router: promoRoutes,
         seedPromos }                      = require('./routes/promos');
 const articleRoutes                       = require('./routes/articles');
@@ -394,6 +395,7 @@ app.use('/api/feedback',     feedbackRoutes); // auth внутри роутер�
 app.use('/api/lead',         leadRoutes);    // ПУБЛИЧНО — приём заявок с лендинга (rate-limit внутри)
 app.use('/api/admin',        adminRoutes);
 app.use('/api/config/tax',   taxConfigRoutes);
+app.use('/api/tax',          taxRoutes);      // ПУБЛИЧНО — калькулятор + форма 910 (rate-limit внутри)
 app.use('/api/promos',       promoRoutes);
 app.use('/api/articles',     articleRoutes);
 app.use('/api/bin',          binLookupRoutes);
