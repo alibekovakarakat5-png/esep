@@ -49,12 +49,10 @@ const {
 } = require('../../services/platform_db');
 const { createWebkassaClient } = require('../../services/webkassa_client');
 const db = require('../../db');
+const { loadRates, selfEmployedLimit } = require('../../services/tax');
 
 // Включена ли реальная фискализация (true = идём в Webkassa, false = только queue)
 const FISCALIZATION_ENABLED = process.env.PLATFORM_FISCALIZATION_ENABLED === 'true';
-
-const MRP_2026 = 4325;
-const MONTHLY_LIMIT_TENGE = 300 * MRP_2026; // 1 297 500 ₸
 
 // Кэш stat.gov.kz (тот же, что в taxpayer_info.js — TODO вынести в общий модуль)
 const taxpayerCache = new Map();
@@ -211,7 +209,11 @@ router.post(
       }
     }
 
-    // ── 4. Проверка лимита 300 МРП ──────────────────────────────────────────
+    // ── 4. Проверка лимита самозанятого (300 МРП/мес по НК-2026) ───────────
+    // Лимит — из ставок tax_config (БД) через services/tax, не из хардкода.
+    const { rates } = await loadRates(db);
+    const limitTenge = selfEmployedLimit(rates).monthlyTenge;
+    const limitMrp = rates.self_emp_month_limit;
     let used = 0;
     try {
       used = await getMonthlyIncome(courier_iin);
@@ -222,26 +224,26 @@ router.post(
     }
 
     const afterPayment = used + amountNum;
-    const percentUsed = Math.min(100, (afterPayment / MONTHLY_LIMIT_TENGE) * 100);
+    const percentUsed = Math.min(100, (afterPayment / limitTenge) * 100);
 
     result.income_limit = {
       used_before: used,
       proposed_amount: amountNum,
       would_be_total: afterPayment,
-      limit: MONTHLY_LIMIT_TENGE,
+      limit: limitTenge,
       percent_used_after: parseFloat(percentUsed.toFixed(2)),
-      remaining_after: Math.max(0, MONTHLY_LIMIT_TENGE - afterPayment),
+      remaining_after: Math.max(0, limitTenge - afterPayment),
     };
 
-    if (afterPayment > MONTHLY_LIMIT_TENGE) {
+    if (afterPayment > limitTenge) {
       // НЕ просто «отклонено». Это оффрамп: выплату как самозанятому проводить
       // нельзя (иначе платформе-налоговому агенту грозит доначисление), но
       // деньги водитель не теряет — даём чёткое следующее действие.
-      const excess = afterPayment - MONTHLY_LIMIT_TENGE;
+      const excess = afterPayment - limitTenge;
       result.decision = 'LIMIT_REACHED';
       result.limit_reached = true;
       result.message =
-        `Водитель достиг месячного лимита самозанятого — 300 МРП (${MONTHLY_LIMIT_TENGE} ₸). ` +
+        `Водитель достиг месячного лимита самозанятого — ${limitMrp} МРП (${limitTenge} ₸). ` +
         `Эта выплата НЕ проведена как самозанятому: иначе платформе как налоговому агенту ` +
         `грозит доначисление и пеня. Деньги водитель не теряет — выберите действие.`;
       result.next_actions = [
@@ -264,7 +266,7 @@ router.post(
 
     if (percentUsed >= 80) {
       result.warnings.push(
-        `Курьер близок к месячному лимиту (${percentUsed.toFixed(1)}% от 300 МРП). ` +
+        `Курьер близок к месячному лимиту (${percentUsed.toFixed(1)}% от ${limitMrp} МРП). ` +
         `Рекомендуем предупредить его о переходе в ИП.`
       );
     }

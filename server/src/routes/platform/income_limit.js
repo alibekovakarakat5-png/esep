@@ -6,8 +6,8 @@
  *   - Лимит дохода — 300 МРП в КАЛЕНДАРНЫЙ МЕСЯЦ
  *   - Превышение → теряет режим, обязан перейти в ИП
  *
- * МРП на 2026 = 4 325 ₸ (kz_tax_constants.dart)
- * Месячный лимит = 300 × 4 325 = 1 297 500 ₸
+ * Лимит считается из ставок tax_config (БД) через services/tax —
+ * при дефолтах НК-2026: 300 МРП × 4 325 ₸ = 1 297 500 ₸/мес
  *
  * Endpoints:
  *   GET  /api/platform/income-limit/check?iin=...&proposed_amount=...
@@ -29,11 +29,20 @@ const {
   getMonthlyIncome,
   recordIncome,
 } = require('../../services/platform_db');
+const db = require('../../db');
+const { loadRates, selfEmployedLimit } = require('../../services/tax');
 
-// Константы НК РК 2026 — синхронизировано с lib/core/constants/kz_tax_constants.dart
-const MRP_2026 = 4325;
-const MONTHLY_LIMIT_MRP = 300;
-const MONTHLY_LIMIT_TENGE = MRP_2026 * MONTHLY_LIMIT_MRP; // 1 297 500 ₸
+// Лимит самозанятого — из ставок tax_config (БД) через services/tax.
+// Хардкода МРП здесь больше нет: смена МРП/лимита в админке сразу
+// отражается в API. При недоступной таблице loadRates отдаёт дефолты НК-2026.
+async function monthlyLimit() {
+  const { rates } = await loadRates(db);
+  return {
+    mrp: rates.mrp,
+    limitMrp: rates.self_emp_month_limit,
+    limitTenge: selfEmployedLimit(rates).monthlyTenge,
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/platform/income-limit/status/:iin
@@ -53,17 +62,18 @@ router.get(
     }
 
     try {
+      const { mrp, limitMrp, limitTenge } = await monthlyLimit();
       const usedTenge = await getMonthlyIncome(iin);
-      const remainingTenge = Math.max(0, MONTHLY_LIMIT_TENGE - usedTenge);
-      const percentUsed = Math.min(100, (usedTenge / MONTHLY_LIMIT_TENGE) * 100);
+      const remainingTenge = Math.max(0, limitTenge - usedTenge);
+      const percentUsed = Math.min(100, (usedTenge / limitTenge) * 100);
 
       return res.json({
         iin,
         month: new Date().toISOString().slice(0, 7), // YYYY-MM
         limit: {
-          mrp: MONTHLY_LIMIT_MRP,
-          tenge: MONTHLY_LIMIT_TENGE,
-          mrp_2026: MRP_2026,
+          mrp: limitMrp,
+          tenge: limitTenge,
+          mrp_2026: mrp,
         },
         used_tenge: usedTenge,
         remaining_tenge: remainingTenge,
@@ -106,9 +116,10 @@ router.get(
     }
 
     try {
+      const { limitTenge } = await monthlyLimit();
       const usedTenge = await getMonthlyIncome(iin);
       const afterPayment = usedTenge + proposed;
-      const canPay = afterPayment <= MONTHLY_LIMIT_TENGE;
+      const canPay = afterPayment <= limitTenge;
 
       return res.json({
         iin,
@@ -116,9 +127,9 @@ router.get(
         proposed_amount: proposed,
         already_used: usedTenge,
         would_be_total: afterPayment,
-        limit: MONTHLY_LIMIT_TENGE,
+        limit: limitTenge,
         ...(canPay ? {} : {
-          excess: afterPayment - MONTHLY_LIMIT_TENGE,
+          excess: afterPayment - limitTenge,
           recommendation: 'Самозанятый превысит лимит. Рекомендуем не оформлять выплату или предложить ему перейти в ИП.',
         }),
       });
@@ -173,18 +184,19 @@ router.post(
       const paymentDate = date ? new Date(date) : new Date();
 
       // Проверка лимита перед записью
+      const { limitMrp, limitTenge } = await monthlyLimit();
       const used = await getMonthlyIncome(iin, paymentDate);
       const after = used + amountNum;
 
-      if (after > MONTHLY_LIMIT_TENGE) {
+      if (after > limitTenge) {
         return res.status(409).json({
           error: 'LIMIT_EXCEEDED',
-          message: 'Превышен месячный лимит 300 МРП для самозанятого',
+          message: `Превышен месячный лимит ${limitMrp} МРП для самозанятого`,
           already_used: used,
           attempted: amountNum,
           would_be_total: after,
-          limit: MONTHLY_LIMIT_TENGE,
-          excess: after - MONTHLY_LIMIT_TENGE,
+          limit: limitTenge,
+          excess: after - limitTenge,
         });
       }
 
@@ -202,7 +214,7 @@ router.post(
         recorded: true,
         id: record.id,
         new_monthly_total: after,
-        remaining: MONTHLY_LIMIT_TENGE - after,
+        remaining: limitTenge - after,
         created_at: record.created_at,
       });
     } catch (err) {
