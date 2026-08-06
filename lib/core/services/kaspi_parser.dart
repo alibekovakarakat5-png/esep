@@ -658,7 +658,14 @@ class KaspiParser {
 
     for (final fmt in patterns) {
       try {
-        return fmt.parseStrict(t);
+        final d = fmt.parseStrict(t);
+        // intl не оконцовывает двузначный год: «28.07.26» даёт год 0026.
+        // Jusan/БЦК выгружают dd.MM.yy — приводим к 20xx, иначе операции
+        // уезжают в первый век и пропадают из отчётов.
+        if (d.year < 100) {
+          return DateTime(d.year + 2000, d.month, d.day, d.hour, d.minute);
+        }
+        return d;
       } catch (_) {}
     }
     return null;
