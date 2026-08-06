@@ -43,7 +43,9 @@ Flutter-приложение для ИП и бухгалтеров Казахс�
 - **Аудио**: `public/audio/esep/*.mp3`
 - **Сценарии**: `public/audio/esep/_scripts_edu.json`, `_scripts_advanced.json`
 - **Рендер**: `--sequence` → PNG в `out/<CompositionId>/`, затем encoder делает mp4
-- ⚠ Использует Remotion 4.0.194 (старая версия без rspack) — на этой машине Device Guard блокирует rspack/esbuild новых версий
+- ⚠ Использует Remotion 4.0.194 (старая версия без rspack) — Device Guard блокирует **rspack**.
+  esbuild при этом работает: проверено 2026-08-06, `esbuild.exe 0.27.3` собирает бандл.
+  Node 20.19 + npm 10.8 работают. Блокируется именно `dart.exe`, не JS-инструменты
 
 ---
 
