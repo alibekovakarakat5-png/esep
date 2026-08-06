@@ -19,7 +19,7 @@
  *   7) GET  /income-limit/check — предварительная проверка
  *   8) POST /income-limit/record — запись выплаты
  *   9) POST /process-payment — МАГИЯ: всё в одном
- *  10) Сценарий: 6 выплат по 250к ₸ → должно сработать BLOCK на 7-й
+ *  10) Сценарий: 6 выплат по 250к ₸ → LIMIT_REACHED (оффрамп, бывший BLOCK)
  */
 
 // Опциональный dotenv — если установлен
@@ -239,7 +239,7 @@ async function main() {
   console.log('      Обработано за: ' + r9.body?.processed_in_ms + ' мс');
 
   // ── 10. Сценарий: исчерпание лимита ───────────────────────────────────────
-  section('10. Сценарий BLOCK — 6 выплат по 250 000 ₸ должны исчерпать лимит');
+  section('10. Сценарий LIMIT_REACHED — 6 выплат по 250 000 ₸ должны исчерпать лимит');
   const stressIin = '900515200011'; // валидный: 1990-05-15, женский, XX век
   // Идемпотентность: чистим данные stress-IIN от прошлых прогонов теста,
   // иначе накопленные выплаты сразу дадут BLOCK на 1-й операции.
@@ -265,8 +265,9 @@ async function main() {
         order_id: `stress_${Date.now()}_${i}`,
         skip_taxpayer_check: true,
       }, H);
-      console.log(`      Выплата ${i}: ${r.body?.decision} (${r.body?.income_limit?.would_be_total} / 1 297 500 ₸)`);
-      if (r.body?.decision === 'BLOCK') {
+      console.log(`      Выплата ${i}: ${r.body?.decision} (${r.body?.income_limit?.would_be_total} / ${r.body?.income_limit?.limit} ₸)`);
+      // С коммита 2b31599 исчерпание лимита отвечает LIMIT_REACHED (оффрамп), не BLOCK
+      if (r.body?.decision === 'LIMIT_REACHED') {
         blockedAt = i;
         break;
       }
