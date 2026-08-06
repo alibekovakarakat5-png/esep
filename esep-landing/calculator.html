@@ -6,11 +6,11 @@
   <title>Налоговый калькулятор ИП — Казахстан 2026 | Esep.kz</title>
   <meta name="description" content="Бесплатный налоговый калькулятор для ИП Казахстана. Рассчитайте ИПН, СН, ОПВ, ОПВР, СО, ВОСМС по актуальным ставкам 2026 года. МРП 4 325 ₸, МЗП 85 000 ₸.">
   <meta name="keywords" content="налог ИП 910 казахстан, налоговый калькулятор казахстан 2026, упрощёнка расчёт, ОПВ ВОСМС СО 2026, МРП 2026">
-  <link rel="canonical" href="https://esepkz.com/calculator">
+  <link rel="canonical" href="https://esepkz.com/calculator.html">
   <!-- Open Graph -->
   <meta property="og:title" content="Налоговый калькулятор ИП Казахстан 2026">
-  <meta property="og:description" content="Считайте налоги за 10 секунд. МРП 4 325 ₸, 910 форма 3%, соцплатежи по ставкам 2026.">
-  <meta property="og:url" content="https://esepkz.com/calculator">
+  <meta property="og:description" content="Считайте налоги за 10 секунд. МРП 4 325 ₸, 910 форма 4%, соцплатежи по ставкам 2026.">
+  <meta property="og:url" content="https://esepkz.com/calculator.html">
   <meta property="og:image" content="https://esepkz.com/og-image.png">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -114,12 +114,12 @@
 
 <div class="wrap">
   <h1 class="page-title">Налоговый калькулятор ИП</h1>
-  <p class="page-sub">Казахстан · Актуальные ставки 2026 · МРП 4 325 ₸ · МЗП 85 000 ₸</p>
+  <p class="page-sub">Казахстан · Актуальные ставки 2026 · МРП <span id="subMrp">4 325</span> ₸ · МЗП <span id="subMzp">85 000</span> ₸</p>
 
   <!-- Режим -->
   <div class="regime-tabs">
     <button class="regime-tab active" onclick="setRegime('910')">Упрощёнка (910)</button>
-    <button class="regime-tab" onclick="setRegime('esp')">ЕСП</button>
+    <button class="regime-tab" onclick="setRegime('esp')">ЕСП (отменён с 2026)</button>
     <button class="regime-tab" onclick="setRegime('self')">Самозанятый</button>
     <button class="regime-tab" onclick="setRegime('our')">ОУР</button>
   </div>
@@ -199,8 +199,8 @@
       <div class="cta-block" style="margin-top:16px">
         <h3>Ведите учёт автоматически</h3>
         <p>Esep считает налоги и соцплатежи сам — вам остаётся только проверить</p>
-        <a href="https://wa.me/77059914789?text=%D0%A5%D0%BE%D1%87%D1%83+%D0%BF%D0%BE%D0%BF%D1%80%D0%BE%D0%B1%D0%BE%D0%B2%D0%B0%D1%82%D1%8C+Esep" target="_blank" class="cta-btn">Попробовать бесплатно</a>
-        <a href="/#download" class="cta-btn outline">Скачать APK</a>
+        <a href="https://app.esepkz.com" target="_blank" class="cta-btn">Попробовать бесплатно — 7 дней</a>
+        <a href="https://app.esepkz.com" target="_blank" class="cta-btn outline">Открыть веб-приложение</a>
       </div>
     </div>
 
@@ -208,36 +208,33 @@
 
   <div class="footer-note">
     Расчёты соответствуют <strong>НК РК 2026</strong>, Закону о пенсионном обеспечении, Закону о ОСМС и Закону о социальном страховании.<br>
-    МРП = 4 325 ₸ (Закон о бюджете № 239-VIII от 08.12.2025) · МЗП = 85 000 ₸<br>
+    МРП = <span id="footMrp">4 325</span> ₸ (Закон о бюджете № 239-VIII от 08.12.2025) · МЗП = <span id="footMzp">85 000</span> ₸<br>
     Результаты носят справочный характер. Актуальные данные: <a href="https://kgd.gov.kz" target="_blank">kgd.gov.kz</a>
   </div>
 </div>
 
+<!-- Налоговая математика — общий модуль Esep (собран из server/src/services/tax).
+     Пересборка: cd server && npm run build:tax-core -->
+<script src="tax-core.js"></script>
 <script>
-  // ── Константы 2026 ───────────────────────────────────────────────────────
-  const MRP  = 4325;
-  const MZP  = 85000;
+  // Здесь только UI-состояние и рендер. Ни одной налоговой формулы —
+  // всё считает EsepTax (tax-core.js), тот же код, что на сервере.
+  if (typeof EsepTax === 'undefined') {
+    document.getElementById('resultContent').innerHTML =
+      '<div class="info-box">Не удалось загрузить модуль расчёта. Обновите страницу.</div>';
+    throw new Error('tax-core.js не загружен');
+  }
 
-  // Форма 910 (ст. 683 НК РК)
-  const IPN_RATE = 0.015;
-  const SN_RATE  = 0.015;
-  const LIMIT_HALF = MRP * 24038; // ~103.9M ₸
+  const R = EsepTax.DEFAULT_RATES;
+  const MRP = R.mrp;
+  const MZP = R.mzp;
 
-  // Соцплатежи "за себя"
-  const OPV_RATE   = 0.10;
-  const OPVR_RATE  = 0.035; // 2026
-  const SO_RATE    = 0.05;
-  const VOSMS_RATE = 0.05;
-  const VOSMS_BASE = MZP * 1.4;
-
-  // ЕСП
+  // ЕСП отменён с 01.01.2026 (НК 214-VIII) — вкладка оставлена для справки.
+  // Множители (1 МРП город / 0.5 МРП село, лимит 1175 МРП) — исторические,
+  // в tax-core их нет, потому что режима больше нет в законе.
   const ESP_YEAR_LIMIT = MRP * 1175;
   const ESP_CITY  = MRP;
   const ESP_RURAL = MRP * 0.5;
-
-  // Самозанятый
-  const SELF_RATE       = 0.04;
-  const SELF_YEAR_LIMIT = MRP * 3528;
 
   // ── Состояние ────────────────────────────────────────────────────────────
   let regime     = '910';
@@ -293,25 +290,22 @@
 
   // ── Форматирование ───────────────────────────────────────────────────────
   const fmt = (n) => Math.round(n).toLocaleString('ru-RU') + ' ₸';
+  const num = (n) => Math.round(n).toLocaleString('ru-RU');
   const pct = (n) => (n * 100).toFixed(1) + '%';
 
   // ── Соцплатежи "за себя" ─────────────────────────────────────────────────
   function calcSocial() {
-    const opv   = MZP * OPV_RATE;
-    const opvr  = birth75 ? 0 : MZP * OPVR_RATE;
-    const so    = MZP * SO_RATE;
-    const vosms = VOSMS_BASE * VOSMS_RATE;
-    const total = opv + opvr + so + vosms;
+    const s = EsepTax.calculateMonthlySocial(R, { bornBefore1975: birth75 });
 
-    document.getElementById('s_opv').textContent   = fmt(opv);
-    document.getElementById('s_opvr').textContent  = fmt(opvr);
-    document.getElementById('s_so').textContent    = fmt(so);
-    document.getElementById('s_vosms').textContent = fmt(vosms);
-    document.getElementById('s_total').textContent = fmt(total);
-    document.getElementById('s_half').textContent  = fmt(total * 6);
+    document.getElementById('s_opv').textContent   = fmt(s.opv);
+    document.getElementById('s_opvr').textContent  = fmt(s.opvr);
+    document.getElementById('s_so').textContent    = fmt(s.so);
+    document.getElementById('s_vosms').textContent = fmt(s.vosms);
+    document.getElementById('s_total').textContent = fmt(s.total);
+    document.getElementById('s_half').textContent  = fmt(s.total * 6);
     document.getElementById('opvrRow').style.opacity = birth75 ? '0.4' : '1';
 
-    return total;
+    return s.total;
   }
 
   // ── Основной расчёт ──────────────────────────────────────────────────────
@@ -322,25 +316,22 @@
     const title  = document.getElementById('resultTitle');
 
     if (regime === '910') {
-      const disc     = discount ? 0.02 : 0;
-      const effIpn   = Math.max(0, IPN_RATE - disc / 2);
-      const effSn    = Math.max(0, SN_RATE  - disc / 2);
-      const ipn      = income * effIpn;
-      const sn       = income * effSn;
-      const tax      = ipn + sn;
-      const halfSoc  = social * 6;
-      const total    = tax + halfSoc;
-      const eff      = income > 0 ? total / income : 0;
-      const limitPct = LIMIT_HALF > 0 ? income / LIMIT_HALF : 0;
-      const barClass = limitPct > 1 ? 'over' : limitPct > 0.8 ? 'warn' : '';
+      const full = EsepTax.calculateFull910(R, income, {
+        regionalDiscount: discount ? 0.02 : 0,
+        bornBefore1975: birth75,
+      });
+      const t         = full.tax;
+      const LIMIT_HALF = EsepTax.simplified910HalfYearLimit(R);
+      const limitPct  = LIMIT_HALF > 0 ? income / LIMIT_HALF : 0;
+      const barClass  = limitPct > 1 ? 'over' : limitPct > 0.8 ? 'warn' : '';
 
       title.textContent = 'Налог 910 за полугодие';
       el.innerHTML = `
-        <div class="result-row"><div class="label">ИПН ${pct(effIpn)}<div class="hint">ст.683 НК РК</div></div><span class="val red">${fmt(ipn)}</span></div>
-        <div class="result-row"><div class="label">СН ${pct(effSn)}</div><span class="val red">${fmt(sn)}</span></div>
-        <div class="result-row"><div class="label">Соцплатежи × 6 мес</div><span class="val orange">${fmt(halfSoc)}</span></div>
-        <div class="result-row total"><span class="label">Итого за полугодие</span><span class="val">${fmt(total)}</span></div>
-        <div class="result-row" style="border-bottom:none;padding-bottom:0"><span class="label" style="color:var(--sub);font-size:13px">Эффективная ставка</span><span class="val" style="color:var(--sub)">${pct(eff)}</span></div>
+        <div class="result-row"><div class="label">ИПН ${pct(t.effectiveIpnRate)}<div class="hint">ст.683 НК РК</div></div><span class="val red">${fmt(t.ipn)}</span></div>
+        <div class="result-row"><div class="label">СН ${pct(t.effectiveSnRate)}</div><span class="val red">${fmt(t.sn)}</span></div>
+        <div class="result-row"><div class="label">Соцплатежи × 6 мес</div><span class="val orange">${fmt(full.socialHalfYear)}</span></div>
+        <div class="result-row total"><span class="label">Итого за полугодие</span><span class="val">${fmt(full.grandTotal)}</span></div>
+        <div class="result-row" style="border-bottom:none;padding-bottom:0"><span class="label" style="color:var(--sub);font-size:13px">Эффективная ставка</span><span class="val" style="color:var(--sub)">${pct(full.effectiveRate)}</span></div>
         <div class="limit-bar-wrap">
           <div class="limit-bar-label"><span>Лимит упрощёнки</span><span>${fmt(income)} / ${fmt(LIMIT_HALF)}</span></div>
           <div class="limit-bar-track"><div class="limit-bar-fill ${barClass}" style="width:${Math.min(limitPct*100,100)}%"></div></div>
@@ -356,42 +347,48 @@
       const monthly  = isCity ? ESP_CITY : ESP_RURAL;
       const yearly   = monthly * 12;
       const overLimit = income > ESP_YEAR_LIMIT;
-      title.textContent = 'ЕСП';
+      title.textContent = 'ЕСП (отменён с 2026)';
       el.innerHTML = `
+        <div class="info-box" style="background:#fef2f2;border-color:#fecaca;color:#991b1b;margin-top:0;margin-bottom:12px">⚠ Режим ЕСП отменён с 01.01.2026 (НК 214-VIII). Калькулятор оставлен для справки.</div>
         <div class="result-row"><div class="label">Платёж/мес<div class="hint">${isCity ? 'Город: 1 МРП' : 'Село: 0.5 МРП'}</div></div><span class="val">${fmt(monthly)}</span></div>
         <div class="result-row total"><span class="label">Итого в год</span><span class="val">${fmt(yearly)}</span></div>
         <div class="result-row" style="border-bottom:none;padding-bottom:0"><span class="label" style="color:var(--sub);font-size:13px">Лимит дохода в год</span><span class="val" style="color:var(--sub)">${fmt(ESP_YEAR_LIMIT)}</span></div>
-        ${overLimit ? '<div class="info-box" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">⚠ Превышен лимит ЕСП. Необходимо перейти на другой режим.<div class="ref">Ст. 776 НК РК</div></div>' : '<div class="info-box">ЕСП включает ОПВ, ВОСМС, ИПН, СО — всё в одном платеже.<div class="ref">Ст. 775–779 НК РК</div></div>'}`;
+        ${overLimit ? '<div class="info-box" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">⚠ Превышен лимит ЕСП. Необходимо перейти на другой режим.<div class="ref">Ст. 776 НК РК</div></div>' : '<div class="info-box">ЕСП включал ОПВ, ВОСМС, ИПН, СО — всё в одном платеже.<div class="ref">Ст. 775–779 НК РК (ред. до 2026)</div></div>'}`;
 
     } else if (regime === 'self') {
-      const tax  = income * SELF_RATE;
+      const tax  = EsepTax.calculateSelfEmployed(R, income);
       const soc  = social * 12;
       const total = tax + soc;
-      const overLimit = income > SELF_YEAR_LIMIT;
+      const yearLimit = EsepTax.selfEmployedLimit(R).yearlyTenge;
+      const overLimit = income > yearLimit;
       title.textContent = 'Налог самозанятого (год)';
       el.innerHTML = `
-        <div class="result-row"><div class="label">Налог 4% от дохода<div class="hint">Ст. 774-1 НК РК</div></div><span class="val red">${fmt(tax)}</span></div>
+        <div class="result-row"><div class="label">Налог ${Math.round(R.self_emp_rate * 100)}% от дохода<div class="hint">Ст. 774-1 НК РК</div></div><span class="val red">${fmt(tax)}</span></div>
         <div class="result-row"><div class="label">Соцплатежи × 12 мес</div><span class="val orange">${fmt(soc)}</span></div>
         <div class="result-row total"><span class="label">Итого в год</span><span class="val">${fmt(total)}</span></div>
-        <div class="result-row" style="border-bottom:none;padding-bottom:0"><span class="label" style="color:var(--sub);font-size:13px">Лимит дохода</span><span class="val" style="color:var(--sub)">${fmt(SELF_YEAR_LIMIT)}</span></div>
+        <div class="result-row" style="border-bottom:none;padding-bottom:0"><span class="label" style="color:var(--sub);font-size:13px">Лимит дохода</span><span class="val" style="color:var(--sub)">${fmt(yearLimit)}</span></div>
         ${overLimit ? '<div class="info-box" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">⚠ Превышен лимит. Рекомендуется перейти на упрощёнку.</div>' : ''}`;
 
     } else {
-      const ipn  = income * 0.10;
-      const sn   = MRP * 2 * 12; // СН ИП за себя: 2 МРП/мес (НК 2026)
+      const ipn  = EsepTax.calculateProgressiveIpn(R, income);
       const soc  = social * 12;
-      const total = ipn + sn + soc;
+      const total = ipn + soc;
+      const threshold = MRP * R.general_ipn_threshold_mrp;
+      const vat = EsepTax.vatThreshold(R);
       title.textContent = 'ОУР — налог за год';
       el.innerHTML = `
-        <div class="result-row"><div class="label">ИПН 10% от чистого дохода<div class="hint">Ст. 317 НК РК</div></div><span class="val red">${fmt(ipn)}</span></div>
-        <div class="result-row"><div class="label">Соцналог 2 МРП/мес<div class="hint">Фикс. ставка для ИП на ОУР</div></div><span class="val red">${fmt(sn)}</span></div>
+        <div class="result-row"><div class="label">ИПН по шкале 10/15%<div class="hint">Ст. 317 НК РК · 15% свыше ${fmt(threshold)}</div></div><span class="val red">${fmt(ipn)}</span></div>
         <div class="result-row"><div class="label">Соцплатежи × 12 мес</div><span class="val orange">${fmt(soc)}</span></div>
         <div class="result-row total"><span class="label">Итого в год</span><span class="val">${fmt(total)}</span></div>
-        <div class="info-box">При обороте более ${fmt(MRP * 10000)} необходима постановка на учёт по НДС (16%).<div class="ref">Ст. 367–368 НК РК</div></div>`;
+        <div class="info-box">При обороте более ${fmt(vat.thresholdTenge)} необходима постановка на учёт по НДС (${Math.round(vat.rate * 100)}%).<div class="ref">НК РК 2026</div></div>`;
     }
   }
 
   // ── Инициализация ────────────────────────────────────────────────────────
+  document.getElementById('subMrp').textContent  = num(MRP);
+  document.getElementById('subMzp').textContent  = num(MZP);
+  document.getElementById('footMrp').textContent = num(MRP);
+  document.getElementById('footMzp').textContent = num(MZP);
   updateUI();
   calc();
 </script>
