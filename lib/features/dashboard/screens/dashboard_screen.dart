@@ -34,8 +34,6 @@ class DashboardScreen extends ConsumerWidget {
     final fmt = NumberFormat('#,##0', 'ru_RU');
 
     final monthIncome    = ref.watch(monthIncomeProvider);
-    final monthExpense   = ref.watch(monthExpenseProvider);
-    final profit         = monthIncome - monthExpense;
     final monthlyData    = ref.watch(monthlyChartProvider);
     final halfYearIncome = ref.watch(halfYearIncomeProvider);
     final regimeLimit    = KzTax.simplified910HalfYearLimit;
@@ -48,6 +46,95 @@ class DashboardScreen extends ConsumerWidget {
     final isLoading      = ref.watch(transactionLoadingProvider) || ref.watch(invoiceLoadingProvider);
     final socialDays     = _daysUntilSocialPayment();
     final deadlineInfo   = _nextDeadline();
+    final invoicesTotal  = ref.watch(invoiceProvider).length;
+    final tax910         = halfYearIncome * KzTax.simplified910TotalRate;
+
+    // ── Вариант В: главная — список дел, а не витрина цифр ──────────────
+    // Задачи собираются из сигналов, которые уже считаются в коде
+    // (раньше они были разбросаны по баннерам).
+    final tasks = <_TaskData>[];
+    final doneItems = <_TaskData>[];
+
+    if (transactions.isEmpty) {
+      tasks.add(const _TaskData(
+        mark: '1',
+        color: EsepColors.primary,
+        title: 'Загрузите выписку из банка',
+        subtitle: 'Esep разнесёт операции и посчитает налог за 10 секунд',
+        route: '/bank-connect',
+      ));
+    } else {
+      doneItems.add(_TaskData(
+        mark: '✓',
+        color: EsepColors.income,
+        title: 'Операции загружены',
+        subtitle: '${transactions.length} ${_opsWord(transactions.length)} в учёте',
+      ));
+    }
+
+    if (halfYearIncome > 0) {
+      if (deadlineInfo.daysLeft <= 60) {
+        tasks.add(_TaskData(
+          mark: '!',
+          color: EsepColors.warning,
+          title: 'Сдать форму 910 до ${deadlineInfo.label}',
+          subtitle: 'Налог ${fmt.format(tax910)} ₸ посчитан. Осталось сформировать и отправить',
+          route: '/form-910',
+        ));
+      } else {
+        doneItems.add(_TaskData(
+          mark: '✓',
+          color: EsepColors.income,
+          title: 'Налог посчитан — ${fmt.format(tax910)} ₸',
+          subtitle: 'Упрощёнка 4% с дохода ${fmt.format(halfYearIncome)} ₸',
+        ));
+      }
+    }
+
+    if (socialDays <= 7) {
+      tasks.add(_TaskData(
+        mark: '₸',
+        color: EsepColors.expense,
+        title: socialDays == 0
+            ? 'Оплатить взносы сегодня — ${fmt.format(social.total)} ₸'
+            : 'Оплатить взносы до 25-го — ${fmt.format(social.total)} ₸',
+        subtitle: socialDays == 0
+            ? 'ОПВ, СО и медстрахование за месяц'
+            : 'ОПВ, СО и медстрахование · осталось $socialDays ${_daysWord(socialDays)}',
+        route: '/taxes',
+      ));
+    }
+
+    if (unpaidCount > 0) {
+      tasks.add(_TaskData(
+        mark: '$unpaidCount',
+        color: EsepColors.expense,
+        title: unpaidCount == 1
+            ? 'Один счёт не оплачен'
+            : '$unpaidCount ${_invoiceWord(unpaidCount)}',
+        subtitle: 'Вам должны ${fmt.format(unpaidTotal)} ₸. Напомнить в WhatsApp — в один тап',
+        route: '/debtors',
+      ));
+    } else if (invoicesTotal > 0) {
+      doneItems.add(const _TaskData(
+        mark: '✓',
+        color: EsepColors.income,
+        title: 'Все счета оплачены',
+        subtitle: 'Дебиторской задолженности нет',
+      ));
+    }
+
+    if (usedPercent > 0.8) {
+      tasks.add(_TaskData(
+        mark: '!',
+        color: EsepColors.expense,
+        title: usedPercent >= 1
+            ? 'Лимит упрощёнки превышен'
+            : 'Лимит упрощёнки почти исчерпан',
+        subtitle: 'Использовано ${(usedPercent * 100).toStringAsFixed(1)}% лимита · что делать дальше',
+        route: '/regime-guide',
+      ));
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -58,12 +145,18 @@ class DashboardScreen extends ConsumerWidget {
               padding: EdgeInsets.only(right: 8),
               child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
             )
-          else
+          else ...[
+            IconButton(
+              icon: const Icon(Iconsax.document_download),
+              tooltip: 'Отчёт: PDF / Excel',
+              onPressed: () => _exportReport(context, ref),
+            ),
             IconButton(
               icon: const Icon(Iconsax.setting_2),
               tooltip: 'Настройки',
               onPressed: () => context.go('/settings'),
             ),
+          ],
           const BetaFeedbackButton(screen: 'dashboard', compact: true),
           const SizedBox(width: 4),
         ],
@@ -134,136 +227,55 @@ class DashboardScreen extends ConsumerWidget {
             const SizedBox(height: 12),
           ],
 
-          // ── "Кнопка Спокойствия" — главная карточка ─────────────
-          _CalmCard(
-            hasTransactions: transactions.isNotEmpty,
-            halfYearIncome: halfYearIncome,
-            deadlineInfo: deadlineInfo,
-            onTapReport: () => context.go('/form-910'),
-            onTapBank: () => context.go('/bank-connect'),
-          ),
-          const SizedBox(height: 14),
-
-          // 1. Быстрые действия
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              SizedBox(width: wide ? null : (constraints.maxWidth - 42) / 2, child: _ActionButton(
-                icon: Iconsax.arrow_circle_up,
-                label: '+ Доход',
-                color: EsepColors.income,
-                onTap: () {
-                  if (!ensureSubscriptionOrPaywall(context, ref, feature: 'добавление операций')) return;
-                  _showQuickAdd(context, ref, isIncome: true);
-                },
-              )),
-              SizedBox(width: wide ? null : (constraints.maxWidth - 42) / 2, child: _ActionButton(
-                icon: Iconsax.arrow_circle_down,
-                label: '+ Расход',
-                color: EsepColors.expense,
-                onTap: () {
-                  if (!ensureSubscriptionOrPaywall(context, ref, feature: 'добавление операций')) return;
-                  _showQuickAdd(context, ref, isIncome: false);
-                },
-              )),
-              SizedBox(width: wide ? null : (constraints.maxWidth - 42) / 2, child: _ActionButton(
-                icon: Iconsax.receipt_add,
-                label: 'Счёт',
-                color: EsepColors.primary,
-                onTap: () {
-                  if (!ensureSubscriptionOrPaywall(context, ref, feature: 'счёт-фактуры')) return;
-                  context.go('/invoices');
-                },
-              )),
-              SizedBox(width: wide ? null : (constraints.maxWidth - 42) / 2, child: _ActionButton(
-                icon: Iconsax.document_download,
-                label: 'Отчёт',
-                color: EsepColors.info,
-                onTap: () => _exportReport(context, ref),
-              )),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          // ── Bank connect CTA ───────────────────────────────────────
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => context.go('/bank-connect'),
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFFF14635).withValues(alpha: 0.08),
-                      EsepColors.primary.withValues(alpha: 0.05),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFF14635).withValues(alpha: 0.2)),
-                ),
-                child: const Row(children: [
-                  Icon(Iconsax.link_21, color: Color(0xFFF14635), size: 20),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Подключить Kaspi / банк', style: TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFFF14635),
-                      )),
-                      Text('Загрузите выписку — узнайте налог за 10 сек', style: TextStyle(
-                        fontSize: 12, color: EsepColors.textSecondary,
-                      )),
-                    ]),
-                  ),
-                  Icon(Iconsax.arrow_right_3, color: EsepColors.textDisabled, size: 18),
-                ]),
+          // ── Заголовок: сколько осталось сделать ────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(2, 6, 2, 14),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(_tasksTitle(tasks.length),
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.w800,
+                      letterSpacing: -0.4, color: EsepColors.textPrimary)),
+              const SizedBox(height: 4),
+              Text(
+                tasks.isEmpty
+                    ? 'Esep следит за сроками — новых требований нет'
+                    : 'Остальное Esep сделал сам',
+                style: const TextStyle(fontSize: 13, color: EsepColors.textSecondary),
               ),
-            ),
+            ]),
           ),
 
-          // 2. Дедлайн-баннер (если скоро платёж)
-          if (socialDays <= 7) ...[
+          // ── Задачи ─────────────────────────────────────────────────
+          ...tasks.map((t) => Padding(
+                padding: const EdgeInsets.only(bottom: 9),
+                child: _TaskCard(data: t),
+              )),
+
+          // ── Сделано ────────────────────────────────────────────────
+          if (doneItems.isNotEmpty) ...[
             const SizedBox(height: 12),
-            _DeadlineBanner(
-              message: socialDays == 0
-                  ? 'Обязательные взносы сегодня! — ${fmt.format(social.total)} ₸'
-                  : 'Взносы через $socialDays ${_daysWord(socialDays)} — ${fmt.format(social.total)} ₸ до 25-го',
-              urgent: socialDays <= 3,
+            const Padding(
+              padding: EdgeInsets.only(left: 2, bottom: 9),
+              child: Text('СДЕЛАНО',
+                  style: TextStyle(
+                      fontSize: 11.5, fontWeight: FontWeight.w600,
+                      letterSpacing: 0.8, color: EsepColors.textDisabled)),
             ),
-          ] else if (deadlineInfo.daysLeft <= 30) ...[
-            const SizedBox(height: 12),
-            _DeadlineBanner(
-              message: '910 форма через ${deadlineInfo.daysLeft} дн — до ${deadlineInfo.label}',
-              urgent: deadlineInfo.daysLeft <= 7,
-            ),
+            ...doneItems.map((t) => Padding(
+                  padding: const EdgeInsets.only(bottom: 9),
+                  child: _TaskCard(data: t, done: true),
+                )),
           ],
 
-          // 3. Метрики + 4. Налоговый прогноз — side-by-side on desktop
-          const SizedBox(height: 16),
-          if (wide && halfYearIncome > 0)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: _MetricsSummary(title: _monthTitle(), income: monthIncome, expense: monthExpense, profit: profit),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  flex: 2,
-                  child: _TaxForecastCard(halfYearIncome: halfYearIncome, monthIncome: monthIncome, socialMonthly: social.total),
-                ),
-              ],
-            )
-          else ...[
-            _MetricsSummary(title: _monthTitle(), income: monthIncome, expense: monthExpense, profit: profit),
-            if (halfYearIncome > 0) ...[
-              const SizedBox(height: 12),
-              _TaxForecastCard(halfYearIncome: halfYearIncome, monthIncome: monthIncome, socialMonthly: social.total),
-            ],
-          ],
+          // ── Три компактные метрики ─────────────────────────────────
+          const SizedBox(height: 12),
+          _TriStats(
+            monthIncome: monthIncome,
+            halfYearTax: tax910,
+            usedPercent: usedPercent,
+            onIncomeTap: () => context.go('/transactions'),
+            onTaxTap: () => context.go('/form-910'),
+          ),
 
           // Последние операции
           if (recentTxs.isNotEmpty) ...[
@@ -311,72 +323,12 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ],
 
-          // 5. Кто вам должен (дебиторка)
-          if (unpaidCount > 0) ...[
-            const SizedBox(height: 12),
-            GestureDetector(
-              onTap: () => context.go('/debtors'),
-              child: _EventCard(
-                icon: Iconsax.money_recive,
-                title: 'Вам должны ${fmt.format(unpaidTotal)} ₸',
-                subtitle: '$unpaidCount ${_invoiceWord(unpaidCount)} · кто должен и напомнить в WhatsApp',
-                daysLeft: null,
-                color: EsepColors.info,
-              ),
-            ),
-          ],
-
-          // 6. График
+          // ── График доходов и расходов ──────────────────────────────
           const SizedBox(height: 20),
           const Text('Доходы и расходы за 6 месяцев',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: EsepColors.textPrimary)),
           const SizedBox(height: 8),
           _MonthlyChart(data: monthlyData),
-
-          // 7. Лимит упрощёнки
-          const SizedBox(height: 20),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  const Text('Лимит дохода на упрощёнке',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: EsepColors.textPrimary)),
-                  const Spacer(),
-                  Text('${(usedPercent * 100).toStringAsFixed(1)}%',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-                          color: usedPercent > 0.8 ? EsepColors.expense : EsepColors.textPrimary)),
-                ]),
-                const SizedBox(height: 8),
-                LinearProgressIndicator(
-                  value: usedPercent.clamp(0.0, 1.0),
-                  backgroundColor: EsepColors.divider,
-                  valueColor: AlwaysStoppedAnimation(usedPercent > 0.8 ? EsepColors.expense : EsepColors.primary),
-                  minHeight: 8,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                const SizedBox(height: 6),
-                Text('${fmt.format(halfYearIncome)} ₸ из ${fmt.format(regimeLimit)} ₸',
-                    style: const TextStyle(fontSize: 11, color: EsepColors.textSecondary)),
-              ]),
-            ),
-          ),
-
-          // 8. Соцплатежи
-          const SizedBox(height: 12),
-          _EventCard(
-            icon: Iconsax.money_send,
-            title: '${fmt.format(social.total)} ₸ — обязательные взносы',
-            subtitle: 'Пенсия + медстрахование + соцстрахование · платить до 25-го числа',
-            daysLeft: socialDays,
-            color: socialDays <= 7 ? EsepColors.expense : EsepColors.warning,
-          ),
-
-          // 9. Оптимизатор налогового режима
-          if (halfYearIncome > 0) ...[
-            const SizedBox(height: 16),
-            _RegimeOptimizerCard(halfYearIncome: halfYearIncome, monthExpense: monthExpense),
-          ],
 
           const SizedBox(height: 32),
         ],
@@ -487,17 +439,28 @@ class DashboardScreen extends ConsumerWidget {
     }
   }
 
-  static void _showQuickAdd(BuildContext context, WidgetRef ref, {required bool isIncome}) {
-    showAdaptiveSheet(
-      context,
-      builder: (ctx) => _QuickAddSheet(isIncome: isIncome, ref: ref),
-    );
+  /// Заголовок списка дел: «Всё сделано» / «Одна задача…» / «N задач…»
+  static String _tasksTitle(int n) {
+    switch (n) {
+      case 0:
+        return 'Всё сделано';
+      case 1:
+        return 'Одна задача на этой неделе';
+      case 2:
+        return 'Две задачи на этой неделе';
+      case 3:
+        return 'Три задачи на этой неделе';
+      case 4:
+        return 'Четыре задачи на этой неделе';
+      default:
+        return '$n задач на этой неделе';
+    }
   }
 
-  static String _monthTitle() {
-    final now = DateTime.now();
-    final s = DateFormat('LLLL yyyy', 'ru_RU').format(now);
-    return s[0].toUpperCase() + s.substring(1);
+  static String _opsWord(int n) {
+    if (n % 10 == 1 && n % 100 != 11) return 'операция';
+    if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return 'операции';
+    return 'операций';
   }
 
   static _DeadlineInfo _nextDeadline() {
@@ -535,529 +498,10 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
-// ── "Кнопка Спокойствия" ─────────────────────────────────────────────────────
-class _CalmCard extends StatelessWidget {
-  const _CalmCard({
-    required this.hasTransactions,
-    required this.halfYearIncome,
-    required this.deadlineInfo,
-    required this.onTapReport,
-    required this.onTapBank,
-  });
-  final bool hasTransactions;
-  final double halfYearIncome;
-  final _DeadlineInfo deadlineInfo;
-  final VoidCallback onTapReport;
-  final VoidCallback onTapBank;
-
-  @override
-  Widget build(BuildContext context) {
-    final fmt = NumberFormat('#,##0', 'ru_RU');
-
-    // Определяем состояние
-    final bool hasData = hasTransactions && halfYearIncome > 0;
-    final bool isUrgent = deadlineInfo.daysLeft <= 30;
-    final tax = halfYearIncome * KzTax.simplified910TotalRate;
-    final social6 = KzTax.calculateMonthlySocial().total * 6;
-    final total = tax + social6;
-
-    // Прогресс: 3 шага
-    final int completedSteps = hasData ? 2 : 0; // 0=ничего, 2=данные есть, 3=отчёт отправлен
-
-    if (!hasData) {
-      // ─── Состояние 1: Нет данных — приглашаем начать ───────
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              EsepColors.primary.withValues(alpha: 0.08),
-              const Color(0xFF7B2FBE).withValues(alpha: 0.06),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: EsepColors.primary.withValues(alpha: 0.2)),
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                color: EsepColors.primary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(Iconsax.document_text, color: EsepColors.primary, size: 24),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Подготовим ваш отчёт',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: EsepColors.textPrimary)),
-                SizedBox(height: 2),
-                Text('Вам останется только нажать "Отправить"',
-                    style: TextStyle(fontSize: 13, color: EsepColors.textSecondary)),
-              ],
-            )),
-          ]),
-          const SizedBox(height: 20),
-          // 3 шага
-          _CalmStep(number: 1, title: 'Загрузите выписку из банка', done: false, active: true),
-          _CalmStep(number: 2, title: 'Esep посчитает налоги', done: false, active: false),
-          _CalmStep(number: 3, title: 'Отправьте готовый отчёт', done: false, active: false),
-          const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: onTapBank,
-              icon: const Icon(Iconsax.document_upload, size: 20),
-              label: const Text('Загрузить выписку', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-              style: FilledButton.styleFrom(
-                backgroundColor: EsepColors.primary,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-            ),
-          ),
-        ]),
-      );
-    }
-
-    // ─── Состояние 2: Данные есть — отчёт готов ────────────
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            EsepColors.income.withValues(alpha: 0.08),
-            EsepColors.primary.withValues(alpha: 0.06),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: EsepColors.income.withValues(alpha: 0.25)),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            width: 44, height: 44,
-            decoration: BoxDecoration(
-              color: EsepColors.income.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(Iconsax.tick_circle, color: EsepColors.income, size: 24),
-          ),
-          const SizedBox(width: 12),
-          Expanded(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Ваш отчёт готов',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: EsepColors.textPrimary)),
-              const SizedBox(height: 2),
-              Text('Осталось нажать одну кнопку',
-                  style: TextStyle(fontSize: 13, color: EsepColors.textSecondary)),
-            ],
-          )),
-        ]),
-        const SizedBox(height: 18),
-        // Краткая сводка — без жаргона
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(children: [
-            Row(children: [
-              const Text('Ваш доход', style: TextStyle(fontSize: 13, color: EsepColors.textSecondary)),
-              const Spacer(),
-              Text('${fmt.format(halfYearIncome)} ₸',
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: EsepColors.textPrimary)),
-            ]),
-            const SizedBox(height: 8),
-            Row(children: [
-              const Text('Налог + взносы', style: TextStyle(fontSize: 13, color: EsepColors.textSecondary)),
-              const Spacer(),
-              Text('${fmt.format(total)} ₸',
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: EsepColors.warning)),
-            ]),
-            if (isUrgent) ...[
-              const SizedBox(height: 8),
-              Row(children: [
-                const Text('Срок сдачи', style: TextStyle(fontSize: 13, color: EsepColors.textSecondary)),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: EsepColors.expense.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text('через ${deadlineInfo.daysLeft} дн',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: EsepColors.expense)),
-                ),
-              ]),
-            ],
-          ]),
-        ),
-        const SizedBox(height: 16),
-        // 3 шага — 2 готовы
-        _CalmStep(number: 1, title: 'Данные загружены', done: true, active: false),
-        _CalmStep(number: 2, title: 'Налоги посчитаны', done: true, active: false),
-        _CalmStep(number: 3, title: 'Отправьте отчёт в налоговую', done: false, active: true),
-        const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: onTapReport,
-            icon: const Icon(Iconsax.send_2, size: 20),
-            label: const Text('Открыть готовый отчёт', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-            style: FilledButton.styleFrom(
-              backgroundColor: EsepColors.income,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            ),
-          ),
-        ),
-      ]),
-    );
-  }
-}
-
-class _CalmStep extends StatelessWidget {
-  const _CalmStep({required this.number, required this.title, required this.done, required this.active});
-  final int number;
-  final String title;
-  final bool done;
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = done
-        ? EsepColors.income
-        : active
-            ? EsepColors.primary
-            : EsepColors.textDisabled;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(children: [
-        Container(
-          width: 26, height: 26,
-          decoration: BoxDecoration(
-            color: done ? color.withValues(alpha: 0.15) : Colors.transparent,
-            shape: BoxShape.circle,
-            border: Border.all(color: color, width: done || active ? 2 : 1),
-          ),
-          child: done
-              ? Icon(Icons.check, size: 14, color: color)
-              : Center(child: Text('$number',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color))),
-        ),
-        const SizedBox(width: 10),
-        Expanded(child: Text(title,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-              color: done || active ? EsepColors.textPrimary : EsepColors.textDisabled,
-              decoration: done ? TextDecoration.lineThrough : null,
-              decorationColor: EsepColors.textDisabled,
-            ))),
-      ]),
-    );
-  }
-}
-
 class _DeadlineInfo {
   final String label;
   final int daysLeft;
   const _DeadlineInfo({required this.label, required this.daysLeft});
-}
-
-// ── Quick Add Bottom Sheet ─────────────────────────────────────────────────────
-class _QuickAddSheet extends StatefulWidget {
-  const _QuickAddSheet({required this.isIncome, required this.ref});
-  final bool isIncome;
-  final WidgetRef ref;
-
-  @override
-  State<_QuickAddSheet> createState() => _QuickAddSheetState();
-}
-
-class _QuickAddSheetState extends State<_QuickAddSheet> {
-  final _amountCtrl = TextEditingController();
-  final _titleCtrl  = TextEditingController();
-  late bool _isIncome;
-  bool _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _isIncome = widget.isIncome;
-  }
-
-  @override
-  void dispose() {
-    _amountCtrl.dispose();
-    _titleCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    final amount = double.tryParse(_amountCtrl.text.replaceAll(' ', ''));
-    if (amount == null || amount <= 0) return;
-    final title = _titleCtrl.text.trim().isEmpty
-        ? (_isIncome ? 'Доход' : 'Расход')
-        : _titleCtrl.text.trim();
-    setState(() => _saving = true);
-    try {
-      await widget.ref.read(transactionProvider.notifier).add(
-        title: title,
-        amount: amount,
-        isIncome: _isIncome,
-        date: DateTime.now(),
-      );
-      if (mounted) Navigator.pop(context);
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final color = _isIncome ? EsepColors.income : EsepColors.expense;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 24),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(width: 36, height: 4,
-            decoration: BoxDecoration(color: EsepColors.divider, borderRadius: BorderRadius.circular(2))),
-        const SizedBox(height: 20),
-
-        // Переключатель Доход / Расход
-        Container(
-          height: 44,
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(color: EsepColors.surface, borderRadius: BorderRadius.circular(12)),
-          child: Row(children: [
-            Expanded(child: GestureDetector(
-              onTap: () => setState(() => _isIncome = true),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: _isIncome ? EsepColors.income : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                alignment: Alignment.center,
-                child: Text('Доход',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14,
-                        color: _isIncome ? Colors.white : EsepColors.textSecondary)),
-              ),
-            )),
-            Expanded(child: GestureDetector(
-              onTap: () => setState(() => _isIncome = false),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: !_isIncome ? EsepColors.expense : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                alignment: Alignment.center,
-                child: Text('Расход',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14,
-                        color: !_isIncome ? Colors.white : EsepColors.textSecondary)),
-              ),
-            )),
-          ]),
-        ),
-        const SizedBox(height: 20),
-
-        // Сумма — большое поле
-        TextField(
-          controller: _amountCtrl,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 36, fontWeight: FontWeight.w700, color: color),
-          decoration: InputDecoration(
-            hintText: '0',
-            hintStyle: TextStyle(fontSize: 36, color: color.withValues(alpha: 0.3)),
-            suffixText: '₸',
-            suffixStyle: TextStyle(fontSize: 28, color: color),
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-          ),
-          onSubmitted: (_) => _save(),
-        ),
-        const SizedBox(height: 12),
-
-        // Описание
-        TextField(
-          controller: _titleCtrl,
-          textInputAction: TextInputAction.done,
-          onSubmitted: (_) => _save(),
-          decoration: const InputDecoration(
-            hintText: 'Описание (необязательно)',
-            prefixIcon: Icon(Icons.notes_outlined, size: 18),
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: color, foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14)),
-            onPressed: _saving ? null : _save,
-            child: _saving
-                ? const SizedBox(height: 20, width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Text('Сохранить', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          ),
-        ),
-      ]),
-    );
-  }
-}
-
-// ── Deadline Banner ──────────────────────────────────────────────────────────
-class _DeadlineBanner extends StatelessWidget {
-  const _DeadlineBanner({required this.message, required this.urgent});
-  final String message;
-  final bool urgent;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = urgent ? EsepColors.expense : EsepColors.warning;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(children: [
-        Icon(urgent ? Iconsax.warning_2 : Iconsax.clock, color: color, size: 18),
-        const SizedBox(width: 10),
-        Expanded(child: Text(message,
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: color))),
-      ]),
-    );
-  }
-}
-
-// ── Metrics Summary ──────────────────────────────────────────────────────────
-class _MetricsSummary extends StatelessWidget {
-  const _MetricsSummary({required this.title, required this.income, required this.expense, required this.profit});
-  final String title;
-  final double income, expense, profit;
-
-  @override
-  Widget build(BuildContext context) {
-    final fmt = NumberFormat('#,##0', 'ru_RU');
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title, style: const TextStyle(fontSize: 15, color: EsepColors.textSecondary, fontWeight: FontWeight.w500)),
-      const SizedBox(height: 10),
-      Row(children: [
-        Expanded(child: _MetricCard(
-          label: 'Доход',
-          amount: income,
-          color: EsepColors.income,
-          icon: Iconsax.arrow_circle_up,
-          fmt: fmt,
-        )),
-        const SizedBox(width: 10),
-        Expanded(child: _MetricCard(
-          label: 'Расход',
-          amount: expense,
-          color: EsepColors.expense,
-          icon: Iconsax.arrow_circle_down,
-          fmt: fmt,
-        )),
-        const SizedBox(width: 10),
-        Expanded(child: _MetricCard(
-          label: 'Прибыль',
-          amount: profit,
-          color: profit >= 0 ? EsepColors.primary : EsepColors.expense,
-          icon: Iconsax.wallet_money,
-          fmt: fmt,
-        )),
-      ]),
-    ]);
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.label, required this.amount, required this.color, required this.icon, required this.fmt});
-  final String label;
-  final double amount;
-  final Color color;
-  final IconData icon;
-  final NumberFormat fmt;
-
-  @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(14),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            width: 32, height: 32,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 16),
-          ),
-          const Spacer(),
-        ]),
-        const SizedBox(height: 10),
-        Text(label, style: const TextStyle(fontSize: 12, color: EsepColors.textSecondary)),
-        const SizedBox(height: 2),
-        Text('${fmt.format(amount)} ₸',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: color),
-            maxLines: 1, overflow: TextOverflow.ellipsis),
-      ]),
-    ),
-  );
-}
-
-// ── Action Button ────────────────────────────────────────────────────────────
-class _ActionButton extends StatelessWidget {
-  const _ActionButton({required this.icon, required this.label, required this.color, required this.onTap});
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Material(
-    color: Colors.transparent,
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
-        ),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          const SizedBox(height: 8),
-          Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
-        ]),
-      ),
-    ),
-  );
 }
 
 // ── Report Action Button ─────────────────────────────────────────────────────
@@ -1087,33 +531,145 @@ class _ReportAction extends StatelessWidget {
   );
 }
 
-// ── Event Card ───────────────────────────────────────────────────────────────
-class _EventCard extends StatelessWidget {
-  const _EventCard({required this.icon, required this.title, required this.subtitle, required this.daysLeft, required this.color});
-  final IconData icon;
-  final String title, subtitle;
-  final int? daysLeft;
+// ── Задача «что нужно сделать» (вариант В главной) ──────────────────────────
+class _TaskData {
+  final String mark;
   final Color color;
+  final String title;
+  final String subtitle;
+  final String? route;
+  const _TaskData({
+    required this.mark,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    this.route,
+  });
+}
+
+class _TaskCard extends StatelessWidget {
+  const _TaskCard({required this.data, this.done = false});
+  final _TaskData data;
+  final bool done;
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: ListTile(
-      leading: Container(
-        width: 40, height: 40,
-        decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
-        child: Icon(icon, color: color, size: 20),
+  Widget build(BuildContext context) {
+    final card = Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: data.color,
+              borderRadius: BorderRadius.circular(7),
+            ),
+            alignment: Alignment.center,
+            child: Text(data.mark,
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    height: 1)),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(data.title,
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: EsepColors.textPrimary,
+                      height: 1.3)),
+              const SizedBox(height: 3),
+              Text(data.subtitle,
+                  style: const TextStyle(
+                      fontSize: 12.5,
+                      color: EsepColors.textSecondary,
+                      height: 1.4)),
+            ]),
+          ),
+          if (!done && data.route != null) ...[
+            const SizedBox(width: 6),
+            const Padding(
+              padding: EdgeInsets.only(top: 3),
+              child: Icon(Iconsax.arrow_right_3,
+                  size: 16, color: EsepColors.textDisabled),
+            ),
+          ],
+        ]),
       ),
-      title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: EsepColors.textSecondary)),
-      trailing: daysLeft != null
-          ? Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
-              child: Text('$daysLeft дн', style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
-            )
-          : null,
-    ),
-  );
+    );
+
+    if (done) return Opacity(opacity: 0.62, child: card);
+    if (data.route == null) return card;
+    return GestureDetector(onTap: () => context.go(data.route!), child: card);
+  }
+}
+
+// ── Три компактные метрики: Доход / Налог / Лимит ───────────────────────────
+class _TriStats extends StatelessWidget {
+  const _TriStats({
+    required this.monthIncome,
+    required this.halfYearTax,
+    required this.usedPercent,
+    required this.onIncomeTap,
+    required this.onTaxTap,
+  });
+  final double monthIncome;
+  final double halfYearTax;
+  final double usedPercent;
+  final VoidCallback onIncomeTap;
+  final VoidCallback onTaxTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final compact = NumberFormat.compact(locale: 'ru_RU');
+
+    Widget cell(String label, String value, Color valueColor, VoidCallback? onTap) {
+      return Expanded(
+        child: GestureDetector(
+          onTap: onTap,
+          child: Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(label,
+                    style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: EsepColors.textSecondary)),
+                const SizedBox(height: 3),
+                Text(value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: valueColor)),
+              ]),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(children: [
+      cell('Доход / мес', compact.format(monthIncome), EsepColors.income, onIncomeTap),
+      const SizedBox(width: 8),
+      cell('Налог 910', compact.format(halfYearTax), EsepColors.textPrimary, onTaxTap),
+      const SizedBox(width: 8),
+      cell(
+        'Лимит',
+        '${(usedPercent * 100).toStringAsFixed(1)}%',
+        usedPercent > 0.8 ? EsepColors.expense : EsepColors.textPrimary,
+        null,
+      ),
+    ]);
+  }
 }
 
 // ── Monthly Chart ────────────────────────────────────────────────────────────
@@ -1184,271 +740,6 @@ class _MonthlyChart extends StatelessWidget {
   }
 }
 
-// ── Tax Forecast Card ─────────────────────────────────────────────────────────
-class _TaxForecastCard extends StatelessWidget {
-  const _TaxForecastCard({
-    required this.halfYearIncome,
-    required this.monthIncome,
-    required this.socialMonthly,
-  });
-  final double halfYearIncome;
-  final double monthIncome;
-  final double socialMonthly;
-
-  @override
-  Widget build(BuildContext context) {
-    final fmt = NumberFormat('#,##0', 'ru_RU');
-    final taxRate = KzTax.simplified910TotalRate; // 4%
-    final halfYearTax = halfYearIncome * taxRate;
-    final monthTax = monthIncome * taxRate;
-    final monthTotal = monthTax + socialMonthly;
-
-    // Умная подсказка
-    String? tip;
-    if (halfYearIncome > KzTax.simplified910HalfYearLimit * 0.8) {
-      tip = 'Доход приближается к лимиту упрощёнки. Рассмотрите переход на ОУР.';
-    } else if (monthIncome > 2000000) {
-      tip = 'При доходе > 2М ₸/мес может быть выгоднее другой режим.';
-    }
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Row(children: [
-            Icon(Iconsax.calculator, color: EsepColors.primary, size: 18),
-            SizedBox(width: 8),
-            Text('Сколько отложить на налоги',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: EsepColors.textPrimary)),
-          ]),
-          const SizedBox(height: 12),
-          // Полугодовой налог
-          _ForecastRow(
-            label: 'Налог за полугодие (4%)',
-            amount: halfYearTax,
-            color: EsepColors.expense,
-          ),
-          const SizedBox(height: 6),
-          // Ежемесячно отложить
-          _ForecastRow(
-            label: 'Налог за этот месяц',
-            amount: monthTax,
-            color: EsepColors.warning,
-          ),
-          const SizedBox(height: 6),
-          _ForecastRow(
-            label: 'Обязательные взносы (пенсия, медицина, страхование)',
-            amount: socialMonthly,
-            color: EsepColors.warning,
-          ),
-          const Divider(height: 20),
-          Row(children: [
-            const Icon(Iconsax.wallet_money, color: EsepColors.primary, size: 16),
-            const SizedBox(width: 8),
-            const Expanded(
-              child: Text('Отложить в этом месяце',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-            ),
-            Text('${fmt.format(monthTotal)} ₸',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: EsepColors.primary)),
-          ]),
-          if (tip != null) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: EsepColors.info.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Icon(Iconsax.lamp_charge, color: EsepColors.info, size: 16),
-                const SizedBox(width: 8),
-                Expanded(child: Text(tip,
-                    style: const TextStyle(fontSize: 12, color: EsepColors.info))),
-              ]),
-            ),
-          ],
-        ]),
-      ),
-    );
-  }
-}
-
-class _ForecastRow extends StatelessWidget {
-  const _ForecastRow({required this.label, required this.amount, required this.color});
-  final String label;
-  final double amount;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final fmt = NumberFormat('#,##0', 'ru_RU');
-    return Row(children: [
-      Expanded(child: Text(label,
-          style: const TextStyle(fontSize: 12, color: EsepColors.textSecondary))),
-      Text('${fmt.format(amount)} ₸',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
-    ]);
-  }
-}
-
-// ── Tax Regime Optimizer ──────────────────────────────────────────────────────
-class _RegimeOptimizerCard extends StatelessWidget {
-  const _RegimeOptimizerCard({required this.halfYearIncome, required this.monthExpense});
-  final double halfYearIncome;
-  final double monthExpense;
-
-  @override
-  Widget build(BuildContext context) {
-    final fmt = NumberFormat('#,##0', 'ru_RU');
-    final yearIncome = halfYearIncome * 2; // прогноз на год
-    final social6 = KzTax.calculateMonthlySocial().total * 6;
-
-    // Расчёт по каждому режиму
-    final regimes = <_RegimeOption>[];
-
-    // 910 упрощёнка
-    final tax910 = halfYearIncome * KzTax.simplified910TotalRate;
-    final total910 = tax910 + social6;
-    if (halfYearIncome <= KzTax.simplified910HalfYearLimit) {
-      regimes.add(_RegimeOption('Упрощёнка (910)', total910, '4% от дохода', true));
-    }
-
-    // ЕСП не включаем в оптимизатор-советчик: статус режима в НК 2026 не
-    // подтверждён, а по «1 МРП/мес» он почти всегда выходит самым дешёвым и
-    // приложение советовало бы переход на режим под вопросом. Справка по ЕСП
-    // остаётся в гайде режимов (regime_guide_screen).
-
-    // Самозанятый
-    if (yearIncome <= KzTax.selfEmployedYearLimit) {
-      final selfTotal = halfYearIncome * KzTax.selfEmployedRate + social6;
-      regimes.add(_RegimeOption('Самозанятый', selfTotal, '4% + соцплатежи', false));
-    }
-
-    // ОУР
-    final netIncome = halfYearIncome - (monthExpense * 6);
-    final annualNetIncome = (netIncome > 0 ? netIncome : 0.0) * 2;
-    final ourIpn = KzTax.calculateProgressiveIpn(annualNetIncome) / 2; // за полугодие
-    final ourSn = KzTax.ipMonthlySocialTax() * 6; // СН ИП на ОУР за полугодие
-    final ourTax = ourIpn + ourSn + social6;
-    regimes.add(_RegimeOption('ОУР', ourTax, '10-15% + соцналог 2 МРП/мес', false));
-
-    // Сортируем по стоимости
-    regimes.sort((a, b) => a.total.compareTo(b.total));
-    final best = regimes.first;
-    final current = regimes.firstWhere((r) => r.isCurrent, orElse: () => regimes.first);
-
-    // Если текущий режим не самый выгодный
-    final saving = current.total - best.total;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Row(children: [
-            Icon(Iconsax.chart, color: EsepColors.primary, size: 18),
-            SizedBox(width: 8),
-            Text('Какой режим выгоднее?',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: EsepColors.textPrimary)),
-          ]),
-          const SizedBox(height: 12),
-          // Список режимов
-          ...regimes.asMap().entries.map((e) {
-            final i = e.key;
-            final r = e.value;
-            final isBest = i == 0;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(children: [
-                Container(
-                  width: 20, height: 20,
-                  decoration: BoxDecoration(
-                    color: isBest ? EsepColors.income.withValues(alpha: 0.15) :
-                           r.isCurrent ? EsepColors.primary.withValues(alpha: 0.15) :
-                           EsepColors.surface,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isBest ? EsepColors.income : r.isCurrent ? EsepColors.primary : EsepColors.divider,
-                    ),
-                  ),
-                  child: isBest
-                      ? const Icon(Icons.check, size: 12, color: EsepColors.income)
-                      : r.isCurrent
-                          ? const Icon(Icons.circle, size: 6, color: EsepColors.primary)
-                          : null,
-                ),
-                const SizedBox(width: 8),
-                Expanded(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      Text(r.name,
-                          style: TextStyle(fontSize: 13, fontWeight: isBest || r.isCurrent ? FontWeight.w600 : FontWeight.w400)),
-                      if (isBest) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: EsepColors.income.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text('Выгоднее', style: TextStyle(fontSize: 9, color: EsepColors.income, fontWeight: FontWeight.w600)),
-                        ),
-                      ],
-                      if (r.isCurrent && !isBest) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: EsepColors.primary.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text('Текущий', style: TextStyle(fontSize: 9, color: EsepColors.primary, fontWeight: FontWeight.w600)),
-                        ),
-                      ],
-                    ]),
-                    Text(r.subtitle, style: const TextStyle(fontSize: 11, color: EsepColors.textSecondary)),
-                  ],
-                )),
-                Text('${fmt.format(r.total)} ₸',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-                        color: isBest ? EsepColors.income : EsepColors.textPrimary)),
-              ]),
-            );
-          }),
-          // Экономия
-          if (saving > 1000 && !best.isCurrent) ...[
-            const Divider(height: 16),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: EsepColors.income.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(children: [
-                const Icon(Iconsax.money_recive, color: EsepColors.income, size: 16),
-                const SizedBox(width: 8),
-                Expanded(child: Text(
-                  'Переход на ${best.name} сэкономит ${fmt.format(saving)} ₸ за полугодие',
-                  style: const TextStyle(fontSize: 12, color: EsepColors.income, fontWeight: FontWeight.w500),
-                )),
-              ]),
-            ),
-          ],
-        ]),
-      ),
-    );
-  }
-}
-
-class _RegimeOption {
-  final String name;
-  final double total;
-  final String subtitle;
-  final bool isCurrent;
-  _RegimeOption(this.name, this.total, this.subtitle, this.isCurrent);
-}
-
 class _Legend extends StatelessWidget {
   const _Legend({required this.color, required this.label});
   final Color color;
@@ -1473,7 +764,7 @@ class _FeatureTourBanner extends StatelessWidget {
     _TourTip(
       icon: Iconsax.arrow_circle_up,
       title: 'Записывайте доходы',
-      body: 'Нажмите "+ Доход" когда получили оплату. Esep сам посчитает ваш налог.',
+      body: 'Добавляйте операции кнопкой «+» на вкладке «Деньги». Esep сам посчитает ваш налог.',
       color: EsepColors.income,
     ),
     _TourTip(
@@ -1497,7 +788,7 @@ class _FeatureTourBanner extends StatelessWidget {
     _TourTip(
       icon: Iconsax.document_download,
       title: 'Отчёт — одной кнопкой',
-      body: 'Когда придёт время — нажмите "Отчёт" и отправьте готовый файл в налоговую.',
+      body: 'Когда придёт время — иконка отчёта вверху главной соберёт PDF или Excel.',
       color: EsepColors.primary,
     ),
   ];
