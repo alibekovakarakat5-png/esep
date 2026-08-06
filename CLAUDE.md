@@ -117,7 +117,9 @@ server/
 │   │   ├── auth-recovery.js           # Telegram bind only
 │   │   ├── admin.js                   # ⚠ ВКЛАДКИ: Users, Payments, Фидбек, Курс (черновик), Налоги, Статьи, Промокоды
 │   │   ├── feedback.js                # POST /feedback (для бета-тестеров)
-│   │   └── ai-chat.js
+│   │   ├── ai-chat.js
+│   │   └── tax.js                     # ПУБЛИЧНЫЙ /api/tax: POST /calculate + /form910 (см. §15)
+│   ├── services/tax/                  # ⚠ TAX CORE — единственный источник налоговой математики на Node (см. §15)
 │   ├── data/
 │   │   └── esep_platform_knowledge.js # ⚠ База знаний AI-чата (содержит урок 1 + платформа)
 │   └── bot/telegram.js                # /reset, notifyNewUser
@@ -130,7 +132,8 @@ esep-landing/
 ├── blog-nalogi-ip-2026.html
 ├── blog-opvr-2026.html
 ├── blog-samozanyatye-2026.html
-├── calculator.html
+├── calculator.html                   # считает через tax-core.js (глобаль EsepTax) — формул в странице нет
+├── tax-core.js                       # СГЕНЕРИРОВАН из server/src/services/tax — не править руками (см. §15)
 ├── nk2026/                           # ⚠ ВЕСЬ РАЗДЕЛ noindex, скрыт из навигации
 │   ├── _styles.css                   # общий CSS кластера
 │   ├── index.html                    # хаб-путеводитель
@@ -654,3 +657,53 @@ node scripts/test_webkassa_smoke.js
   Тарификация enterprise — индивидуально, не через стандартные тарифы
   free/solo/etc. Биллинг — по `monthly_quota` запросов или per-transaction
   через `platform_audit_log`.
+
+---
+
+## 15. Tax Core на Node — единый источник налоговой математики
+
+**Дата раздела:** 2026-08-06. Спека: `docs/superpowers/specs/2026-08-06-tax-core-node-design.md`
+(волны 1–5 реализованы этой датой, см. HANDOFF).
+
+### Что это
+
+Вся налоговая математика НК-2026 живёт в **`server/src/services/tax/`**
+(чистые функции, ставки первым аргументом, без Express/БД):
+
+| Файл | Что |
+|---|---|
+| `calc.js` | 11 чистых функций: 910, соцплатежи, прогрессивный ИПН, самозанятые, ТОО, лимиты |
+| `rates.js` | `DEFAULT_RATES` (канон 2026) + `resolveRates` + `loadRates(db)` — ставки из `tax_config` с fallback |
+| `form910.js` | Форма 910.00: `calculateForm910` + XML (СОНО) / JSON (ИСНА), дата инъектируется |
+| `__fixtures__/` | ЕДИНЫЕ эталоны вход→выход — гоняются и Node-тестами, и Dart-тестом |
+
+### Потребители
+
+1. **Platform API** — `income_limit.js` и `process_payment.js` берут лимит 300 МРП
+   через `loadRates(db)` (хардкода `MRP_2026 = 4325` больше нет; правка
+   `tax_config` в админке мгновенно меняет лимиты API).
+2. **Лендинг** — `esep-landing/tax-core.js` (16 KB, IIFE, глобаль `EsepTax`):
+   `cd server && npm run build:tax-core`. `calculator.html` формул не содержит.
+   Синхронность бандла с исходником стережёт `server/test/tax_bundle.test.js`.
+3. **`POST /api/tax/calculate`** (публичный, rate-limit 30/мин/IP) — режимы
+   `910 | self_employed | general | too`, в каждом ответе `ratesVersion`.
+   **`POST /api/tax/form910`** — XML/JSON формы 910 из транзакций.
+   E2e: `server/scripts/test_tax_api_e2e.js`.
+4. **Flutter** — НЕ переплюмблен (считает своим Dart-кодом + ставки с сервера);
+   паритет стережёт `test/tax_core_fixtures_test.dart` на тех же фикстурах —
+   гоняется ТОЛЬКО в CI (job `tests` в `build-release.yml`, блокирует сборки).
+
+### ⚠ Грабли
+
+- **esbuild запинен на 0.27.3** — бинарь 0.28.x блокируется Device Guard.
+  Не обновлять devDependency в `server/`.
+- Правишь формулы в `services/tax/` → пересобери бандл (`npm run build:tax-core`),
+  иначе упадёт `tax_bundle.test.js`. Правишь Dart-формулы → упадёт паритет в CI.
+- Лендинг деплоится из ВЛОЖЕННОГО репо `esep-landing/.git` (Vercel, ветка
+  `master`): закоммитить там `calculator.html` + `tax-core.js` и запушить.
+- В `calculator.html` два клиентских фикса против прода: скидка маслихата
+  теперь честные −2 п.п. (было −1 из-за деления на два компонента) и
+  прогрессивный ОУР 10/15% (был плоский 10%).
+- Остаточный хардкод ставок: `bot/telegram.js` (свой `getTaxConfig` — перевести
+  на `services/tax` при случае), demo-скрипт `test-platform-limit.js`.
+  `diagnosis_service.dart` хранит снимки ставок ГОДА (2025 vs 2026) — так и надо.
