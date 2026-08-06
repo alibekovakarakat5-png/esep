@@ -10,6 +10,10 @@ on:
       - 'ios/**'
       - 'web/**'
       - '.github/workflows/**'
+      # Tax core: общие фикстуры Dart ↔ Node + серверные тесты (волна 5 спеки)
+      - 'test/**'
+      - 'server/**'
+      - 'esep-landing/tax-core.js'
   workflow_dispatch:  # manual trigger
 
 permissions:
@@ -18,8 +22,46 @@ permissions:
   id-token: write
 
 jobs:
+  # ── Тесты: паритет Dart ↔ Node (tax core) + серверные юниты ─────────────────
+  # Разъехались формулы Dart и services/tax — job падает, сборки не выходят.
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: beta
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Паритет Dart ↔ Node — единые фикстуры tax core
+        run: flutter test test/tax_core_fixtures_test.dart
+
+      # Остальные Dart-тесты ни разу не исполнялись (локально dart.exe
+      # заблокирован, в CI тестов не было) — пока не блокируют сборку.
+      # Когда прогон стабилизируется — убрать continue-on-error.
+      - name: Остальные Dart-тесты (не блокируют)
+        continue-on-error: true
+        run: flutter test
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Server-тесты (tax core, форма 910, синхронность tax-core.js)
+        working-directory: server
+        run: |
+          npm ci
+          npm test
+
   # ── Android APK ──────────────────────────────────────────────────────────────
   build-android:
+    needs: [tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -86,6 +128,7 @@ jobs:
 
   # ── Web (Flutter Web → GitHub Pages) ────────────────────────────────────────
   build-web:
+    needs: [tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
