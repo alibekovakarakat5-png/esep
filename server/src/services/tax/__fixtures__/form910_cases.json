@@ -1,0 +1,207 @@
+{
+  "_source": "Эталоны формы 910.00. Значения сняты чтением lib/core/services/form910_service.dart @ f1acaa1 (2026-08-06). Ставки — rates_2026.json.",
+  "_note": "expectedXml для кейса h1-main лежит в form910_h1.expected.xml, плейсхолдер {{GEN_DATE}} подставляется датой генерации (dd.MM.yyyy).",
+  "cases": [
+    {
+      "id": "h1-main",
+      "input": {
+        "iin": "850101300123",
+        "fullName": "ИП Тестова А.Б.",
+        "halfYear": 1,
+        "year": 2026,
+        "employeeCount": 2,
+        "totalPayroll": 400000,
+        "transactions": [
+          { "date": "2026-03-15", "amount": 2000000, "isIncome": true, "source": "kaspi" },
+          { "date": "2026-05-10", "amount": 1500000, "isIncome": true, "source": "нал" },
+          { "date": "2026-06-30", "amount": 300000, "isIncome": false, "source": "kaspi" },
+          { "date": "2026-07-01", "amount": 999999, "isIncome": true, "source": "kaspi" },
+          { "date": "2025-03-15", "amount": 500000, "isIncome": true, "source": "kaspi" }
+        ]
+      },
+      "expected": {
+        "iin": "850101300123",
+        "fullName": "ИП Тестова А.Б.",
+        "halfYear": 1,
+        "year": 2026,
+        "declarationType": "очередная",
+        "income": 3500000,
+        "incomeNonCash": 2000000,
+        "incomeEcommerce": 0,
+        "transferPricing": 0,
+        "avgEmployees": 2,
+        "avgMonthlyWage": 200000,
+        "calculatedTax": 140000,
+        "taxAdjustment": 0,
+        "netTax": 140000,
+        "ipn": 140000,
+        "socialTax": 0,
+        "soIncome": 510000,
+        "soAmount": 25500,
+        "opvIncome": 510000,
+        "opvAmount": 51000,
+        "opvrAmount": 17850,
+        "vosmsAmount": 35700,
+        "totalTax": 140000,
+        "totalSocial": 130050,
+        "grandTotal": 270050,
+        "periodLabel": "1-е полугодие 2026"
+      },
+      "expectedFields": {
+        "field_910_00_001": 3500000,
+        "field_910_00_001_A": 2000000,
+        "field_910_00_001_B": 0,
+        "field_910_00_002": 0,
+        "field_910_00_003": 2,
+        "field_910_00_004": 200000,
+        "field_910_00_005": 140000,
+        "field_910_00_006": 0,
+        "field_910_00_007": 140000,
+        "field_910_00_008": 140000,
+        "field_910_00_009": 0,
+        "field_910_00_010": 510000,
+        "field_910_00_011": 25500,
+        "field_910_00_012": 510000,
+        "field_910_00_013": 51000,
+        "field_910_00_014": 17850,
+        "field_910_00_015": 35700
+      }
+    },
+    {
+      "id": "h2-filters-second-half",
+      "input": {
+        "iin": "850101300123",
+        "fullName": "ИП Тестова А.Б.",
+        "halfYear": 2,
+        "year": 2026,
+        "transactions": [
+          { "date": "2026-03-15", "amount": 2000000, "isIncome": true, "source": "kaspi" },
+          { "date": "2026-07-01", "amount": 999999, "isIncome": true, "source": "kaspi" },
+          { "date": "2026-12-31", "amount": 1, "isIncome": false, "source": "нал" }
+        ]
+      },
+      "expected": {
+        "iin": "850101300123",
+        "fullName": "ИП Тестова А.Б.",
+        "halfYear": 2,
+        "year": 2026,
+        "declarationType": "очередная",
+        "income": 999999,
+        "incomeNonCash": 999999,
+        "incomeEcommerce": 0,
+        "transferPricing": 0,
+        "avgEmployees": 0,
+        "avgMonthlyWage": 0,
+        "calculatedTax": 39999.96,
+        "taxAdjustment": 0,
+        "netTax": 39999.96,
+        "ipn": 39999.96,
+        "socialTax": 0,
+        "soIncome": 510000,
+        "soAmount": 25500,
+        "opvIncome": 510000,
+        "opvAmount": 51000,
+        "opvrAmount": 17850,
+        "vosmsAmount": 35700,
+        "totalTax": 39999.96,
+        "totalSocial": 130050,
+        "grandTotal": 170049.96,
+        "periodLabel": "2-е полугодие 2026"
+      }
+    },
+    {
+      "id": "born-before-1975-no-opvr",
+      "input": {
+        "iin": "600101300123",
+        "fullName": "ИП Ветеран",
+        "halfYear": 1,
+        "year": 2026,
+        "bornBefore1975": true,
+        "transactions": [
+          { "date": "2026-01-10", "amount": 1000000, "isIncome": true, "source": "перевод" }
+        ]
+      },
+      "expected": {
+        "iin": "600101300123",
+        "fullName": "ИП Ветеран",
+        "halfYear": 1,
+        "year": 2026,
+        "declarationType": "очередная",
+        "income": 1000000,
+        "incomeNonCash": 1000000,
+        "incomeEcommerce": 0,
+        "transferPricing": 0,
+        "avgEmployees": 0,
+        "avgMonthlyWage": 0,
+        "calculatedTax": 40000,
+        "taxAdjustment": 0,
+        "netTax": 40000,
+        "ipn": 40000,
+        "socialTax": 0,
+        "soIncome": 510000,
+        "soAmount": 25500,
+        "opvIncome": 510000,
+        "opvAmount": 51000,
+        "opvrAmount": 0,
+        "vosmsAmount": 35700,
+        "totalTax": 40000,
+        "totalSocial": 112200,
+        "grandTotal": 152200,
+        "periodLabel": "1-е полугодие 2026"
+      }
+    },
+    {
+      "id": "no-transactions-social-still-due",
+      "input": {
+        "iin": "850101300123",
+        "fullName": "ИП Тестова А.Б.",
+        "halfYear": 1,
+        "year": 2026,
+        "transactions": []
+      },
+      "expected": {
+        "iin": "850101300123",
+        "fullName": "ИП Тестова А.Б.",
+        "halfYear": 1,
+        "year": 2026,
+        "declarationType": "очередная",
+        "income": 0,
+        "incomeNonCash": 0,
+        "incomeEcommerce": 0,
+        "transferPricing": 0,
+        "avgEmployees": 0,
+        "avgMonthlyWage": 0,
+        "calculatedTax": 0,
+        "taxAdjustment": 0,
+        "netTax": 0,
+        "ipn": 0,
+        "socialTax": 0,
+        "soIncome": 510000,
+        "soAmount": 25500,
+        "opvIncome": 510000,
+        "opvAmount": 51000,
+        "opvrAmount": 17850,
+        "vosmsAmount": 35700,
+        "totalTax": 0,
+        "totalSocial": 130050,
+        "grandTotal": 130050,
+        "periodLabel": "1-е полугодие 2026"
+      }
+    }
+  ],
+  "xmlCase": {
+    "caseId": "h1-main",
+    "now": "2026-08-06T12:00:00",
+    "genDate": "06.08.2026",
+    "expectedXmlFile": "form910_h1.expected.xml"
+  },
+  "declarationTypes": [
+    { "type": "очередная", "field": "dt_main" },
+    { "type": "дополнительная", "field": "dt_additional" },
+    { "type": "ликвидационная", "field": "dt_final" }
+  ],
+  "xmlEscaping": {
+    "fullName": "ТОО \"Рога & Копыта\" <тест>'",
+    "expectedInXml": "<payer_name1>ТОО &quot;Рога &amp; Копыта&quot; &lt;тест&gt;&apos;</payer_name1>"
+  }
+}

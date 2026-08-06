@@ -1,0 +1,413 @@
+{
+  "_source": "Эталонные пары вход→выход. Ожидаемые значения сняты чтением lib/core/constants/kz_tax_constants.dart @ f1acaa1 (2026-08-06) и пересчитаны вручную c независимой проверкой. Ставки — rates_2026.json, если нет ratesOverride.",
+  "_contract": "Числа сравнивать с относительной толерантностью 1e-9 (IEEE double). Формы ответов повторяют Dart-классы TaxCalculation910 / SocialPayments / FullTaxSummary / TooTaxCalculation.",
+  "cases": [
+    {
+      "id": "910-base-4-69m",
+      "fn": "calculate910",
+      "income": 4690000,
+      "options": {},
+      "expected": {
+        "income": 4690000,
+        "ipn": 187600,
+        "sn": 0,
+        "totalTax": 187600,
+        "effectiveIpnRate": 0.04,
+        "effectiveSnRate": 0,
+        "effectiveRate": 0.04
+      }
+    },
+    {
+      "id": "910-regional-discount-2pct",
+      "fn": "calculate910",
+      "income": 4690000,
+      "options": { "regionalDiscount": 0.02 },
+      "expected": {
+        "income": 4690000,
+        "ipn": 93800,
+        "sn": 0,
+        "totalTax": 93800,
+        "effectiveIpnRate": 0.02,
+        "effectiveSnRate": 0,
+        "effectiveRate": 0.02
+      }
+    },
+    {
+      "id": "910-maslikhat-plus-2pct",
+      "fn": "calculate910",
+      "income": 4690000,
+      "options": { "regionalAdjustment": 0.02 },
+      "expected": {
+        "income": 4690000,
+        "ipn": 281400,
+        "sn": 0,
+        "totalTax": 281400,
+        "effectiveIpnRate": 0.06,
+        "effectiveSnRate": 0,
+        "effectiveRate": 0.06
+      }
+    },
+    {
+      "id": "910-maslikhat-minus-1pct",
+      "fn": "calculate910",
+      "income": 4690000,
+      "options": { "regionalAdjustment": -0.01 },
+      "expected": {
+        "income": 4690000,
+        "ipn": 140700,
+        "sn": 0,
+        "totalTax": 140700,
+        "effectiveIpnRate": 0.03,
+        "effectiveSnRate": 0,
+        "effectiveRate": 0.03
+      }
+    },
+    {
+      "id": "910-adjustment-beats-discount",
+      "fn": "calculate910",
+      "income": 4690000,
+      "options": { "regionalAdjustment": 0.01, "regionalDiscount": 0.02 },
+      "expected": {
+        "income": 4690000,
+        "ipn": 234500,
+        "sn": 0,
+        "totalTax": 234500,
+        "effectiveIpnRate": 0.05,
+        "effectiveSnRate": 0,
+        "effectiveRate": 0.05
+      }
+    },
+    {
+      "id": "910-discount-overflow-clamps-to-zero",
+      "fn": "calculate910",
+      "income": 4690000,
+      "options": { "regionalDiscount": 0.06 },
+      "expected": {
+        "income": 4690000,
+        "ipn": 0,
+        "sn": 0,
+        "totalTax": 0,
+        "effectiveIpnRate": 0,
+        "effectiveSnRate": 0,
+        "effectiveRate": 0
+      }
+    },
+    {
+      "id": "910-zero-income",
+      "fn": "calculate910",
+      "income": 0,
+      "options": {},
+      "expected": {
+        "income": 0,
+        "ipn": 0,
+        "sn": 0,
+        "totalTax": 0,
+        "effectiveIpnRate": 0.04,
+        "effectiveSnRate": 0,
+        "effectiveRate": 0
+      }
+    },
+    {
+      "id": "social-monthly-default",
+      "fn": "calculateMonthlySocial",
+      "options": {},
+      "expected": {
+        "opv": 8500,
+        "opvr": 2975,
+        "so": 4250,
+        "vosms": 5950,
+        "total": 21675
+      }
+    },
+    {
+      "id": "social-monthly-born-before-1975",
+      "fn": "calculateMonthlySocial",
+      "options": { "bornBefore1975": true },
+      "expected": {
+        "opv": 8500,
+        "opvr": 0,
+        "so": 4250,
+        "vosms": 5950,
+        "total": 18700
+      }
+    },
+    {
+      "id": "full910-base-4-69m",
+      "fn": "calculateFull910",
+      "income": 4690000,
+      "options": {},
+      "expected": {
+        "tax": {
+          "income": 4690000,
+          "ipn": 187600,
+          "sn": 0,
+          "totalTax": 187600,
+          "effectiveIpnRate": 0.04,
+          "effectiveSnRate": 0,
+          "effectiveRate": 0.04
+        },
+        "monthlySocial": {
+          "opv": 8500,
+          "opvr": 2975,
+          "so": 4250,
+          "vosms": 5950,
+          "total": 21675
+        },
+        "socialHalfYear": 130050,
+        "grandTotal": 317650,
+        "effectiveRate": 0.06772921108742004
+      }
+    },
+    {
+      "id": "full910-born-before-1975",
+      "fn": "calculateFull910",
+      "income": 4690000,
+      "options": { "bornBefore1975": true },
+      "expected": {
+        "tax": {
+          "income": 4690000,
+          "ipn": 187600,
+          "sn": 0,
+          "totalTax": 187600,
+          "effectiveIpnRate": 0.04,
+          "effectiveSnRate": 0,
+          "effectiveRate": 0.04
+        },
+        "monthlySocial": {
+          "opv": 8500,
+          "opvr": 0,
+          "so": 4250,
+          "vosms": 5950,
+          "total": 18700
+        },
+        "socialHalfYear": 112200,
+        "grandTotal": 299800,
+        "effectiveRate": 0.06392324093816631
+      }
+    },
+    {
+      "id": "progressive-ipn-below-threshold",
+      "fn": "calculateProgressiveIpn",
+      "income": 10000000,
+      "expected": 1000000
+    },
+    {
+      "id": "progressive-ipn-at-threshold",
+      "fn": "calculateProgressiveIpn",
+      "income": 36762500,
+      "expected": 3676250
+    },
+    {
+      "id": "progressive-ipn-above-threshold",
+      "fn": "calculateProgressiveIpn",
+      "income": 50000000,
+      "expected": 5661875
+    },
+    {
+      "id": "progressive-ipn-zero",
+      "fn": "calculateProgressiveIpn",
+      "income": 0,
+      "expected": 0
+    },
+    {
+      "id": "progressive-ipn-negative",
+      "fn": "calculateProgressiveIpn",
+      "income": -100,
+      "expected": 0
+    },
+    {
+      "id": "self-employed-tax-1m",
+      "fn": "calculateSelfEmployed",
+      "income": 1000000,
+      "expected": 40000
+    },
+    {
+      "id": "too-vat-payer-3-employees",
+      "fn": "calculateTooTax",
+      "input": {
+        "income": 50000000,
+        "expenses": 30000000,
+        "isVatPayer": true,
+        "employeeCount": 3,
+        "monthlyPayroll": 300000
+      },
+      "expected": {
+        "income": 50000000,
+        "expenses": 30000000,
+        "taxableIncome": 20000000,
+        "kpn": 4000000,
+        "vatReceived": 8000000,
+        "vatPaid": 4800000,
+        "vatPayable": 3200000,
+        "socialTax": 54000,
+        "netProfit": 16000000,
+        "dividendTax": 800000,
+        "totalTax": 7200000,
+        "effectiveRate": 0.144
+      }
+    },
+    {
+      "id": "too-non-vat-no-employees",
+      "fn": "calculateTooTax",
+      "input": {
+        "income": 10000000,
+        "expenses": 4000000
+      },
+      "expected": {
+        "income": 10000000,
+        "expenses": 4000000,
+        "taxableIncome": 6000000,
+        "kpn": 1200000,
+        "vatReceived": 0,
+        "vatPaid": 0,
+        "vatPayable": 0,
+        "socialTax": 0,
+        "netProfit": 4800000,
+        "dividendTax": 240000,
+        "totalTax": 1200000,
+        "effectiveRate": 0.12
+      }
+    },
+    {
+      "id": "too-kpn-override-agro-3pct",
+      "fn": "calculateTooTax",
+      "input": {
+        "income": 50000000,
+        "expenses": 30000000,
+        "isVatPayer": true,
+        "kpnRateOverride": 0.03
+      },
+      "expected": {
+        "income": 50000000,
+        "expenses": 30000000,
+        "taxableIncome": 20000000,
+        "kpn": 600000,
+        "vatReceived": 8000000,
+        "vatPaid": 4800000,
+        "vatPayable": 3200000,
+        "socialTax": 0,
+        "netProfit": 19400000,
+        "dividendTax": 970000,
+        "totalTax": 3800000,
+        "effectiveRate": 0.076
+      }
+    },
+    {
+      "id": "too-kpn-override-zero-small-business",
+      "fn": "calculateTooTax",
+      "input": {
+        "income": 50000000,
+        "expenses": 30000000,
+        "isVatPayer": true,
+        "kpnRateOverride": 0
+      },
+      "expected": {
+        "income": 50000000,
+        "expenses": 30000000,
+        "taxableIncome": 20000000,
+        "kpn": 0,
+        "vatReceived": 8000000,
+        "vatPaid": 4800000,
+        "vatPayable": 3200000,
+        "socialTax": 0,
+        "netProfit": 20000000,
+        "dividendTax": 1000000,
+        "totalTax": 3200000,
+        "effectiveRate": 0.064
+      }
+    },
+    {
+      "id": "too-loss-clamps-to-zero",
+      "fn": "calculateTooTax",
+      "input": {
+        "income": 1000000,
+        "expenses": 2000000,
+        "isVatPayer": true
+      },
+      "expected": {
+        "income": 1000000,
+        "expenses": 2000000,
+        "taxableIncome": 0,
+        "kpn": 0,
+        "vatReceived": 160000,
+        "vatPaid": 320000,
+        "vatPayable": 0,
+        "socialTax": 0,
+        "netProfit": 0,
+        "dividendTax": 0,
+        "totalTax": 0,
+        "effectiveRate": 0
+      }
+    },
+    {
+      "id": "self-employed-limit",
+      "fn": "selfEmployedLimit",
+      "expected": {
+        "monthlyTenge": 1297500,
+        "yearlyTenge": 15570000
+      }
+    },
+    {
+      "id": "vat-threshold",
+      "fn": "vatThreshold",
+      "expected": {
+        "thresholdTenge": 43250000,
+        "rate": 0.16
+      }
+    },
+    {
+      "id": "limit-910-year",
+      "fn": "simplified910YearLimit",
+      "expected": 2595000000
+    },
+    {
+      "id": "limit-910-half-year",
+      "fn": "simplified910HalfYearLimit",
+      "expected": 1297500000
+    },
+    {
+      "id": "ip-social-tax-our-self-only",
+      "fn": "ipMonthlySocialTax",
+      "options": {},
+      "expected": 8650
+    },
+    {
+      "id": "ip-social-tax-our-3-employees",
+      "fn": "ipMonthlySocialTax",
+      "options": { "employees": 3 },
+      "expected": 21625
+    },
+    {
+      "id": "custom-rates-910-uses-passed-rates",
+      "fn": "calculate910",
+      "ratesOverride": { "mrp": 5000, "ipn_rate_910": 0.06 },
+      "income": 1000000,
+      "options": {},
+      "expected": {
+        "income": 1000000,
+        "ipn": 60000,
+        "sn": 0,
+        "totalTax": 60000,
+        "effectiveIpnRate": 0.06,
+        "effectiveSnRate": 0,
+        "effectiveRate": 0.06
+      }
+    },
+    {
+      "id": "custom-rates-self-employed-limit",
+      "fn": "selfEmployedLimit",
+      "ratesOverride": { "mrp": 5000 },
+      "expected": {
+        "monthlyTenge": 1500000,
+        "yearlyTenge": 18000000
+      }
+    },
+    {
+      "id": "custom-rates-progressive-threshold-moves",
+      "fn": "calculateProgressiveIpn",
+      "ratesOverride": { "mrp": 5000 },
+      "income": 42500000,
+      "expected": 4250000
+    }
+  ]
+}
