@@ -98,13 +98,56 @@ function fetchFromStatGov(bin) {
   });
 }
 
-function normalize(bin, raw) {
+/**
+ * Источник 2: КГД ИСНА (официальный реестр).
+ *
+ * Работает по токену X-Portal-Token, выданному КГД. Из доступных нам методов
+ * данные отдаёт только /open-api/global/find-risk-degree: официальное
+ * наименование + степень риска налогоплательщика.
+ *
+ * СНР и ОКЭД этот метод НЕ возвращает — они закрыты reCAPTCHA
+ * (см. письмо в КГД: Esep-pismo-kgd-isna.pdf).
+ */
+function fetchFromKgd(code) {
+  return new Promise((resolve, reject) => {
+    const token = process.env.KGD_API_TOKEN;
+    const base = process.env.KGD_ISNA_BASE_URL || 'https://knp.kgd.gov.kz';
+    if (!token) return reject(new Error('KGD_API_TOKEN не задан'));
+
+    const url = `${base}/services/isnaportalsync/open-api/global/find-risk-degree`
+      + `?taxpayerCode=${encodeURIComponent(code)}`;
+
+    const req = https.get(url, { timeout: 10000, headers: { 'X-Portal-Token': token } }, (res) => {
+      if (res.statusCode !== 200) {
+        return reject(new Error(`КГД ответил ${res.statusCode}`));
+      }
+      let buf = '';
+      res.on('data', (c) => (buf += c));
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(buf);
+          // КГД отдаёт 200 с errorResponse, если запрос не отработал
+          if (json?.errorResponse || !json?.name) {
+            return reject(new Error(json?.errorResponse?.errorMessage || 'нет данных в реестре КГД'));
+          }
+          resolve(json);
+        } catch {
+          reject(new Error('Не удалось разобрать ответ КГД'));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('Таймаут запроса к КГД')); });
+  });
+}
+
+function normalize(bin, raw, kgd = null) {
   const obj = raw?.obj || raw;
   const entity = parseEntityType(bin);
 
   return {
     bin,
-    found_in_registry: Boolean(obj?.name || obj?.NameRu),
+    found_in_registry: Boolean(obj?.name || obj?.NameRu || kgd?.name),
     entity_type: {
       code: entity.code,
       name: entity.name,
@@ -112,7 +155,8 @@ function normalize(bin, raw) {
       is_ip: entity.isIP,
       is_individual: entity.kind === 'individual',
     },
-    name: obj?.name || obj?.NameRu || null,
+    // Наименование от КГД приоритетнее — это официальный реестр
+    name: kgd?.name || obj?.name || obj?.NameRu || null,
     director: obj?.fio || obj?.HeadFio || null,
     address: obj?.address || obj?.Address || null,
     registration_date: obj?.registrationDate || obj?.RegDate || null,
@@ -129,7 +173,15 @@ function normalize(bin, raw) {
       kato_code: obj?.katoCode || null,
       address: obj?.katoAddress || null,
     },
-    source: 'stat.gov.kz',
+    // Степень риска — только у КГД, в stat.gov.kz такого нет
+    risk_degree: kgd ? {
+      degree: kgd.degree || null,
+      relevance_date: kgd.relevanceDate || null,
+      begin_date: kgd.beginDate || null,
+      end_date: kgd.endDate || null,
+    } : null,
+    sources: [kgd ? 'КГД ИСНА' : null, obj?.name || obj?.NameRu ? 'stat.gov.kz' : null].filter(Boolean),
+    source: kgd ? 'КГД ИСНА' : 'stat.gov.kz',
     fetched_at: new Date().toISOString(),
   };
 }
@@ -172,28 +224,43 @@ router.get(
       return res.json({ ...cached, cache_hit: true });
     }
 
-    try {
-      const raw = await fetchFromStatGov(bin);
-      const data = normalize(bin, raw);
+    // Спрашиваем оба источника разом: КГД даёт официальное наименование и
+    // степень риска, stat.gov.kz — ОКЭД, адрес, руководителя. Падение одного
+    // не должно ронять ответ.
+    const [kgdRes, statRes] = await Promise.allSettled([
+      fetchFromKgd(bin),
+      fetchFromStatGov(bin),
+    ]);
+
+    const kgd = kgdRes.status === 'fulfilled' ? kgdRes.value : null;
+    const stat = statRes.status === 'fulfilled' ? statRes.value : null;
+    const errors = [];
+    if (kgdRes.status === 'rejected') errors.push(`КГД: ${kgdRes.reason.message}`);
+    if (statRes.status === 'rejected') errors.push(`stat.gov.kz: ${statRes.reason.message}`);
+
+    if (kgd || stat) {
+      const data = normalize(bin, stat, kgd);
+      // Часть источников могла отвалиться — говорим об этом прямо, но ответ отдаём
+      if (errors.length) data.partial_errors = errors;
       setCache(bin, data);
       return res.json({ ...data, cache_hit: false });
-    } catch (err) {
-      console.error(`[taxpayer] stat.gov.kz error for ${bin}:`, err.message);
-      const entity = parseEntityType(bin);
-      return res.status(502).json({
-        bin,
-        found_in_registry: false,
-        entity_type: {
-          code: entity.code,
-          name: entity.name,
-          kind: entity.kind,
-          is_ip: entity.isIP,
-        },
-        warning: 'Не удалось получить данные с stat.gov.kz, возвращены только данные из структуры БИН',
-        api_error: err.message,
-        source: 'fallback',
-      });
     }
+
+    console.error(`[taxpayer] все источники недоступны для ${bin}: ${errors.join('; ')}`);
+    const entity = parseEntityType(bin);
+    return res.status(502).json({
+      bin,
+      found_in_registry: false,
+      entity_type: {
+        code: entity.code,
+        name: entity.name,
+        kind: entity.kind,
+        is_ip: entity.isIP,
+      },
+      warning: 'Реестры недоступны, возвращены только данные из структуры БИН/ИИН',
+      api_error: errors.join('; '),
+      source: 'fallback',
+    });
   },
 );
 
