@@ -34,7 +34,6 @@ const cancelOrder = require('./cancel_order');
 const receipts = require('./receipts');
 const webhooks = require('./webhooks');
 const myAccount = require('./my_account');
-const adminSeed = require('./admin_seed');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/platform — описание API
@@ -91,7 +90,10 @@ router.use('/cancel-order', cancelOrder);        // ← Сервис #5 анну
 router.use('/receipts', receipts);               // ← Сервис #6 статус чеков
 router.use('/webhooks', webhooks);               // ← приём уведомлений от Webkassa
 router.use('/my-account', myAccount);            // ← для Flutter — JWT auth, не X-Platform-Key
-router.use('/admin-seed', adminSeed);            // ← одноразовое создание enterprise-юзера
+// /admin-seed отключён 2026-08-10: создавал enterprise-юзера с дефолтным паролем,
+// а при отсутствии PLATFORM_ADMIN_SECRET сверялся с JWT_SECRET (утечка одного секрета
+// = чужой доступ к Platform API). Ключи выдаём через scripts/seed_demo_courier_client.js.
+// Файл admin_seed.js оставлен в репо — при необходимости подключить временно.
 
 // TODO: подключим когда напишу
 // router.use('/fiscalize', fiscalize);

@@ -33,7 +33,31 @@ const API_KEY  = process.env.API_KEY  || null;
 // Известные ВАЛИДНЫЕ тестовые ИИН (сгенерированы алгоритмически):
 //   850101100012 — 1985-01-01, мужской, XX век
 //   900515200011 — 1990-05-15, женский, XX век
-const TEST_IIN = process.env.TEST_IIN || '850101100012';
+//
+// При прогоне против УДАЛЁННОГО API (прод) мы не можем почистить накопленный
+// доход через БД, а лимит 300 МРП считается помесячно нарастающим. Поэтому
+// берём каждый раз НОВЫЙ валидный ИИН — иначе второй прогон сразу упрётся в
+// LIMIT_REACHED из-за выплат предыдущего.
+const IS_REMOTE = !/^https?:\/\/(localhost|127\.0\.0\.1)/i.test(API_BASE);
+
+function freshValidIin() {
+  const { validateIinChecksum } = require('../src/services/iin_algorithm');
+  for (let attempt = 0; attempt < 500; attempt++) {
+    const yy = String(70 + Math.floor(Math.random() * 25)).padStart(2, '0');   // 1970–1994
+    const mm = String(1 + Math.floor(Math.random() * 12)).padStart(2, '0');
+    const dd = String(1 + Math.floor(Math.random() * 28)).padStart(2, '0');
+    const century = 1 + Math.floor(Math.random() * 2);                          // 1|2 — XX век
+    const seq = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+    const base = `${yy}${mm}${dd}${century}${seq}`;                             // 11 цифр
+    for (let d = 0; d < 10; d++) {
+      const candidate = base + d;
+      if (validateIinChecksum(candidate).valid) return candidate;
+    }
+  }
+  return '850101100012'; // не смогли подобрать — возвращаем известный
+}
+
+const TEST_IIN = process.env.TEST_IIN || (IS_REMOTE ? freshValidIin() : '850101100012');
 
 // ── HTTP helper ─────────────────────────────────────────────────────────────
 function request(method, path, body, headers = {}) {
@@ -93,6 +117,15 @@ function check(name, ok, details = '') {
 
 function section(title) {
   console.log('\n' + c.bold(c.cyan('━━ ' + title + ' ━━')));
+}
+
+// Часть проверок смотрит в БД напрямую. При прогоне против ПРОДА (API_BASE на
+// api.esepkz.com) локального DATABASE_URL обычно нет — тогда это не провал
+// продукта, а недоступная проверка. Считаем отдельно, не роняя тест.
+let skipped = 0;
+function skip(name, why) {
+  console.log(c.yellow('  ⤼   ') + name + c.yellow('  — пропущено: ' + why));
+  skipped++;
 }
 
 // ── Тесты ───────────────────────────────────────────────────────────────────
@@ -240,17 +273,20 @@ async function main() {
 
   // ── 10. Сценарий: исчерпание лимита ───────────────────────────────────────
   section('10. Сценарий LIMIT_REACHED — 6 выплат по 250 000 ₸ должны исчерпать лимит');
-  const stressIin = '900515200011'; // валидный: 1990-05-15, женский, XX век
-  // Идемпотентность: чистим данные stress-IIN от прошлых прогонов теста,
-  // иначе накопленные выплаты сразу дадут BLOCK на 1-й операции.
-  try {
-    const db = require('../src/db');
-    await db.query(
-      'DELETE FROM platform_self_employed_income WHERE iin = $1', [stressIin]);
-    await db.query(
-      'DELETE FROM platform_receipts WHERE iin = $1', [stressIin]);
-  } catch (e) {
-    console.log(c.yellow('  ⚠  Не смог очистить stress-IIN: ' + e.message));
+  // Локально — фиксированный ИИН + очистка через БД. Удалённо (прод) почистить
+  // нельзя, поэтому берём каждый раз новый валидный ИИН: иначе накопленные
+  // выплаты прошлых прогонов дают LIMIT_REACHED уже на 1-й операции.
+  const stressIin = IS_REMOTE ? freshValidIin() : '900515200011';
+  if (!IS_REMOTE) {
+    try {
+      const db = require('../src/db');
+      await db.query(
+        'DELETE FROM platform_self_employed_income WHERE iin = $1', [stressIin]);
+      await db.query(
+        'DELETE FROM platform_receipts WHERE iin = $1', [stressIin]);
+    } catch (e) {
+      console.log(c.yellow('  ⚠  Не смог очистить stress-IIN: ' + e.message));
+    }
   }
   // Сначала проверим валидность тестового ИИН
   const stressCheck = await request('POST', '/iin/validate', { iin: stressIin }, H);
@@ -317,6 +353,19 @@ async function main() {
   const idemDb = require('../src/db');
   const idemOrderId = `idem_${Date.now()}`;
   const idemAmount = 100000;
+
+  // БД-проверки имеют смысл, только если наша локальная БД — ЭТО ЖЕ САМАЯ база,
+  // с которой работает тестируемый API. При прогоне против удалённого хоста
+  // (прод) локальная БД — другая, и считать в ней строки бессмысленно.
+  const REMOTE = IS_REMOTE;
+  let DB_OK = false;
+  if (REMOTE) {
+    console.log(c.yellow('  ⚠  API удалённый (' + new URL(API_BASE).host + ') — проверки в локальной БД пропускаются'));
+  } else {
+    try { await idemDb.query('SELECT 1'); DB_OK = true; }
+    catch (e) { console.log(c.yellow('  ⚠  БД недоступна (' + e.message.slice(0, 60) + ')')); }
+  }
+
   // чистим от прошлых прогонов — тест должен быть повторяемым
   try {
     await idemDb.query("DELETE FROM platform_self_employed_income WHERE external_id LIKE 'idem%'");
@@ -333,17 +382,22 @@ async function main() {
     courier_iin: TEST_IIN, amount: idemAmount, order_id: idemOrderId, skip_taxpayer_check: true,
   }, H);
 
-  const idemInc = await idemDb.query(
-    `SELECT COALESCE(SUM(amount),0)::float AS s, COUNT(*)::int AS n
-       FROM platform_self_employed_income WHERE external_id = $1`, [idemOrderId]);
-  const idemRcp = await idemDb.query(
-    `SELECT COUNT(*)::int AS n FROM platform_receipts WHERE external_id = $1`, [idemOrderId]);
+  if (DB_OK) {
+    const idemInc = await idemDb.query(
+      `SELECT COALESCE(SUM(amount),0)::float AS s, COUNT(*)::int AS n
+         FROM platform_self_employed_income WHERE external_id = $1`, [idemOrderId]);
+    const idemRcp = await idemDb.query(
+      `SELECT COUNT(*)::int AS n FROM platform_receipts WHERE external_id = $1`, [idemOrderId]);
 
-  check('Доход записан один раз, не задвоен',
-    idemInc.rows[0].s === idemAmount,
-    `сумма ${idemInc.rows[0].s} в ${idemInc.rows[0].n} строк(ах), ожидалось ${idemAmount} в 1`);
-  check('Создан ровно один фискальный чек',
-    idemRcp.rows[0].n === 1, `чеков ${idemRcp.rows[0].n}, ожидался 1`);
+    check('Доход записан один раз, не задвоен',
+      idemInc.rows[0].s === idemAmount,
+      `сумма ${idemInc.rows[0].s} в ${idemInc.rows[0].n} строк(ах), ожидалось ${idemAmount} в 1`);
+    check('Создан ровно один фискальный чек',
+      idemRcp.rows[0].n === 1, `чеков ${idemRcp.rows[0].n}, ожидался 1`);
+  } else {
+    skip('Доход записан один раз, не задвоен', 'нужен прямой доступ к БД');
+    skip('Создан ровно один фискальный чек', 'нужен прямой доступ к БД');
+  }
   check('Повторный вызов помечен idempotent_replay',
     idem2.body?.idempotent_replay === true,
     `idempotent_replay = ${idem2.body?.idempotent_replay}`);
@@ -352,19 +406,27 @@ async function main() {
     `статусы ${idem1.status} / ${idem2.status}`);
 
   // recordIncome идемпотентен по external_id (прямой вызов функции)
-  const { recordIncome: recordIncomeFn } = require('../src/services/platform_db');
-  const idemKeyRow = await idemDb.query(
-    'SELECT id FROM platform_api_keys WHERE api_key = $1', [apiKey]);
-  const idemDirectExtId = `idem_direct_${Date.now()}`;
-  await recordIncomeFn({ apiKeyId: idemKeyRow.rows[0].id, iin: TEST_IIN, amount: 7000,
-    externalId: idemDirectExtId, paymentMethod: 'card', note: 'idem test' });
-  await recordIncomeFn({ apiKeyId: idemKeyRow.rows[0].id, iin: TEST_IIN, amount: 7000,
-    externalId: idemDirectExtId, paymentMethod: 'card', note: 'idem test' });
-  const idemDirect = await idemDb.query(
-    `SELECT COALESCE(SUM(amount),0)::float AS s FROM platform_self_employed_income
-      WHERE external_id = $1`, [idemDirectExtId]);
-  check('recordIncome идемпотентен по external_id',
-    idemDirect.rows[0].s === 7000, `сумма ${idemDirect.rows[0].s}, ожидалось 7000`);
+  if (DB_OK) {
+    const { recordIncome: recordIncomeFn } = require('../src/services/platform_db');
+    const idemKeyRow = await idemDb.query(
+      'SELECT id FROM platform_api_keys WHERE api_key = $1', [apiKey]);
+    if (idemKeyRow.rows[0]) {
+      const idemDirectExtId = `idem_direct_${Date.now()}`;
+      await recordIncomeFn({ apiKeyId: idemKeyRow.rows[0].id, iin: TEST_IIN, amount: 7000,
+        externalId: idemDirectExtId, paymentMethod: 'card', note: 'idem test' });
+      await recordIncomeFn({ apiKeyId: idemKeyRow.rows[0].id, iin: TEST_IIN, amount: 7000,
+        externalId: idemDirectExtId, paymentMethod: 'card', note: 'idem test' });
+      const idemDirect = await idemDb.query(
+        `SELECT COALESCE(SUM(amount),0)::float AS s FROM platform_self_employed_income
+          WHERE external_id = $1`, [idemDirectExtId]);
+      check('recordIncome идемпотентен по external_id',
+        idemDirect.rows[0].s === 7000, `сумма ${idemDirect.rows[0].s}, ожидалось 7000`);
+    } else {
+      skip('recordIncome идемпотентен по external_id', 'ключ не найден в локальной БД');
+    }
+  } else {
+    skip('recordIncome идемпотентен по external_id', 'нужен прямой доступ к БД');
+  }
 
   // ── 14. Откат лимита при cancel-order ────────────────────────────────────
   section('14. /cancel-order действительно откатывает учёт лимита');
@@ -410,7 +472,8 @@ async function main() {
 
   // ── Итог ──────────────────────────────────────────────────────────────────
   console.log('\n' + c.bold('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-  console.log(c.bold(`  ИТОГ:  ${c.green(passed + ' прошли')}, ${failed > 0 ? c.red(failed + ' упали') : c.green('0 упали')}`));
+  console.log(c.bold(`  ИТОГ:  ${c.green(passed + ' прошли')}, ${failed > 0 ? c.red(failed + ' упали') : c.green('0 упали')}`
+    + (skipped > 0 ? c.yellow(`, ${skipped} пропущено (нет доступа к БД)`) : '')));
   console.log(c.bold('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
   console.log('\nAPI-ключ для дальнейшего тестирования:\n  ' + apiKey + '\n');
 
