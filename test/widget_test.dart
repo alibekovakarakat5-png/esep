@@ -28,4 +28,16 @@ void main() {
     expect(find.byType(MaterialApp), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('тема всегда светлая — тёмная не спроектирована', (tester) async {
+    // Половина цветов захардкожена под светлый фон: в системной тёмной теме
+    // текст пропадал (имена банков тёмным по тёмному, серый текст на белых
+    // карточках). До полноценного редизайна тёмной темы следовать системной
+    // нельзя. Найдено Каракат 2026-08-12 на тёмной теме Windows.
+    await tester.pumpWidget(const ProviderScope(child: EsepApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(app.themeMode, ThemeMode.light);
+  });
 }

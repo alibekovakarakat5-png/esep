@@ -17,7 +17,9 @@ class EsepApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
+      // Только светлая: в тёмной теме половина цветов захардкожена под
+      // светлый фон (текст пропадает). Вернуть system после редизайна тёмной.
+      themeMode: ThemeMode.light,
       routerConfig: router,
       // Оборачиваем весь UI в красный баннер impersonation
       // (показывается только если AuthService.isImpersonated() == true)

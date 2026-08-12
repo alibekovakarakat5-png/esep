@@ -129,18 +129,18 @@ class KaspiParser {
   static KaspiParseResult parseFile(List<int> bytes, String fileName) {
     final ext = fileName.toLowerCase().split('.').last;
 
-    // PDF пока не разбираем — но объясняем, где взять поддерживаемый файл,
-    // вместо немого «не удалось распознать».
+    // PDF разбирается на сервере (POST /api/import/kaspi-pdf) — экран импорта
+    // уходит туда раньше, чем сюда. Эта ветка — запасная, если серверный
+    // разбор оказался недоступен.
     if (ext == 'pdf') {
       return const KaspiParseResult(
         rows: [],
         format: 'pdf',
         warnings: [
-          'PDF пока не поддерживается — нужна выписка в Excel или CSV.\n'
-              '• Kaspi Business: Личный кабинет → Счета → Выписка → Excel\n'
-              '• Kaspi Gold: приложение → Мой банк → Выписка → отправить на почту (xlsx)\n'
-              '• Halyk / Forte / Jusan / БЦК: интернет-банк → Счета → Выписка → XLS/CSV\n'
-              'Если у вашего банка только PDF — напишите нам, добавим разбор.'
+          'PDF-выписка Kaspi разбирается через сервер — проверьте интернет '
+              'и попробуйте ещё раз.\n'
+              'Для других банков берите выписку в Excel или CSV:\n'
+              '• Halyk / Forte / Jusan / БЦК: интернет-банк → Счета → Выписка → XLS/CSV'
         ],
       );
     }
@@ -148,7 +148,35 @@ class KaspiParser {
     if (ext == 'xlsx' || ext == 'xls') {
       return parseExcel(Uint8List.fromList(bytes));
     }
+
     return parseCsv(bytes);
+  }
+
+  /// Разбор PDF-выписки Kaspi Gold, выполненный сервером
+  /// (POST /api/import/kaspi-pdf) → тот же KaspiParseResult, что у
+  /// локального парсера Excel/CSV: предпросмотр и импорт не различают их.
+  static KaspiParseResult fromServerPdf(Map<dynamic, dynamic> json) {
+    final rawRows = (json['rows'] as List<dynamic>? ?? const []);
+    final rows = rawRows.map((raw) {
+      final r = raw as Map<dynamic, dynamic>;
+      final operation = (r['operation'] as String? ?? '').trim();
+      final details = (r['details'] as String? ?? '').trim();
+      return KaspiRow(
+        date: DateTime.parse(r['date'] as String),
+        amount: (r['amount'] as num).toDouble(),
+        isIncome: r['isIncome'] as bool? ?? false,
+        description: details.isNotEmpty ? details : operation,
+        counterparty:
+            operation == 'Перевод' && details.isNotEmpty ? details : null,
+      );
+    }).toList();
+
+    return KaspiParseResult(
+      rows: rows,
+      format: 'kaspi_gold_pdf',
+      warnings:
+          (json['warnings'] as List<dynamic>? ?? const []).cast<String>(),
+    );
   }
 
   /// Парсинг Excel (.xlsx) — основной формат Kaspi Business
