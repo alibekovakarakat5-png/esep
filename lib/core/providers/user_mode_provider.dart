@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import '../services/api_client.dart';
+import 'demo_provider.dart';
+
 /// Режим работы: ИП, ТОО или Бухгалтер
 enum UserMode { ip, too, accountant }
 
@@ -23,26 +26,42 @@ extension UserModeExt on UserMode {
 }
 
 class UserModeNotifier extends StateNotifier<UserMode?> {
-  UserModeNotifier() : super(null) {
+  final Ref _ref;
+  UserModeNotifier(this._ref) : super(null) {
     _load();
   }
 
   static const _boxName = 'settings';
   static const _key = 'user_mode';
 
+  static UserMode? _parse(String? raw) => switch (raw) {
+        'ip' => UserMode.ip,
+        'too' => UserMode.too,
+        'accountant' => UserMode.accountant,
+        _ => null,
+      };
+
   void _load() {
-    final box = Hive.box(_boxName);
-    final saved = box.get(_key);
-    if (saved != null) {
-      switch (saved) {
-        case 'ip': state = UserMode.ip;
-        case 'too': state = UserMode.too;
-        case 'accountant': state = UserMode.accountant;
-      }
+    final saved = _parse(Hive.box(_boxName).get(_key) as String?);
+    if (saved != null) state = saved;
+  }
+
+  /// Выбор пользователя: локально + в профиль на сервере, чтобы «Кто вы?»
+  /// не появлялся при повторном входе и на других устройствах.
+  void set(UserMode mode) {
+    state = mode;
+    Hive.box(_boxName).put(_key, mode.name);
+    // Fire-and-forget: офлайн или демо не должны ломать выбор режима.
+    if (!_ref.read(isDemoProvider)) {
+      ApiClient.patch('/auth/mode', {'mode': mode.name}).catchError((_) => null);
     }
   }
 
-  void set(UserMode mode) {
+  /// Режим из профиля на сервере (login / auth/me). Локальный выбор важнее:
+  /// применяем только если локально ещё ничего не выбрано.
+  void applyRemote(String? raw) {
+    final mode = _parse(raw);
+    if (mode == null || state != null) return;
     state = mode;
     Hive.box(_boxName).put(_key, mode.name);
   }
@@ -55,4 +74,4 @@ class UserModeNotifier extends StateNotifier<UserMode?> {
 
 /// null = не выбран (покажем экран выбора)
 final userModeProvider =
-    StateNotifierProvider<UserModeNotifier, UserMode?>((ref) => UserModeNotifier());
+    StateNotifierProvider<UserModeNotifier, UserMode?>(UserModeNotifier.new);

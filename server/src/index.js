@@ -85,6 +85,10 @@ async function migrate() {
     -- По умолчанию false — обычный пользователь. Меняется вручную в админке.
     ALTER TABLE users ADD COLUMN IF NOT EXISTS is_beta_tester BOOLEAN NOT NULL DEFAULT false;
 
+    -- Режим интерфейса (ip/too/accountant): выбирается один раз на экране
+    -- «Кто вы?», хранится в профиле — вход с нового устройства не спрашивает.
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS user_mode TEXT;
+
     -- Кастомная цена для B2B-клиентов (бухгалтерские фирмы).
     -- Если NULL — используем стандартный прайс тарифа.
     -- Если задано — это полная итоговая цена в ₸/мес (после всех скидок).

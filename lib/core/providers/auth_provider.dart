@@ -13,13 +13,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _check();
   }
 
+  /// Общий хвост входа: подписка + режим из профиля, затем authenticated.
+  /// Режим применяем ДО смены состояния — иначе редирект успеет показать
+  /// «Кто вы?» пользователю, который уже выбирал режим раньше.
+  void _applySnapshot(AuthSnapshot snapshot) {
+    _ref.read(subscriptionProvider.notifier).applyServerSnapshot(snapshot);
+    _ref.read(userModeProvider.notifier).applyRemote(snapshot.userMode);
+    state = AuthState.authenticated;
+  }
+
   Future<void> _check() async {
     final logged = await AuthService.isLoggedIn();
     if (logged) {
       try {
-        final snapshot = await AuthService.me();
-        _ref.read(subscriptionProvider.notifier).applyServerSnapshot(snapshot);
-        state = AuthState.authenticated;
+        _applySnapshot(await AuthService.me());
       } catch (_) {
         await AuthService.logout();
         state = AuthState.unauthenticated;
@@ -32,8 +39,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> login(String email, String password) async {
     final snapshot = await AuthService.login(email, password);
     _ref.read(isDemoProvider.notifier).state = false;
-    _ref.read(subscriptionProvider.notifier).applyServerSnapshot(snapshot);
-    state = AuthState.authenticated;
+    _applySnapshot(snapshot);
   }
 
   Future<void> register(
@@ -42,8 +48,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }) async {
     final snapshot = await AuthService.register(email, password, name, phone: phone);
     _ref.read(isDemoProvider.notifier).state = false;
-    _ref.read(subscriptionProvider.notifier).applyServerSnapshot(snapshot);
-    state = AuthState.authenticated;
+    _applySnapshot(snapshot);
   }
 
   /// Enter demo mode without server auth
