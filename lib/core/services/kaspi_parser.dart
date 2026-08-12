@@ -11,6 +11,12 @@ class KaspiRow {
   final String description;
   final String? counterparty;
   final double? balance;
+
+  /// Тип операции из PDF-выписки Kaspi Gold (Покупка/Перевод/Пополнение/
+  /// Снятие/Разное). null у Excel/CSV — там его нет. На нём работает
+  /// умный предвыбор галочек (ImportAutoSelect).
+  final String? operation;
+
   bool isIncome;          // можно менять вручную в UI
   bool selected;          // выбрана для импорта
   String? category;       // категория (авто или ручная)
@@ -21,6 +27,7 @@ class KaspiRow {
     required this.description,
     this.counterparty,
     this.balance,
+    this.operation,
     required this.isIncome,
     this.selected = true,
     this.category,
@@ -168,6 +175,7 @@ class KaspiParser {
         description: details.isNotEmpty ? details : operation,
         counterparty:
             operation == 'Перевод' && details.isNotEmpty ? details : null,
+        operation: operation.isNotEmpty ? operation : null,
       );
     }).toList();
 

@@ -76,6 +76,18 @@ class TransactionNotifier extends StateNotifier<List<Transaction>> {
     await _load();
   }
 
+  /// Массовое добавление одним запросом (сервер принимает массив).
+  /// Импорт выписки на сотни операций иначе делал бы по два запроса
+  /// на строку (POST + полная перезагрузка) и занимал минуты.
+  Future<void> addBulk(List<Transaction> txs) async {
+    if (txs.isEmpty) return;
+    await ApiClient.post(
+      '/transactions',
+      txs.map((t) => t.toJson()).toList(),
+    );
+    await _load();
+  }
+
   Future<void> remove(String id) async {
     await ApiClient.delete('/transactions/$id');
     await _load();
