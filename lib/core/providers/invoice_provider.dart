@@ -48,10 +48,18 @@ final _demoInvoices = [
 class InvoiceNotifier extends StateNotifier<List<Invoice>> {
   final Ref _ref;
   InvoiceNotifier(this._ref) : super([]) {
-    _load();
+    // Грузим только после входа: до авторизации запрос уйдёт без токена и
+    // получит 401. Провайдер пересоздаётся при каждой смене authProvider
+    // (ref.watch ниже), так что после логина загрузка стартует сама.
+    // Microtask — во время инициализации провайдера нельзя писать в другие
+    // провайдеры (loading-флаг), в debug-сборке это assert Riverpod.
+    if (_ref.read(authProvider) == AuthState.authenticated) {
+      Future.microtask(_load);
+    }
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
     if (_ref.read(isDemoProvider)) {
       state = _demoInvoices;
       _ref.read(invoiceLoadingProvider.notifier).state = false;
@@ -60,14 +68,19 @@ class InvoiceNotifier extends StateNotifier<List<Invoice>> {
     _ref.read(invoiceLoadingProvider.notifier).state = true;
     try {
       final data = await ApiClient.get('/invoices') as List<dynamic>;
+      if (!mounted) return;
       state = data
           .map((e) => Invoice.fromJson(e as Map<String, dynamic>))
           .toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } catch (_) {
-      state = [];
+      if (mounted) state = [];
     } finally {
-      _ref.read(invoiceLoadingProvider.notifier).state = false;
+      // mounted-гейт: если за время запроса вышли из аккаунта (нотифаер
+      // пересоздан), флаг загрузки принадлежит уже новому нотифаеру.
+      if (mounted) {
+        _ref.read(invoiceLoadingProvider.notifier).state = false;
+      }
     }
   }
 

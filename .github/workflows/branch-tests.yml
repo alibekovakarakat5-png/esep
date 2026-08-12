@@ -1,0 +1,81 @@
+name: Tests (branches)
+
+# Ветки (кроме main): Dart-тесты + web-артефакт для локальной e2e-проверки.
+# Деплоя здесь НЕТ — прод собирается только из main (build-release.yml).
+# dart.exe локально заблокирован Device Guard, поэтому красный/зелёный
+# смотрим по статусам шагов CI ещё до мерджа в main.
+
+on:
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'lib/**'
+      - 'test/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/branch-tests.yml'
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: beta
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      # Пофайлово, как в build-release.yml: логи джобов без админ-прав не
+      # читаются, виновника видно по имени красного шага.
+      - name: "Dart: гейт загрузки по авторизации"
+        if: ${{ !cancelled() }}
+        run: flutter test test/provider_auth_gating_test.dart
+
+      - name: "Dart: паритет tax core (Dart ↔ Node)"
+        if: ${{ !cancelled() }}
+        run: flutter test test/tax_core_fixtures_test.dart
+
+      - name: "Dart: ЭСФ-генератор"
+        if: ${{ !cancelled() }}
+        run: flutter test test/esf_service_test.dart
+
+      - name: "Dart: модель счетов"
+        if: ${{ !cancelled() }}
+        run: flutter test test/invoice_model_test.dart
+
+      - name: "Dart: парсер выписок"
+        if: ${{ !cancelled() }}
+        run: flutter test test/kaspi_parser_test.dart
+
+      - name: "Dart: смок приложения (widget_test)"
+        if: ${{ !cancelled() }}
+        run: flutter test test/widget_test.dart
+
+  build-web:
+    needs: [tests]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: beta
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build Web
+        run: flutter build web --release --base-href "/" --no-tree-shake-icons
+
+      - name: Upload web artifact (без деплоя)
+        uses: actions/upload-artifact@v4
+        with:
+          name: esep-web-branch
+          path: build/web

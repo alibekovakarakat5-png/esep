@@ -61,6 +61,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: flutter test test/widget_test.dart
 
+      - name: "Dart: гейт загрузки по авторизации"
+        if: ${{ !cancelled() }}
+        run: flutter test test/provider_auth_gating_test.dart
+
       - name: Setup Node 20
         uses: actions/setup-node@v4
         with:

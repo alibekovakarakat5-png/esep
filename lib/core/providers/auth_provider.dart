@@ -2,8 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/auth_service.dart';
 import 'user_mode_provider.dart';
-import 'transaction_provider.dart';
-import 'invoice_provider.dart';
 import 'demo_provider.dart';
 import 'subscription_provider.dart';
 
@@ -61,8 +59,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await AuthService.logout();
     }
     _ref.read(userModeProvider.notifier).clear();
-    _ref.invalidate(transactionProvider);
-    _ref.invalidate(invoiceProvider);
+    // transaction/invoice провайдеры чистить не нужно: они ref.watch(authProvider)
+    // и пересоздаются пустыми от смены состояния ниже. invalidate отсюда — это
+    // CircularDependencyError в debug (они зависят от authProvider).
     state = AuthState.unauthenticated;
   }
 }

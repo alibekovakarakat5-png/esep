@@ -12,10 +12,18 @@ final transactionLoadingProvider = StateProvider<bool>((ref) => true);
 class TransactionNotifier extends StateNotifier<List<Transaction>> {
   final Ref _ref;
   TransactionNotifier(this._ref) : super([]) {
-    _load();
+    // Грузим только после входа: до авторизации запрос уйдёт без токена и
+    // получит 401. Провайдер пересоздаётся при каждой смене authProvider
+    // (ref.watch ниже), так что после логина загрузка стартует сама.
+    // Microtask — во время инициализации провайдера нельзя писать в другие
+    // провайдеры (loading-флаг), в debug-сборке это assert Riverpod.
+    if (_ref.read(authProvider) == AuthState.authenticated) {
+      Future.microtask(_load);
+    }
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
     // Demo mode — return fake data instantly
     if (_ref.read(isDemoProvider)) {
       state = demoTransactions;
@@ -25,14 +33,19 @@ class TransactionNotifier extends StateNotifier<List<Transaction>> {
     _ref.read(transactionLoadingProvider.notifier).state = true;
     try {
       final data = await ApiClient.get('/transactions') as List<dynamic>;
+      if (!mounted) return;
       state = data
           .map((e) => Transaction.fromJson(e as Map<String, dynamic>))
           .toList()
         ..sort((a, b) => b.date.compareTo(a.date));
     } catch (_) {
-      state = [];
+      if (mounted) state = [];
     } finally {
-      _ref.read(transactionLoadingProvider.notifier).state = false;
+      // mounted-гейт: если за время запроса вышли из аккаунта (нотифаер
+      // пересоздан), флаг загрузки принадлежит уже новому нотифаеру.
+      if (mounted) {
+        _ref.read(transactionLoadingProvider.notifier).state = false;
+      }
     }
   }
 
