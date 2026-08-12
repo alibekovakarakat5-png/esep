@@ -9,6 +9,10 @@ const { normalizeTier } = require('../tiers');
 const sign = (userId) =>
   jwt.sign({ sub: userId }, process.env.JWT_SECRET, { expiresIn: '30d' });
 
+// Режим интерфейса (users.user_mode) — enum на стороне приложения.
+const USER_MODES = ['ip', 'too', 'accountant'];
+const isValidUserMode = (m) => USER_MODES.includes(m);
+
 // POST /api/auth/register
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -73,6 +77,7 @@ router.post('/register', async (req, res) => {
       trialExpiresAt: rows[0].trial_expires_at,
       subscriptionExpiresAt: rows[0].subscription_expires_at,
       isBetaTester: !!rows[0].is_beta_tester,
+      userMode: null, // новый пользователь режим ещё не выбирал
     });
   } catch (err) {
     console.error('POST /auth/register error:', err);
@@ -97,7 +102,7 @@ router.post('/login', async (req, res) => {
     const normalizedEmail = email.toLowerCase().trim();
 
     const { rows } = await db.query(
-      `SELECT id, password_hash, tier, trial_started_at, trial_expires_at, subscription_expires_at, is_beta_tester
+      `SELECT id, password_hash, tier, trial_started_at, trial_expires_at, subscription_expires_at, is_beta_tester, user_mode
        FROM users WHERE email = $1`,
       [normalizedEmail],
     );
@@ -116,6 +121,7 @@ router.post('/login', async (req, res) => {
       trialExpiresAt: rows[0].trial_expires_at,
       subscriptionExpiresAt: rows[0].subscription_expires_at,
       isBetaTester: !!rows[0].is_beta_tester,
+      userMode: rows[0].user_mode,
     });
   } catch (err) {
     console.error('POST /auth/login error:', err);
@@ -205,12 +211,29 @@ router.post('/help-request', async (req, res) => {
   }
 });
 
+// PATCH /api/auth/mode — сохранить выбранный режим интерфейса в профиле.
+// Дальше «Кто вы?» не показывается ни при повторном входе, ни на новом
+// устройстве: login и /me возвращают userMode.
+router.patch('/mode', authMiddleware, async (req, res) => {
+  try {
+    const { mode } = req.body ?? {};
+    if (!isValidUserMode(mode)) {
+      return res.status(400).json({ error: `mode должен быть одним из: ${USER_MODES.join(', ')}` });
+    }
+    await db.query('UPDATE users SET user_mode = $1 WHERE id = $2', [mode, req.userId]);
+    res.json({ ok: true, userMode: mode });
+  } catch (err) {
+    console.error('PATCH /auth/mode error:', err);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
 // GET /api/auth/me  — проверяет токен и возвращает актуальный тариф
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT id, email, name, tier, trial_started_at, trial_expires_at, subscription_expires_at, is_beta_tester,
-              custom_monthly_price, pilot_price_monthly, pilot_expires_at, billing_config
+              custom_monthly_price, pilot_price_monthly, pilot_expires_at, billing_config, user_mode
        FROM users WHERE id = $1`,
       [req.userId],
     );
@@ -220,6 +243,7 @@ router.get('/me', authMiddleware, async (req, res) => {
       id: user.id,
       email: user.email,
       name: user.name,
+      userMode: user.user_mode,
       tier: normalizeTier(user.tier),
       trialStartedAt: user.trial_started_at,
       trialExpiresAt: user.trial_expires_at,
@@ -241,3 +265,6 @@ router.get('/me', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+// Для юнит-тестов (test/user_mode.test.js)
+module.exports.USER_MODES = USER_MODES;
+module.exports.isValidUserMode = isValidUserMode;

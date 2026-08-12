@@ -117,6 +117,9 @@ class AuthSnapshot {
   final bool isBetaTester;
   final bool isImpersonated;
 
+  /// Режим интерфейса из профиля (ip/too/accountant), null — ещё не выбран.
+  final String? userMode;
+
   const AuthSnapshot({
     required this.tier,
     this.trialStartedAt,
@@ -124,6 +127,7 @@ class AuthSnapshot {
     this.subscriptionExpiresAt,
     this.isBetaTester = false,
     this.isImpersonated = false,
+    this.userMode,
   });
 
   factory AuthSnapshot.fromJson(Map data) => AuthSnapshot(
@@ -133,5 +137,6 @@ class AuthSnapshot {
         subscriptionExpiresAt: data['subscriptionExpiresAt'] as String?,
         isBetaTester: data['isBetaTester'] as bool? ?? false,
         isImpersonated: data['isImpersonated'] as bool? ?? false,
+        userMode: data['userMode'] as String?,
       );
 }
