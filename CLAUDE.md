@@ -347,6 +347,7 @@ PNG-кадры в `out/Esep<Name>/`, encoder на http://localhost:3099 прео
 | `eb962a6` | feat(ui): шрифт Inter — 4 начертания в `assets/fonts/`, включён в теме (раньше был системный) |
 | `9da629b` | feat(onboarding): экран `/start` «Начало работы» — одно действие на экране; меньше баннеров на дашборде |
 | `0494030` | fix(providers): 401-запросы до логина устранены — загрузка transactions/invoices только при `AuthState.authenticated` (через microtask), убран circular invalidate в logout; тест `provider_auth_gating_test.dart`; новый CI workflow `branch-tests.yml` (тесты + web-артефакт на ветках, без деплоя). ⚠ Попутно найден рассинхрон контракта transactions (сервер camelCase ↔ модель snake_case) — отдельная задача |
+| ветка `claude/fix-transactions-contract` | fix(server): контракт transactions выровнен под Dart-модель — GET/POST/PUT принимают и отдают snake_case (`is_income`/`client_name`, legacy camelCase тоже принимается, по образцу invoices.js); фикс сдвига даты на −1 день (`toISOString` на локальной полуночи); юнит `transactions_contract.test.js` + серверные тесты добавлены в `branch-tests.yml`. До фикса: операции «исчезали» после перезагрузки (GET не парсился), ручное добавление и импорт выписки получали 400 — вероятная причина «14 юзеров, 0 операций». Мердж в main = автодеплой Railway |
 
 ---
 

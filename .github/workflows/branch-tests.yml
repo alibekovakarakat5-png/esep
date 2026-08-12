@@ -12,10 +12,27 @@ on:
       - 'lib/**'
       - 'test/**'
       - 'pubspec.yaml'
+      - 'server/**'
       - '.github/workflows/branch-tests.yml'
   workflow_dispatch:
 
 jobs:
+  server-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Server-тесты (tax core, форма 910, контракт transactions)
+        working-directory: server
+        run: |
+          npm ci
+          npm test
+
   tests:
     runs-on: ubuntu-latest
     steps:

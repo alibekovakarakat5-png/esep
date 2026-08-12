@@ -2,6 +2,49 @@ const router = require('express').Router();
 const db     = require('../db');
 const { limitsFor } = require('../tiers');
 
+// ── Контракт с Flutter — snake_case ──────────────────────────────────────────
+// Dart-модель (lib/core/models/transaction.dart) читает is_income/client_name
+// и шлёт их же. До 2026-08-12 GET отдавал camelCase (парсинг в приложении
+// падал — операции «исчезали» после перезагрузки), а POST/PUT ждали только
+// camelCase (приложение получало 400 / поля занулялись). Принимаем оба стиля
+// по образцу invoices.js, отдаём snake_case.
+
+// pg отдаёт колонку date как Date на локальной полуночи; toISOString()
+// в TZ восточнее UTC сдвигал день на -1. Форматируем без UTC-конверсии.
+function formatDate(d) {
+  if (!(d instanceof Date)) return d;
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function serializeTransaction(r) {
+  return {
+    id:          r.id,
+    title:       r.title,
+    amount:      parseFloat(r.amount),
+    is_income:   r.is_income,
+    date:        formatDate(r.date),
+    client_name: r.client_name,
+    source:      r.source,
+    note:        r.note,
+    category:    r.category,
+  };
+}
+
+function normalizeTransaction(b = {}) {
+  return {
+    id:         b.id,
+    title:      b.title,
+    amount:     b.amount,
+    isIncome:   b.is_income   ?? b.isIncome,
+    date:       b.date,
+    clientName: b.client_name ?? b.clientName,
+    source:     b.source,
+    note:       b.note,
+    category:   b.category,
+  };
+}
+
 // GET /api/transactions
 router.get('/', async (req, res) => {
   try {
@@ -14,17 +57,7 @@ router.get('/', async (req, res) => {
       [req.userId],
     );
 
-    res.json(rows.map((r) => ({
-      id:         r.id,
-      title:      r.title,
-      amount:     parseFloat(r.amount),
-      isIncome:   r.is_income,
-      date:       r.date.toISOString().slice(0, 10),
-      clientName: r.client_name,
-      source:     r.source,
-      note:       r.note,
-      category:   r.category,
-    })));
+    res.json(rows.map(serializeTransaction));
   } catch (err) {
     console.error('GET /transactions error:', err);
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
@@ -34,13 +67,14 @@ router.get('/', async (req, res) => {
 // POST /api/transactions  (bulk sync: array or single object)
 router.post('/', async (req, res) => {
   try {
-    const items = Array.isArray(req.body) ? req.body : [req.body];
+    const items = (Array.isArray(req.body) ? req.body : [req.body])
+      .map(normalizeTransaction);
 
     // BUG 1: input validation
     for (const t of items) {
       if (!t.id || !t.title || t.amount === undefined || t.amount === null || t.isIncome === undefined || !t.date) {
         return res.status(400).json({
-          error: 'Каждая транзакция должна содержать: id, title, amount, isIncome, date',
+          error: 'Каждая транзакция должна содержать: id, title, amount, is_income, date',
         });
       }
     }
@@ -100,7 +134,8 @@ router.post('/', async (req, res) => {
 // PUT /api/transactions/:id
 router.put('/:id', async (req, res) => {
   try {
-    const { title, amount, isIncome, date, clientName, source, note, category } = req.body;
+    const { title, amount, isIncome, date, clientName, source, note, category } =
+      normalizeTransaction(req.body);
     const result = await db.query(
       `UPDATE transactions
        SET title=$1, amount=$2, is_income=$3, date=$4,
@@ -141,3 +176,6 @@ router.delete('/:id', async (req, res) => {
 });
 
 module.exports = router;
+// Чистые функции контракта — для юнит-тестов (см. test/transactions_contract.test.js)
+module.exports.serializeTransaction = serializeTransaction;
+module.exports.normalizeTransaction = normalizeTransaction;
