@@ -5,6 +5,7 @@ import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/services/api_client.dart';
 import '../../../core/services/kaspi_parser.dart';
 import '../../../core/services/category_memory.dart';
 import '../../../core/providers/transaction_provider.dart';
@@ -35,8 +36,6 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
     try {
       final picked = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        // pdf разрешаем выбрать намеренно: парсер вернёт понятную инструкцию,
-        // где скачать Excel/CSV, вместо «файл недоступен для выбора».
         allowedExtensions: ['csv', 'txt', 'xlsx', 'xls', 'pdf'],
         withData: true,
       );
@@ -56,7 +55,20 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
         return;
       }
 
-      final result = KaspiParser.parseFile(bytes, file.name);
+      // PDF (Kaspi Gold) разбирает сервер — на клиенте PDF-парсера нет.
+      // Excel/CSV разбираются локально, как раньше.
+      final KaspiParseResult result;
+      if (file.name.toLowerCase().endsWith('.pdf')) {
+        final data = await ApiClient.postMultipart(
+          '/import/kaspi-pdf',
+          field: 'file',
+          filename: file.name,
+          bytes: bytes,
+        ) as Map;
+        result = KaspiParser.fromServerPdf(data);
+      } else {
+        result = KaspiParser.parseFile(bytes, file.name);
+      }
 
       // Auto-assign categories from memory, then fallback to autoCategory
       for (final row in result.rows) {
@@ -659,7 +671,7 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
             _hintLine(
                 'Kaspi Business', 'Личный кабинет → Счета → Выписка → Excel'),
             _hintLine('Kaspi Gold',
-                'Приложение → Мой банк → Выписка → на почту (xlsx)'),
+                'Приложение → Мой банк → Выписка → PDF (или xlsx на почту)'),
             _hintLine('Halyk / Forte', 'Онлайн-банк → Счета → Выписка → XLS'),
             _hintLine('Jusan / БЦК / Bereke',
                 'Интернет-банк → Счета → Выписка → Excel или CSV'),
