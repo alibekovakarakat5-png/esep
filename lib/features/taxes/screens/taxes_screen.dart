@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/kz_tax_constants.dart';
+import '../../../core/providers/user_mode_provider.dart';
 import '../../../shared/widgets/page_guide_card.dart';
 import '../../../shared/widgets/beta_feedback_button.dart';
 
-class TaxesScreen extends StatefulWidget {
+class TaxesScreen extends ConsumerStatefulWidget {
   const TaxesScreen({super.key});
 
   @override
-  State<TaxesScreen> createState() => _TaxesScreenState();
+  ConsumerState<TaxesScreen> createState() => _TaxesScreenState();
 }
 
-class _TaxesScreenState extends State<TaxesScreen> {
+class _TaxesScreenState extends ConsumerState<TaxesScreen> {
   TaxRegime _regime = TaxRegime.simplified;
   double _income = 1250000;
   bool _bornBefore1975 = false;
@@ -23,6 +25,9 @@ class _TaxesScreenState extends State<TaxesScreen> {
   @override
   Widget build(BuildContext context) {
     final fmt = NumberFormat('#,##0', 'ru_RU');
+    // Экран общий для всех режимов, но обещание «не переплатите бухгалтеру»
+    // самому бухгалтеру — антипродажа: бухфирмы у нас основная ЦА.
+    final isAccountant = ref.watch(userModeProvider) == UserMode.accountant;
 
     return Scaffold(
       appBar: AppBar(
@@ -32,19 +37,23 @@ class _TaxesScreenState extends State<TaxesScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const PageGuideCard(
+          PageGuideCard(
             id: 'taxes',
             icon: Iconsax.calculator,
-            title: 'Налоги ИП и ТОО — за что и сколько платить',
-            description: 'Все ваши обязательства по новому НК РК 2026 в одном месте: форма 910, ОПВ, СО, ВОСМС, ИПН, СН. Считает автоматически по актуальным ставкам.',
-            whatYouCanDo: [
+            title: isAccountant
+                ? 'Расчёты по клиентам — формы и калькуляторы'
+                : 'Налоги ИП и ТОО — за что и сколько платить',
+            description: 'Все обязательства по новому НК РК 2026 в одном месте: форма 910, ОПВ, СО, ВОСМС, ИПН, СН. Считает автоматически по актуальным ставкам.',
+            whatYouCanDo: const [
               'Заполнить форму 910 за 5 минут',
               'Посчитать зарплату сотрудника со всеми налогами',
               'Добавить сотрудников и видеть их налоги по месяцам',
               'Проверить лимит 600 000 МРП по упрощёнке',
               'Калькулятор для ТОО (СН 6%, ИПН прогрессивный)',
             ],
-            outcome: 'Не пропустите ни один платёж и не переплатите бухгалтеру 30-50 тыс ₸ в месяц.',
+            outcome: isAccountant
+                ? 'Расчёт на клиента — минуты вместо часов в Excel, ставки НК 2026 уже зашиты.'
+                : 'Не пропустите ни один платёж и не переплатите бухгалтеру 30-50 тыс ₸ в месяц.',
           ),
           // Быстрые инструменты
           LayoutBuilder(builder: (context, constraints) {

@@ -52,7 +52,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     setState(() { _loading = true; _error = null; });
     try {
       await ref.read(authProvider.notifier).login(email, pass);
-      if (mounted) context.go('/dashboard');
+      // Куда идти — решает redirect роутера: у бухгалтера дом /accountant,
+      // у ИП/ТОО /dashboard, без выбранного режима — /mode-select. Жёсткий
+      // go('/dashboard') отсюда приводил бухгалтера на дашборд ИП.
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {
@@ -76,7 +78,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         phone: phone.isEmpty ? null : phone,
       );
       await ref.read(legalConsentProvider.notifier).accept();
-      if (mounted) context.go('/dashboard');
+      // Дальше ведёт redirect роутера (см. комментарий в _login).
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {

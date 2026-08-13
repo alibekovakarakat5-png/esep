@@ -1,6 +1,10 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:iconsax/iconsax.dart';
+
+import '../theme/app_theme.dart';
 
 import '../../features/auth/screens/auth_screen.dart';
 import '../../features/onboarding/screens/onboarding_screen.dart';
@@ -56,8 +60,21 @@ class _RouterListenable extends ChangeNotifier {
   }
 }
 
-final _routerListenableProvider =
-    ChangeNotifierProvider((ref) => _RouterListenable(ref));
+// Обычный Provider, а НЕ ChangeNotifierProvider: последний ре-эмитит значение
+// на каждый notifyListeners(), из-за чего appRouterProvider пересобирал
+// GoRouter и навигация сбрасывалась на initialLocation ('/dashboard').
+// Так бухгалтер после выбора режима попадал на дашборд ИП. GoRouter слушает
+// этот ChangeNotifier сам через refreshListenable.
+// Обычный Provider, а НЕ ChangeNotifierProvider: последний ре-эмитит значение
+// на каждый notifyListeners(), из-за чего appRouterProvider пересобирал
+// GoRouter и навигация сбрасывалась на initialLocation ('/dashboard').
+// Так бухгалтер после выбора режима попадал на дашборд ИП. GoRouter слушает
+// этот ChangeNotifier сам через refreshListenable.
+final _routerListenableProvider = Provider<_RouterListenable>((ref) {
+  final listenable = _RouterListenable(ref);
+  ref.onDispose(listenable.dispose);
+  return listenable;
+});
 
 // ── Router ────────────────────────────────────────────────────────────────────
 
@@ -134,6 +151,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       return null;
     },
+    // Без этого неизвестный адрес (старая ссылка, закладка) показывал
+    // англоязычный дефолт GoRouter с текстом исключения — выглядело как
+    // краш приложения.
+    errorBuilder: (context, state) => _NotFoundScreen(location: state.uri.path),
     routes: [
       // ── Onboarding ──────────────────────────────────────────────────────
       GoRoute(
@@ -336,3 +357,40 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
 String _homeForMode(UserMode mode) =>
     mode == UserMode.accountant ? '/accountant' : '/dashboard';
+
+/// Экран неизвестного адреса. Ведёт на домашний экран текущего режима,
+/// чтобы бухгалтер не попадал на дашборд ИП.
+class _NotFoundScreen extends ConsumerWidget {
+  const _NotFoundScreen({required this.location});
+  final String location;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.read(userModeProvider);
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Iconsax.search_normal_1, size: 48, color: EsepColors.textDisabled),
+            const SizedBox(height: 16),
+            const Text('Страница не найдена',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Text(
+              'Адрес $location не существует. Возможно, ссылка устарела.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: EsepColors.textSecondary),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () =>
+                  context.go(mode == null ? '/dashboard' : _homeForMode(mode)),
+              child: const Text('На главную'),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
