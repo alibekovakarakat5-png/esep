@@ -6,6 +6,7 @@ import 'app.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/hive_service.dart';
 import 'core/services/category_memory.dart';
+import 'core/services/selection_memory.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/tax_config_service.dart';
 import 'core/services/url_params_stub.dart'
@@ -17,6 +18,7 @@ void main() async {
   await initializeDateFormatting('ru_RU', null);
   await HiveService.init();
   await CategoryMemory.init();
+  await SelectionMemory.init();
 
   // Загрузить налоговый конфиг из кэша (Hive)
   await TaxConfigService.init();

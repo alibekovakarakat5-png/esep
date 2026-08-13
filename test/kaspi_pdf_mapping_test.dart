@@ -55,6 +55,8 @@ void main() {
     expect(buy.amount, 2230);
     expect(buy.isIncome, isFalse);
     expect(buy.description, 'Rancho магазин продуктов');
+    // тип операции доезжает до строки — на нём работает умный предвыбор
+    expect(buy.operation, 'Покупка');
 
     final income = r.rows[1];
     expect(income.isIncome, isTrue);

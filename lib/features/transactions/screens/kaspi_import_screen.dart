@@ -4,10 +4,16 @@ import 'package:file_picker/file_picker.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:uuid/uuid.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/api_client.dart';
+import '../../../core/services/import_auto_select.dart';
 import '../../../core/services/kaspi_parser.dart';
 import '../../../core/services/category_memory.dart';
+import '../../../core/services/selection_memory.dart';
+import '../../../core/models/transaction.dart';
 import '../../../core/providers/transaction_provider.dart';
 import 'bank_connect_screen.dart';
 
@@ -27,6 +33,12 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
   /// Режим массового выбора
   bool _multiSelectMode = false;
   final Set<int> _multiSelected = {};
+
+  /// Сколько галочек снял умный предвыбор (для строки-пояснения).
+  int _autoDeselected = 0;
+
+  static const _hintSeenKey = 'kaspi_import_hint_seen';
+  bool _hintDismissed = false;
 
   final _fmt = NumberFormat('#,##0', 'ru_RU');
   final _dateFmt = DateFormat('dd.MM.yyyy');
@@ -71,6 +83,7 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
       }
 
       // Auto-assign categories from memory, then fallback to autoCategory
+      var autoDeselected = 0;
       for (final row in result.rows) {
         final remembered =
             CategoryMemory.recall(row.description, row.counterparty);
@@ -80,6 +93,12 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
           row.category =
               KaspiParser.autoCategory(row.description, row.isIncome);
         }
+
+        // Галочки: память решений пользователя сильнее правил предвыбора.
+        final rememberedSelection =
+            SelectionMemory.recall(row.description, row.counterparty);
+        row.selected = rememberedSelection ?? ImportAutoSelect.suggest(row);
+        if (!row.selected) autoDeselected++;
       }
 
       setState(() {
@@ -88,6 +107,9 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
         _loading = false;
         _multiSelectMode = false;
         _multiSelected.clear();
+        _autoDeselected = autoDeselected;
+        _hintDismissed =
+            Hive.box('settings').get(_hintSeenKey, defaultValue: false) as bool;
       });
 
       // Формат не распознан, но таблица в файле есть — предлагаем разметить
@@ -331,12 +353,13 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
 
     setState(() => _importing = true);
 
-    final notifier = ref.read(transactionProvider.notifier);
+    const uuid = Uuid();
+    final txs = <Transaction>[];
     for (final row in selected) {
       final category =
           row.category ?? KaspiParser.autoCategory(row.description, row.isIncome);
-
-      await notifier.add(
+      txs.add(Transaction(
+        id: uuid.v4(),
         title: row.description,
         amount: row.amount,
         isIncome: row.isIncome,
@@ -344,11 +367,28 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
         clientName: row.counterparty,
         source: 'kaspi',
         category: category,
-      );
+      ));
 
       // Remember the category for future imports
       await CategoryMemory.remember(
           row.description, row.counterparty, category);
+    }
+
+    // Память «бизнес/личное» — по всем строкам, включая снятые: в следующей
+    // выписке галочки расставятся так же, как решил пользователь сейчас.
+    for (final row in result.rows) {
+      await SelectionMemory.remember(
+          row.description, row.counterparty, row.selected);
+    }
+
+    try {
+      // Один запрос на всю пачку: построчный импорт делал 2 запроса на
+      // операцию и на годовой выписке занимал минуты.
+      await ref.read(transactionProvider.notifier).addBulk(txs);
+    } catch (e) {
+      setState(() => _importing = false);
+      _showError('Не удалось импортировать: $e');
+      return;
     }
 
     setState(() => _importing = false);
@@ -361,7 +401,9 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Импортировано ${selected.length} транзакций'),
+          content: Text(
+              'В учёте ${selected.length} операций — налог пересчитан, '
+              'смотрите на главном экране'),
           backgroundColor: EsepColors.income,
         ),
       );
@@ -373,6 +415,16 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: EsepColors.expense),
+    );
+  }
+
+  void _showInfo(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        duration: const Duration(seconds: 2),
+      ),
     );
   }
 
@@ -704,12 +756,67 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
         ]),
       );
 
+  /// Массовое снятие галочек по условию. Возвращает число затронутых строк.
+  int _deselectWhere(bool Function(KaspiRow) test) {
+    var n = 0;
+    setState(() {
+      for (final row in _result!.rows) {
+        if (row.selected && test(row)) {
+          row.selected = false;
+          n++;
+        }
+      }
+    });
+    return n;
+  }
+
+  void _dismissHint() {
+    Hive.box('settings').put(_hintSeenKey, true);
+    setState(() => _hintDismissed = true);
+  }
+
+  /// Карточка-объяснение для первого раза: что это за список и что делать.
+  Widget _buildFirstTimeHint() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: EsepColors.info.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: EsepColors.info.withValues(alpha: 0.25)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Это операции из вашей выписки — пока ничего не сохранено',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 6),
+        const Text(
+          'Галочка = попадёт в учёт. Оставьте только то, что относится к '
+          'бизнесу: поступления от клиентов, закупки, аренду. Личное '
+          '(продукты, переводы родным) — без галочки: налог считается '
+          'только с доходов от бизнеса.\n'
+          'Потом нажмите «Импортировать» — Esep сам посчитает налог и '
+          'подготовит форму 910.',
+          style: TextStyle(
+              fontSize: 12.5, color: EsepColors.textSecondary, height: 1.45),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: _dismissHint,
+            child: const Text('Понятно'),
+          ),
+        ),
+      ]),
+    );
+  }
+
   Widget _buildPreview() {
     final result = _result!;
     final selectedCount = result.rows.where((r) => r.selected).length;
 
     return Column(
       children: [
+        if (!_hintDismissed) _buildFirstTimeHint(),
         // Summary bar
         Container(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -792,6 +899,54 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
                     ]),
                   ]),
             ]),
+            // Умный предвыбор: пояснение + быстрые действия. Показываем для
+            // PDF Kaspi Gold — там личная карта и всё вперемешку.
+            if (result.format == 'kaspi_gold_pdf') ...[
+              const SizedBox(height: 10),
+              if (_autoDeselected > 0)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Esep снял галочки с $_autoDeselected операций, похожих '
+                    'на личные (покупки, мелкие переводы, свои пополнения) — '
+                    'проверьте и поправьте',
+                    style: const TextStyle(
+                        fontSize: 11.5, color: EsepColors.textSecondary),
+                  ),
+                ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Wrap(spacing: 8, runSpacing: 6, children: [
+                  _QuickChip(
+                    label: '− покупки',
+                    onTap: () {
+                      final n = _deselectWhere((r) =>
+                          !r.isIncome && r.operation == 'Покупка');
+                      _showInfo('Снято с $n покупок');
+                    },
+                  ),
+                  _QuickChip(
+                    label: '− переводы до 5 000 ₸',
+                    onTap: () {
+                      final n = _deselectWhere((r) =>
+                          !r.isIncome &&
+                          r.operation == 'Перевод' &&
+                          r.amount <
+                              ImportAutoSelect.smallTransferLimit);
+                      _showInfo('Снято с $n переводов');
+                    },
+                  ),
+                  _QuickChip(
+                    label: 'только доходы',
+                    onTap: () {
+                      final n = _deselectWhere((r) => !r.isIncome);
+                      _showInfo('Снято со всех расходов ($n)');
+                    },
+                  ),
+                ]),
+              ),
+            ],
           ]),
         ),
 
@@ -895,6 +1050,25 @@ class _KaspiImportScreenState extends ConsumerState<KaspiImportScreen> {
       'generic' => 'Банковская выписка',
       _ => 'Авто',
     };
+  }
+}
+
+/// Чип быстрого действия над галочками («− покупки», «только доходы»).
+class _QuickChip extends StatelessWidget {
+  const _QuickChip({required this.label, required this.onTap});
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ActionChip(
+      label: Text(label, style: const TextStyle(fontSize: 12)),
+      onPressed: onTap,
+      visualDensity: VisualDensity.compact,
+      side: BorderSide(color: EsepColors.primary.withValues(alpha: 0.35)),
+      backgroundColor: EsepColors.primary.withValues(alpha: 0.06),
+      labelStyle: const TextStyle(color: EsepColors.primary),
+    );
   }
 }
 
