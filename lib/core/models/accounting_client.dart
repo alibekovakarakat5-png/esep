@@ -29,12 +29,27 @@ class Employee {
 
   const Employee({required this.id, required this.name, required this.salary});
 
+  factory Employee.fromJson(Map<dynamic, dynamic> j) => Employee(
+        id: j['id'] as String? ?? '',
+        name: j['name'] as String? ?? '',
+        salary: _toDouble(j['salary']),
+      );
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'salary': salary};
+
   Employee copyWith({String? id, String? name, double? salary}) => Employee(
         id: id ?? this.id,
         name: name ?? this.name,
         salary: salary ?? this.salary,
       );
 }
+
+/// Числа из Postgres (NUMERIC) приезжают строкой — принимаем оба варианта.
+double _toDouble(Object? v) => switch (v) {
+      num n => n.toDouble(),
+      String s => double.tryParse(s) ?? 0,
+      _ => 0,
+    };
 
 // ── Document checklist item ───────────────────────────────────────────────────
 
@@ -48,6 +63,15 @@ class DocChecklistItem {
     required this.label,
     this.received = false,
   });
+
+  factory DocChecklistItem.fromJson(Map<dynamic, dynamic> j) => DocChecklistItem(
+        id: j['id'] as String? ?? '',
+        label: j['label'] as String? ?? '',
+        received: j['received'] as bool? ?? false,
+      );
+
+  Map<String, dynamic> toJson() =>
+      {'id': id, 'label': label, 'received': received};
 
   DocChecklistItem copyWith({String? id, String? label, bool? received}) =>
       DocChecklistItem(
@@ -88,6 +112,45 @@ class AccountingClient {
 
   int get missingDocs => checklist.where((d) => !d.received).length;
   bool get allDocsReceived => checklist.isEmpty || checklist.every((d) => d.received);
+
+  /// Контракт с сервером — snake_case, как у transactions/invoices.
+  factory AccountingClient.fromJson(Map<dynamic, dynamic> j) => AccountingClient(
+        id: j['id'] as String,
+        name: j['name'] as String? ?? '',
+        binOrIin: j['bin_or_iin'] as String? ?? '',
+        entityType: ClientEntityType.values.firstWhere(
+          (e) => e.name == j['entity_type'],
+          orElse: () => ClientEntityType.ip,
+        ),
+        regime: ClientTaxRegime.values.firstWhere(
+          (r) => r.name == j['regime'],
+          orElse: () => ClientTaxRegime.simplified910,
+        ),
+        monthlyFee: _toDouble(j['monthly_fee']),
+        feeReceivedThisMonth: j['fee_received_this_month'] as bool? ?? false,
+        notes: j['notes'] as String?,
+        isActive: j['is_active'] as bool? ?? true,
+        employees: (j['employees'] as List<dynamic>? ?? const [])
+            .map((e) => Employee.fromJson(e as Map<dynamic, dynamic>))
+            .toList(),
+        checklist: (j['checklist'] as List<dynamic>? ?? const [])
+            .map((d) => DocChecklistItem.fromJson(d as Map<dynamic, dynamic>))
+            .toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'bin_or_iin': binOrIin,
+        'entity_type': entityType.name,
+        'regime': regime.name,
+        'monthly_fee': monthlyFee,
+        'fee_received_this_month': feeReceivedThisMonth,
+        'notes': notes,
+        'is_active': isActive,
+        'employees': employees.map((e) => e.toJson()).toList(),
+        'checklist': checklist.map((d) => d.toJson()).toList(),
+      };
 
   AccountingClient copyWith({
     String? id,

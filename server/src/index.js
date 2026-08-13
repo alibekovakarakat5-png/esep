@@ -34,6 +34,7 @@ const { seedEsepPlatformKnowledge }       = require('./jobs/seedPlatformKnowledg
 const { migrateEsfAndAccount }            = require('./services/esf_db');
 const esfReconRoutes                      = require('./routes/esf-recon');
 const importPdfRoutes                     = require('./routes/import_pdf');
+const accountingRoutes                    = require('./routes/accounting');
 const accountRoutes                       = require('./routes/account-monitor');
 const { migrateTaxProfile }               = require('./services/tax_profile_db');
 const taxProfileRoutes                    = require('./routes/tax-profile');
@@ -89,6 +90,29 @@ async function migrate() {
     -- Режим интерфейса (ip/too/accountant): выбирается один раз на экране
     -- «Кто вы?», хранится в профиле — вход с нового устройства не спрашивает.
     ALTER TABLE users ADD COLUMN IF NOT EXISTS user_mode TEXT;
+
+    -- Клиенты бухгалтера. До этого модуль «Бухгалтерия» работал на демо-данных
+    -- в памяти: заведённые клиенты исчезали при перезагрузке страницы.
+    -- Сотрудники и чеклист документов — в JSONB рядом (маленькие, всегда
+    -- нужны целиком вместе с клиентом).
+    CREATE TABLE IF NOT EXISTS accounting_clients (
+      id                      TEXT PRIMARY KEY,
+      user_id                 UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name                    TEXT NOT NULL,
+      bin_or_iin              TEXT NOT NULL DEFAULT '',
+      entity_type             TEXT NOT NULL,
+      regime                  TEXT NOT NULL,
+      monthly_fee             NUMERIC NOT NULL DEFAULT 0,
+      fee_received_this_month BOOLEAN NOT NULL DEFAULT false,
+      notes                   TEXT,
+      is_active               BOOLEAN NOT NULL DEFAULT true,
+      employees               JSONB NOT NULL DEFAULT '[]'::jsonb,
+      checklist               JSONB NOT NULL DEFAULT '[]'::jsonb,
+      created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS accounting_clients_user_idx
+      ON accounting_clients(user_id);
 
     -- Кастомная цена для B2B-клиентов (бухгалтерские фирмы).
     -- Если NULL — используем стандартный прайс тарифа.
@@ -408,6 +432,7 @@ app.use('/api/lpr',          authMiddleware, lprRoutes);
 app.use('/api/ai-chat',      authMiddleware, aiChatRoutes);
 app.use('/api/esf-recon',    authMiddleware, esfReconRoutes);
 app.use('/api/import',       authMiddleware, importPdfRoutes);
+app.use('/api/accounting',   authMiddleware, accountingRoutes);
 app.use('/api/account',      authMiddleware, accountRoutes);
 app.use('/api/tax-profile',  authMiddleware, taxProfileRoutes);
 app.use('/api/kbk',          authMiddleware, kbkRoutes);
