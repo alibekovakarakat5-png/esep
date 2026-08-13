@@ -763,8 +763,8 @@ class _FeatureTourBanner extends StatelessWidget {
   static const _tips = [
     _TourTip(
       icon: Iconsax.arrow_circle_up,
-      title: 'Записывайте доходы',
-      body: 'Добавляйте операции кнопкой «+» на вкладке «Деньги». Esep сам посчитает ваш налог.',
+      title: 'Загрузите выписку',
+      body: 'Вкладка «Деньги» → «Импорт Kaspi»: Excel, CSV или PDF-выписка Kaspi Gold. Esep разнесёт операции и посчитает налог.',
       color: EsepColors.income,
     ),
     _TourTip(

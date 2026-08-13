@@ -42,9 +42,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       icon: Iconsax.arrow_right_3,
       color: Color(0xFF7B2FBE),
       title: 'Как это работает',
-      subtitle: 'Записывайте доходы\n'
-          '-> Esep посчитает налоги\n'
-          '-> Покажет сколько и когда платить',
+      // Главный путь теперь — импорт выписки (Excel/CSV и PDF Kaspi Gold),
+      // а не ручной ввод: обещание на первом экране должно совпадать с тем,
+      // что предлагает экран «Начало работы».
+      subtitle: 'Загрузите выписку из банка\n'
+          'Esep разнесёт доходы и расходы\n'
+          'и посчитает налог — останется оплатить',
     ),
     _PageData(
       icon: Iconsax.shield_tick,
