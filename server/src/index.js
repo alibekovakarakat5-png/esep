@@ -368,32 +368,10 @@ async function migrate() {
 }
 
 // ── Middleware ────────────────────────────────────────────────────────────────
-const ALLOWED_ORIGINS = [
-  // Production — основные домены
-  'https://esepkz.com',
-  'https://www.esepkz.com',
-  'https://app.esepkz.com',
-  'https://api.esepkz.com',
-  // Старые URL (на переходный период — потом удалим)
-  'https://esepkz.vercel.app',
-  'https://alibekovakarakat5-png.github.io',
-  'https://esep-production.up.railway.app',
-  // Esep Automation (интеграторский сайт — форма заявок шлёт сюда /api/lead)
-  'https://automation.esepkz.com',
-  'https://esep-auto.vercel.app',
-  // Local dev
-  'http://localhost:5500',
-  'http://localhost:8080',
-  'http://localhost:3000',
-  'http://localhost:3334',
-  'http://localhost:3336',
-  'http://localhost:5173',
-];
+// Список доменов и точная проверка — в src/cors_origins.js (покрыто тестом).
+const { isAllowedOrigin } = require('./cors_origins');
 app.use(cors({
-  origin: (origin, cb) => {
-    if (!origin || ALLOWED_ORIGINS.some(o => origin.startsWith(o))) return cb(null, true);
-    cb(null, false);
-  },
+  origin: (origin, cb) => cb(null, isAllowedOrigin(origin)),
   allowedHeaders: ['Authorization', 'Content-Type'],
 }));
 app.use(express.json({ limit: '1mb' }));
