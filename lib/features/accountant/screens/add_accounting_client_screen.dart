@@ -24,6 +24,7 @@ class _AddAccountingClientScreenState
   final _binCtrl    = TextEditingController();
   final _feeCtrl    = TextEditingController();
   final _notesCtrl  = TextEditingController();
+  final _phoneCtrl  = TextEditingController();
 
   ClientEntityType _entityType = ClientEntityType.ip;
   ClientTaxRegime  _regime     = ClientTaxRegime.simplified910;
@@ -37,6 +38,7 @@ class _AddAccountingClientScreenState
       _binCtrl.text   = c.binOrIin;
       _feeCtrl.text   = c.monthlyFee > 0 ? c.monthlyFee.toStringAsFixed(0) : '';
       _notesCtrl.text = c.notes ?? '';
+      _phoneCtrl.text = c.phone ?? '';
       _entityType     = c.entityType;
       _regime         = c.regime;
     }
@@ -48,6 +50,7 @@ class _AddAccountingClientScreenState
     _binCtrl.dispose();
     _feeCtrl.dispose();
     _notesCtrl.dispose();
+    _phoneCtrl.dispose();
     super.dispose();
   }
 
@@ -73,6 +76,7 @@ class _AddAccountingClientScreenState
       monthlyFee: fee,
       checklist: widget.existing?.checklist ?? checklist,
       notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+      phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
     );
 
     final notifier = ref.read(accountingProvider.notifier);
@@ -168,6 +172,19 @@ class _AddAccountingClientScreenState
               labelText: _entityType == ClientEntityType.ip ? 'ИИН (12 цифр)' : 'БИН (12 цифр)',
               prefixIcon: const Icon(Iconsax.card, size: 18),
               counterText: '',
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // ── Телефон: по нему бот просит у клиента документы ─────────────
+          TextField(
+            controller: _phoneCtrl,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(
+              labelText: 'WhatsApp клиента',
+              hintText: '+7 701 000 00 00',
+              helperText: 'Нужен, чтобы запрашивать документы автоматически',
+              prefixIcon: Icon(Iconsax.message, size: 18),
             ),
           ),
           const SizedBox(height: 12),

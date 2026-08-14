@@ -96,6 +96,9 @@ class AccountingClient {
   final String? notes;
   final bool isActive;
 
+  /// Телефон клиента — по нему бот сбора документов пишет в WhatsApp.
+  final String? phone;
+
   const AccountingClient({
     required this.id,
     required this.name,
@@ -108,6 +111,7 @@ class AccountingClient {
     this.checklist = const [],
     this.notes,
     this.isActive = true,
+    this.phone,
   });
 
   int get missingDocs => checklist.where((d) => !d.received).length;
@@ -130,6 +134,7 @@ class AccountingClient {
         feeReceivedThisMonth: j['fee_received_this_month'] as bool? ?? false,
         notes: j['notes'] as String?,
         isActive: j['is_active'] as bool? ?? true,
+        phone: j['phone'] as String?,
         employees: (j['employees'] as List<dynamic>? ?? const [])
             .map((e) => Employee.fromJson(e as Map<dynamic, dynamic>))
             .toList(),
@@ -148,6 +153,7 @@ class AccountingClient {
         'fee_received_this_month': feeReceivedThisMonth,
         'notes': notes,
         'is_active': isActive,
+        'phone': phone,
         'employees': employees.map((e) => e.toJson()).toList(),
         'checklist': checklist.map((d) => d.toJson()).toList(),
       };
@@ -164,6 +170,7 @@ class AccountingClient {
     List<DocChecklistItem>? checklist,
     String? notes,
     bool? isActive,
+    String? phone,
   }) =>
       AccountingClient(
         id: id ?? this.id,
@@ -177,6 +184,7 @@ class AccountingClient {
         checklist: checklist ?? this.checklist,
         notes: notes ?? this.notes,
         isActive: isActive ?? this.isActive,
+        phone: phone ?? this.phone,
       );
 }
 

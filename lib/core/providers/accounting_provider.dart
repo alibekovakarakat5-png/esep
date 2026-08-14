@@ -303,6 +303,17 @@ class AccountingNotifier extends StateNotifier<List<AccountingClient>> {
     if (changed != null) await _persist(changed!);
   }
 
+  /// Бот сбора документов: просит у клиента недостающие документы в WhatsApp.
+  /// Возвращает список запрошенных документов; кидает исключение с понятным
+  /// текстом, если телефона нет или канал недоступен.
+  Future<List<String>> requestDocuments(String clientId) async {
+    final data = await ApiClient.post(
+      '/accounting/clients/$clientId/request-docs',
+      const {},
+    ) as Map;
+    return (data['requested'] as List<dynamic>? ?? const []).cast<String>();
+  }
+
   Future<void> toggleFee(String clientId) async {
     AccountingClient? changed;
     state = state.map((c) {

@@ -23,10 +23,12 @@ test('GET-сериализация: snake_case, числа числами, сп�
     fee_received_this_month: true,
     notes: null,
     is_active: true,
+    phone: null,
     employees: [{ id: 'e1', name: 'Иванов А.А.', salary: 150000 }],
     checklist: [{ id: 'd1', label: 'Банковская выписка', received: false }],
   };
   assert.deepStrictEqual(serializeClient(row), {
+    phone: null,
     id: 'c1',
     name: 'ТОО «Астана Строй»',
     bin_or_iin: '200540013422',
@@ -62,6 +64,18 @@ test('normalize: legacy camelCase тоже принимается', () => {
   assert.strictEqual(c.binOrIin, '850304300421');
   assert.strictEqual(c.entityType, 'ip');
   assert.strictEqual(c.monthlyFee, 15000);
+});
+
+test('телефон клиента ездит в обе стороны — по нему бот просит документы', () => {
+  const row = serializeClient({
+    id: 'c1', name: 'ИП', bin_or_iin: '', entity_type: 'ip', regime: 'our',
+    monthly_fee: 0, fee_received_this_month: false, notes: null, is_active: true,
+    employees: [], checklist: [], phone: '+7 701 000 00 01',
+  });
+  assert.strictEqual(row.phone, '+7 701 000 00 01');
+
+  assert.strictEqual(normalizeClient({ phone: '+7 701 000 00 01' }).phone, '+7 701 000 00 01');
+  assert.strictEqual(normalizeClient({}).phone, null);
 });
 
 test('normalize: умолчания — активен, гонорар 0, пустые списки', () => {

@@ -167,6 +167,24 @@ class AccountantClientDetailScreen extends ConsumerWidget {
                       ]),
                     ),
                   )),
+                  // Бот сбора документов: вместо ручной переписки с каждым
+                  // клиентом — одна кнопка. Показываем, только если есть что
+                  // просить.
+                  if (!client.allDocsReceived) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _requestDocs(context, ref, client),
+                        icon: const Icon(Iconsax.message, size: 18),
+                        label: Text(
+                          client.phone == null || client.phone!.isEmpty
+                              ? 'Запросить документы (нужен WhatsApp клиента)'
+                              : 'Запросить документы в WhatsApp',
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ]),
             ),
@@ -263,6 +281,42 @@ class AccountantClientDetailScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// Просит у клиента недостающие документы через WhatsApp-бота.
+  /// Ошибку показываем как есть: бухгалтеру важно знать, что письмо не ушло.
+  Future<void> _requestDocs(
+    BuildContext context, WidgetRef ref, AccountingClient client,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Отправляем запрос...')),
+    );
+    try {
+      final requested =
+          await ref.read(accountingProvider.notifier).requestDocuments(client.id);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(SnackBar(
+        content: Text(
+          'Запрос отправлен клиенту: ${requested.length} ${_docsWord(requested.length)}',
+        ),
+        backgroundColor: EsepColors.income,
+      ));
+    } catch (e) {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(SnackBar(
+        content: Text('$e'),
+        backgroundColor: EsepColors.expense,
+      ));
+    }
+  }
+
+  static String _docsWord(int n) {
+    if (n % 10 == 1 && n % 100 != 11) return 'документ';
+    if ([2, 3, 4].contains(n % 10) && !(n % 100 >= 12 && n % 100 <= 14)) {
+      return 'документа';
+    }
+    return 'документов';
   }
 }
 

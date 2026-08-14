@@ -108,11 +108,14 @@ async function migrate() {
       is_active               BOOLEAN NOT NULL DEFAULT true,
       employees               JSONB NOT NULL DEFAULT '[]'::jsonb,
       checklist               JSONB NOT NULL DEFAULT '[]'::jsonb,
+      phone                   TEXT,
       created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS accounting_clients_user_idx
       ON accounting_clients(user_id);
+    -- Телефон клиента: по нему бот сбора документов пишет в WhatsApp.
+    ALTER TABLE accounting_clients ADD COLUMN IF NOT EXISTS phone TEXT;
 
     -- Кастомная цена для B2B-клиентов (бухгалтерские фирмы).
     -- Если NULL — используем стандартный прайс тарифа.

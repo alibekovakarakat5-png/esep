@@ -1,5 +1,7 @@
 const router = require('express').Router();
 const db     = require('../db');
+const { buildDocRequest } = require('../services/doc_request');
+const connect = require('../services/connect_client');
 
 // ── Клиенты бухгалтера ───────────────────────────────────────────────────────
 // Владелец строки — сам бухгалтер (user_id). Сотрудники и чеклист документов
@@ -42,6 +44,7 @@ function serializeClient(r) {
     fee_received_this_month: r.fee_received_this_month,
     notes:                   r.notes,
     is_active:               r.is_active,
+    phone:                   r.phone,
     employees:               asArray(r.employees).map(normalizeEmployee),
     checklist:               asArray(r.checklist).map(normalizeChecklistItem),
   };
@@ -59,6 +62,8 @@ function normalizeClient(b = {}) {
       Boolean(b.fee_received_this_month ?? b.feeReceivedThisMonth ?? false),
     notes:      b.notes ?? null,
     isActive:   Boolean(b.is_active ?? b.isActive ?? true),
+    // Телефон клиента — по нему бот сбора документов пишет в WhatsApp
+    phone:      b.phone ?? null,
     employees:  asArray(b.employees).map(normalizeEmployee),
     checklist:  asArray(b.checklist).map(normalizeChecklistItem),
   };
@@ -80,7 +85,7 @@ router.get('/clients', async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT id, name, bin_or_iin, entity_type, regime, monthly_fee,
-              fee_received_this_month, notes, is_active, employees, checklist
+              fee_received_this_month, notes, is_active, employees, checklist, phone
        FROM accounting_clients
        WHERE user_id = $1
        ORDER BY created_at`,
@@ -125,8 +130,8 @@ router.post('/clients', async (req, res) => {
         await client.query(
           `INSERT INTO accounting_clients
              (id, user_id, name, bin_or_iin, entity_type, regime, monthly_fee,
-              fee_received_this_month, notes, is_active, employees, checklist)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb)
+              fee_received_this_month, notes, is_active, employees, checklist, phone)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13)
            ON CONFLICT (id) DO UPDATE SET
              name = EXCLUDED.name,
              bin_or_iin = EXCLUDED.bin_or_iin,
@@ -138,12 +143,13 @@ router.post('/clients', async (req, res) => {
              is_active = EXCLUDED.is_active,
              employees = EXCLUDED.employees,
              checklist = EXCLUDED.checklist,
+             phone = EXCLUDED.phone,
              updated_at = NOW()
            WHERE accounting_clients.user_id = $2`,
           [
             c.id, req.userId, c.name, c.binOrIin, c.entityType, c.regime,
             c.monthlyFee, c.feeReceivedThisMonth, c.notes, c.isActive,
-            JSON.stringify(c.employees), JSON.stringify(c.checklist),
+            JSON.stringify(c.employees), JSON.stringify(c.checklist), c.phone,
           ],
         );
       }
@@ -173,12 +179,12 @@ router.put('/clients/:id', async (req, res) => {
       `UPDATE accounting_clients
        SET name=$1, bin_or_iin=$2, entity_type=$3, regime=$4, monthly_fee=$5,
            fee_received_this_month=$6, notes=$7, is_active=$8,
-           employees=$9::jsonb, checklist=$10::jsonb, updated_at=NOW()
-       WHERE id=$11 AND user_id=$12`,
+           employees=$9::jsonb, checklist=$10::jsonb, phone=$11, updated_at=NOW()
+       WHERE id=$12 AND user_id=$13`,
       [
         c.name, c.binOrIin, c.entityType, c.regime, c.monthlyFee,
         c.feeReceivedThisMonth, c.notes, c.isActive,
-        JSON.stringify(c.employees), JSON.stringify(c.checklist),
+        JSON.stringify(c.employees), JSON.stringify(c.checklist), c.phone,
         req.params.id, req.userId,
       ],
     );
@@ -188,6 +194,49 @@ router.put('/clients/:id', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('PUT /accounting/clients/:id error:', err);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// POST /api/accounting/clients/:id/request-docs
+// Бот сбора документов: пишет клиенту в WhatsApp, каких документов не хватает.
+// Ручной запуск кнопкой из карточки клиента; расписание напоминаний — дальше.
+router.post('/clients/:id/request-docs', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT c.id, c.name, c.phone, c.checklist, u.name AS firm_name
+       FROM accounting_clients c
+       JOIN users u ON u.id = c.user_id
+       WHERE c.id = $1 AND c.user_id = $2`,
+      [req.params.id, req.userId],
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Клиент не найден' });
+
+    const row = rows[0];
+    const { text, number, missing, reason } = buildDocRequest(
+      { name: row.name, phone: row.phone, checklist: asArray(row.checklist) },
+      { firmName: row.firm_name },
+    );
+
+    if (!text) {
+      const messages = {
+        no_phone: 'У клиента не указан телефон — добавьте его в карточке',
+        all_received: 'Все документы уже получены — просить нечего',
+      };
+      return res.status(400).json({ error: messages[reason] || 'Нечего отправлять', reason });
+    }
+
+    const sent = await connect.sendText(number, text);
+    if (!sent.ok) {
+      const human = sent.error === 'connect_not_configured'
+        ? 'WhatsApp-канал не подключён — обратитесь в поддержку'
+        : 'Не удалось отправить сообщение, попробуйте ещё раз';
+      return res.status(502).json({ error: human, detail: sent.error });
+    }
+
+    res.json({ ok: true, number, requested: missing, messageId: sent.id });
+  } catch (err) {
+    console.error('POST /accounting/clients/:id/request-docs error:', err);
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
