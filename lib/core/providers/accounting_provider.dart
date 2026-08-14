@@ -3,6 +3,9 @@ import 'package:uuid/uuid.dart';
 
 import '../models/accounting_client.dart';
 import '../constants/kz_tax_constants.dart';
+import '../services/api_client.dart';
+import 'auth_provider.dart';
+import 'demo_provider.dart';
 
 const _uuid = Uuid();
 
@@ -189,9 +192,13 @@ EmployeeSocialCalc calcEmployeeSocial(Employee emp) {
   final vosmsSelfBase = salary.clamp(0, KzTax.employeeVosmsMaxBase);
   final vosmsSelf = vosmsSelfBase * KzTax.employeeVosmsRate;
 
-  // ИПН: 10% от (зарплата - ОПВ - 30 МРП стандартный вычет) (НК РК 2026)
+  // ИПН: 10% от (зарплата − ОПВ − ВОСМС − 30 МРП).
+  // Вычет социальных платежей (ОПВ и ВОСМС) — ст. 401 НК РК (Закон 214-VIII);
+  // ВОСМС раньше в базу не попадал, из-за чего ИПН был завышен на 0.2%
+  // оклада (500 ₸ при 250 000). Эталон: test/payroll_ipn_test.dart.
   final standardDeduction = KzTax.ipnMonthlyDeduction;
-  final ipnBase = (salary - opv - standardDeduction).clamp(0, double.infinity);
+  final ipnBase =
+      (salary - opv - vosmsSelf - standardDeduction).clamp(0, double.infinity);
   final ipn = ipnBase * 0.10;
 
   // ОПВР (работодатель): 3.5% (2026), max база = 50 МЗП (ст. 26-1 Закона о пенсионном обеспечении)
@@ -219,37 +226,90 @@ EmployeeSocialCalc calcEmployeeSocial(Employee emp) {
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
+final accountingLoadingProvider = StateProvider<bool>((ref) => true);
+
 class AccountingNotifier extends StateNotifier<List<AccountingClient>> {
-  AccountingNotifier() : super(_demoClients());
+  final Ref _ref;
+  AccountingNotifier(this._ref) : super([]) {
+    // Как у transactions/invoices: грузим только после входа, иначе запрос
+    // уходит без токена и получает 401. Провайдер пересоздаётся при смене
+    // authProvider (ref.watch ниже), поэтому загрузка стартует сама.
+    if (_ref.read(authProvider) == AuthState.authenticated) {
+      Future.microtask(_load);
+    }
+  }
 
-  void addClient(AccountingClient client) {
+  Future<void> _load() async {
+    if (!mounted) return;
+    // Демо-режим: показываем клиентов-примеров, чтобы экран не был пустым
+    // на презентации. В обычном режиме демо-данных быть не должно —
+    // бухгалтер увидел бы чужие вымышленные ИП вместо своих клиентов.
+    if (_ref.read(isDemoProvider)) {
+      state = _demoClients();
+      _ref.read(accountingLoadingProvider.notifier).state = false;
+      return;
+    }
+    _ref.read(accountingLoadingProvider.notifier).state = true;
+    try {
+      final data = await ApiClient.get('/accounting/clients') as List<dynamic>;
+      if (!mounted) return;
+      state = data
+          .map((e) => AccountingClient.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      if (mounted) state = [];
+    } finally {
+      if (mounted) {
+        _ref.read(accountingLoadingProvider.notifier).state = false;
+      }
+    }
+  }
+
+  Future<void> reload() => _load();
+
+  /// Сохранение на сервер + оптимистичное обновление списка: экран
+  /// перерисовывается сразу, ошибка сети всплывает как исключение.
+  Future<void> _persist(AccountingClient client) async {
+    if (_ref.read(isDemoProvider)) return;
+    await ApiClient.post('/accounting/clients', client.toJson());
+  }
+
+  Future<void> addClient(AccountingClient client) async {
     state = [...state, client];
+    await _persist(client);
   }
 
-  void updateClient(AccountingClient updated) {
+  Future<void> updateClient(AccountingClient updated) async {
     state = state.map((c) => c.id == updated.id ? updated : c).toList();
+    await _persist(updated);
   }
 
-  void removeClient(String id) {
+  Future<void> removeClient(String id) async {
     state = state.where((c) => c.id != id).toList();
+    if (_ref.read(isDemoProvider)) return;
+    await ApiClient.delete('/accounting/clients/$id');
   }
 
-  void toggleDoc(String clientId, String docId) {
+  Future<void> toggleDoc(String clientId, String docId) async {
+    AccountingClient? changed;
     state = state.map((c) {
       if (c.id != clientId) return c;
       final newChecklist = c.checklist.map((d) {
         if (d.id != docId) return d;
         return d.copyWith(received: !d.received);
       }).toList();
-      return c.copyWith(checklist: newChecklist);
+      return changed = c.copyWith(checklist: newChecklist);
     }).toList();
+    if (changed != null) await _persist(changed!);
   }
 
-  void toggleFee(String clientId) {
+  Future<void> toggleFee(String clientId) async {
+    AccountingClient? changed;
     state = state.map((c) {
       if (c.id != clientId) return c;
-      return c.copyWith(feeReceivedThisMonth: !c.feeReceivedThisMonth);
+      return changed = c.copyWith(feeReceivedThisMonth: !c.feeReceivedThisMonth);
     }).toList();
+    if (changed != null) await _persist(changed!);
   }
 
   AccountingClient createEmpty() => AccountingClient(
@@ -283,8 +343,10 @@ List<DocChecklistItem> _defaultChecklist(ClientTaxRegime regime) {
 }
 
 final accountingProvider =
-    StateNotifierProvider<AccountingNotifier, List<AccountingClient>>(
-        (ref) => AccountingNotifier());
+    StateNotifierProvider<AccountingNotifier, List<AccountingClient>>((ref) {
+  ref.watch(authProvider);
+  return AccountingNotifier(ref);
+});
 
 // Derived: all deadlines for next 60 days across all clients
 final allUpcomingDeadlinesProvider = Provider<List<ClientDeadline>>((ref) {

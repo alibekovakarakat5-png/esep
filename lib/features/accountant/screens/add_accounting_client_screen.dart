@@ -51,7 +51,7 @@ class _AddAccountingClientScreenState
     super.dispose();
   }
 
-  void _save() {
+  Future<void> _save() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -75,12 +75,23 @@ class _AddAccountingClientScreenState
       notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
     );
 
-    if (widget.existing != null) {
-      ref.read(accountingProvider.notifier).updateClient(client);
-    } else {
-      ref.read(accountingProvider.notifier).addClient(client);
+    final notifier = ref.read(accountingProvider.notifier);
+    try {
+      if (widget.existing != null) {
+        await notifier.updateClient(client);
+      } else {
+        await notifier.addClient(client);
+      }
+    } catch (e) {
+      // Список уже обновлён локально, но на сервер не улетело — говорим прямо,
+      // иначе бухгалтер решит, что клиент сохранён.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Не удалось сохранить на сервере: $e')),
+        );
+      }
     }
-    Navigator.of(context).pop();
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override

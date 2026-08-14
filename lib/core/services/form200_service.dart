@@ -121,8 +121,9 @@ class Form200Service {
     final vosmsBase = min(g, KzTax.currentMzp * 20);
     final vosms = vosmsBase * KzTax.employeeVosmsRate;
 
-    // ИПН: (ЗП − ОПВ − 30 МРП) × 10%. База как в зарплатном калькуляторе.
-    final ipnTaxable = max(0.0, g - opv - KzTax.ipnMonthlyDeduction);
+    // ИПН: (ЗП − ОПВ − ВОСМС − 30 МРП) × 10%. Вычет соцплатежей — ст. 401
+    // НК РК (Закон 214-VIII). База как в зарплатном калькуляторе.
+    final ipnTaxable = max(0.0, g - opv - vosms - KzTax.ipnMonthlyDeduction);
     final ipn = ipnTaxable * KzTax.generalIpnRate;
 
     // СО (соц. отчисления, работодатель): 5%, база [1 МЗП; 7 МЗП]
