@@ -32,12 +32,13 @@ class _SalaryCalculatorScreenState extends State<SalaryCalculatorScreen> {
     final opvBase = min(_salary, KzTax.currentMzp * 50);
     final opv = opvBase * KzTax.employeeOpvRate;
 
-    final mrpDeduction = KzTax.ipnMonthlyDeduction; // 30 МРП (Новый НК РК 2026)
-    final ipnTaxable = max(0.0, _salary - opv - mrpDeduction);
-    final ipn = ipnTaxable * KzTax.generalIpnRate; // 10% (до 8500 МРП)
-
     final vosmsEmployeeBase = min(_salary, KzTax.currentMzp * 20);
     final vosmsEmployee = vosmsEmployeeBase * KzTax.employeeVosmsRate;
+
+    final mrpDeduction = KzTax.ipnMonthlyDeduction; // 30 МРП (Новый НК РК 2026)
+    // Вычет соцплатежей (ОПВ + ВОСМС) — ст. 401 НК РК (Закон 214-VIII).
+    final ipnTaxable = max(0.0, _salary - opv - vosmsEmployee - mrpDeduction);
+    final ipn = ipnTaxable * KzTax.generalIpnRate; // 10% (до 8500 МРП)
 
     final totalDeductions = opv + ipn + vosmsEmployee;
     final netPay = _salary - totalDeductions;
@@ -121,7 +122,7 @@ class _SalaryCalculatorScreenState extends State<SalaryCalculatorScreen> {
                   Padding(
                     padding: const EdgeInsets.only(left: 0, top: 2, bottom: 8),
                     child: Text(
-                      'База: ${_fmt.format(_salary)} - ${_fmt.format(opv)} (ОПВ) - ${_fmt.format(mrpDeduction)} (30 МРП) = ${_fmt.format(ipnTaxable)} ₸',
+                      'База: ${_fmt.format(_salary)} − ${_fmt.format(opv)} (ОПВ) − ${_fmt.format(vosmsEmployee)} (ВОСМС) − ${_fmt.format(mrpDeduction)} (30 МРП) = ${_fmt.format(ipnTaxable)} ₸',
                       style: const TextStyle(fontSize: 11, color: EsepColors.textSecondary),
                     ),
                   ),

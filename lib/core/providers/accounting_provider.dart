@@ -192,9 +192,13 @@ EmployeeSocialCalc calcEmployeeSocial(Employee emp) {
   final vosmsSelfBase = salary.clamp(0, KzTax.employeeVosmsMaxBase);
   final vosmsSelf = vosmsSelfBase * KzTax.employeeVosmsRate;
 
-  // ИПН: 10% от (зарплата - ОПВ - 30 МРП стандартный вычет) (НК РК 2026)
+  // ИПН: 10% от (зарплата − ОПВ − ВОСМС − 30 МРП).
+  // Вычет социальных платежей (ОПВ и ВОСМС) — ст. 401 НК РК (Закон 214-VIII);
+  // ВОСМС раньше в базу не попадал, из-за чего ИПН был завышен на 0.2%
+  // оклада (500 ₸ при 250 000). Эталон: test/payroll_ipn_test.dart.
   final standardDeduction = KzTax.ipnMonthlyDeduction;
-  final ipnBase = (salary - opv - standardDeduction).clamp(0, double.infinity);
+  final ipnBase =
+      (salary - opv - vosmsSelf - standardDeduction).clamp(0, double.infinity);
   final ipn = ipnBase * 0.10;
 
   // ОПВР (работодатель): 3.5% (2026), max база = 50 МЗП (ст. 26-1 Закона о пенсионном обеспечении)
