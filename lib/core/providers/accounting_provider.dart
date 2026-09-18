@@ -27,8 +27,12 @@ List<AccountingClient> _demoClients() {
       monthlyFee: 15000,
       feeReceivedThisMonth: false,
       checklist: [
-        DocChecklistItem(id: 'd1', label: 'Банковская выписка за $monthLabel', received: true),
-        DocChecklistItem(id: 'd2', label: 'Реестр доходов за $monthLabel', received: false),
+        DocChecklistItem(
+            id: 'd1',
+            label: 'Банковская выписка за $monthLabel',
+            received: true),
+        DocChecklistItem(
+            id: 'd2', label: 'Реестр доходов за $monthLabel', received: false),
       ],
     ),
     AccountingClient(
@@ -43,12 +47,20 @@ List<AccountingClient> _demoClients() {
         const Employee(id: 'e4', name: 'Жаксыбеков Р.', salary: 180000),
       ],
       monthlyFee: 35000,
-      feeReceivedThisMonth: true,
+      feePayments: [
+        FeePayment(month: feeMonthKey(now), amount: 35000, received: true)
+      ],
       checklist: [
-        DocChecklistItem(id: 'd3', label: 'Банковская выписка за $monthLabel', received: true),
-        DocChecklistItem(id: 'd4', label: 'Авансовые отчёты за $monthLabel', received: true),
-        const DocChecklistItem(id: 'd5', label: 'Акты выполненных работ', received: true),
-        DocChecklistItem(id: 'd6', label: 'Счёт-фактуры за $monthLabel', received: false),
+        DocChecklistItem(
+            id: 'd3',
+            label: 'Банковская выписка за $monthLabel',
+            received: true),
+        DocChecklistItem(
+            id: 'd4', label: 'Авансовые отчёты за $monthLabel', received: true),
+        const DocChecklistItem(
+            id: 'd5', label: 'Акты выполненных работ', received: true),
+        DocChecklistItem(
+            id: 'd6', label: 'Счёт-фактуры за $monthLabel', received: false),
       ],
     ),
     AccountingClient(
@@ -59,9 +71,14 @@ List<AccountingClient> _demoClients() {
       regime: ClientTaxRegime.simplified910,
       employees: [],
       monthlyFee: 8000,
-      feeReceivedThisMonth: true,
+      feePayments: [
+        FeePayment(month: feeMonthKey(now), amount: 8000, received: true)
+      ],
       checklist: [
-        DocChecklistItem(id: 'd7', label: 'Выписка по счёту за $monthLabel', received: false),
+        DocChecklistItem(
+            id: 'd7',
+            label: 'Выписка по счёту за $monthLabel',
+            received: false),
       ],
     ),
     AccountingClient(
@@ -74,7 +91,8 @@ List<AccountingClient> _demoClients() {
       monthlyFee: 10000,
       feeReceivedThisMonth: false,
       checklist: [
-        DocChecklistItem(id: 'd8', label: 'Реестр доходов за $monthLabel', received: true),
+        DocChecklistItem(
+            id: 'd8', label: 'Реестр доходов за $monthLabel', received: true),
       ],
     ),
     AccountingClient(
@@ -88,10 +106,16 @@ List<AccountingClient> _demoClients() {
         const Employee(id: 'e6', name: 'Дюсенова М.', salary: 110000),
       ],
       monthlyFee: 20000,
-      feeReceivedThisMonth: true,
+      feePayments: [
+        FeePayment(month: feeMonthKey(now), amount: 20000, received: true)
+      ],
       checklist: [
-        DocChecklistItem(id: 'd9', label: 'Банковская выписка за $monthLabel', received: true),
-        DocChecklistItem(id: 'd10', label: 'Реестр доходов за $monthLabel', received: true),
+        DocChecklistItem(
+            id: 'd9',
+            label: 'Банковская выписка за $monthLabel',
+            received: true),
+        DocChecklistItem(
+            id: 'd10', label: 'Реестр доходов за $monthLabel', received: true),
       ],
     ),
   ];
@@ -106,15 +130,51 @@ List<ClientDeadline> generateClientDeadlines(
   int days,
 ) {
   final deadlines = <ClientDeadline>[];
-  final to = from.add(Duration(days: days));
+  final start = DateTime(from.year, from.month, from.day);
+  final to = start.add(Duration(days: days));
+  if (!client.isActive || days <= 0) return deadlines;
+  // Removed regimes must not generate current reminders.
+  if (from.year >= 2026 &&
+      (client.regime == ClientTaxRegime.esp ||
+          client.regime == ClientTaxRegime.patent)) {
+    return deadlines;
+  }
 
   void add(String type, String label, DateTime date) {
-    if (date.isAfter(from.subtract(const Duration(days: 1))) && date.isBefore(to)) {
+    // Official 2026 five-day calendar; future years need calendar confirmation.
+    final holidays2026 = <String>{
+      '1-1',
+      '1-2',
+      '1-7',
+      '3-8',
+      '3-9',
+      '3-21',
+      '3-22',
+      '3-23',
+      '3-24',
+      '3-25',
+      '5-1',
+      '5-7',
+      '5-9',
+      '5-11',
+      '5-27',
+      '7-6',
+      '10-25',
+      '10-26',
+      '12-16',
+    };
+    while (date.weekday >= DateTime.saturday ||
+        (date.year == 2026 &&
+            holidays2026.contains('${date.month}-${date.day}'))) {
+      date = date.add(const Duration(days: 1));
+    }
+    if (!date.isBefore(start) && date.isBefore(to)) {
       deadlines.add(ClientDeadline(
         clientId: client.id,
         clientName: client.name,
         type: type,
-        label: label,
+        label:
+            date.year == 2026 ? label : '$label · уточните календарь переносов',
         date: date,
       ));
     }
@@ -130,42 +190,57 @@ List<ClientDeadline> generateClientDeadlines(
       case ClientTaxRegime.simplified910:
       case ClientTaxRegime.patent:
         // Соцплатежи — до 25-го каждого месяца
-        add('social', 'Соцплатежи (ОПВ+СО+ВОСМС) · ${_monthName(month)}',
+        final previous = DateTime(year, month - 1);
+        add(
+            'social',
+            'Соцплатежи · ${_monthName(previous.month)} ${previous.year} (при наличии обязанности)',
             DateTime(year, month, 25));
 
         // 910 форма — 15 февраля и 15 августа
         if (client.regime == ClientTaxRegime.simplified910) {
-          add('910', '910 форма за I полугодие $year', DateTime(year, 2, 15));
-          add('910', '910 форма за II полугодие $year', DateTime(year, 8, 15));
+          add('910', '910 форма за II полугодие ${year - 1}',
+              DateTime(year, 2, 15));
+          add('910', '910 форма за I полугодие $year', DateTime(year, 8, 15));
         }
 
       case ClientTaxRegime.esp:
         // ЕСП — до 25-го каждого месяца
-        add('esp', 'ЕСП · ${_monthName(month)} $year', DateTime(year, month, 25));
+        // Legacy regime has no current obligations generated automatically.
+        break;
 
       case ClientTaxRegime.our:
         // Зарплатные налоги — до 25-го
-        add('payroll', 'ИПН/ОПВ/СО сотрудников · ${_monthName(month)}',
-            DateTime(year, month, 25));
+        final previous = DateTime(year, month - 1);
+        if (client.employees.isNotEmpty) {
+          add(
+              'payroll',
+              'ИПН/ОПВ/СО сотрудников · ${_monthName(previous.month)} ${previous.year}',
+              DateTime(year, month, 25));
+        }
 
-        // 200.00 — ежеквартально, 15-го следующего месяца
-        // Q1→апр15, Q2→июл15, Q3→окт15, Q4→янв15
-        for (final qMonth in [4, 7, 10, 1]) {
-          final qYear = qMonth == 1 ? year + 1 : year;
-          add('200', '200.00 за ${_quarterLabel(qMonth)} $year',
-              DateTime(qYear, qMonth, 15));
+        // Quarter end + second month: Q1 May, Q2 August, Q3 November, Q4 February.
+        for (final qMonth in [2, 5, 8, 11]) {
+          final periodYear = qMonth == 2 ? year - 1 : year;
+          final quarter = qMonth == 2 ? 4 : (qMonth - 2) ~/ 3;
+          add(
+              '200',
+              '200.00 за $quarter кв. $periodYear${client.employees.isEmpty ? ' (уточните обязанность налогового агента)' : ''}',
+              DateTime(year, qMonth, 15));
         }
 
         // 700.00 — налог на имущество/транспорт/землю (НЕ КПН, КПН это форма
         // 100). Срок — 31 марта года, следующего за отчётным.
-        add('700', 'Форма 700.00 (имущество/транспорт/земля) за $year',
+        add(
+            '700',
+            'Форма 700.00 за ${year - 1} (при наличии объектов налогообложения)',
             DateTime(year, 3, 31));
     }
   }
 
   // Убираем дубликаты по (type, date)
   final seen = <String>{};
-  deadlines.retainWhere((d) => seen.add('${d.type}_${d.date.toIso8601String()}'));
+  deadlines
+      .retainWhere((d) => seen.add('${d.type}_${d.date.toIso8601String()}'));
 
   deadlines.sort((a, b) => a.date.compareTo(b.date));
   return deadlines;
@@ -228,7 +303,15 @@ EmployeeSocialCalc calcEmployeeSocial(Employee emp) {
 
 final accountingLoadingProvider = StateProvider<bool>((ref) => true);
 
+// Injectable persistence boundary: regression tests can simulate a delayed or
+// failed request without contacting production.
+final accountingClientWriterProvider =
+    Provider<Future<void> Function(AccountingClient)>((ref) => (client) async {
+          await ApiClient.post('/accounting/clients', client.toJson());
+        });
+
 class AccountingNotifier extends StateNotifier<List<AccountingClient>> {
+  final Set<String> _pendingFees = {};
   final Ref _ref;
   AccountingNotifier(this._ref) : super([]) {
     // Как у transactions/invoices: грузим только после входа, иначе запрос
@@ -267,21 +350,23 @@ class AccountingNotifier extends StateNotifier<List<AccountingClient>> {
 
   Future<void> reload() => _load();
 
-  /// Сохранение на сервер + оптимистичное обновление списка: экран
-  /// перерисовывается сразу, ошибка сети всплывает как исключение.
+  /// Publish add/edit changes only after the server confirms persistence.
   Future<void> _persist(AccountingClient client) async {
     if (_ref.read(isDemoProvider)) return;
-    await ApiClient.post('/accounting/clients', client.toJson());
+    await _ref.read(accountingClientWriterProvider)(client);
   }
 
   Future<void> addClient(AccountingClient client) async {
-    state = [...state, client];
     await _persist(client);
+    if (!mounted) return;
+    // A retry after a lost response uses the same id (server upsert).
+    state = [...state.where((c) => c.id != client.id), client];
   }
 
   Future<void> updateClient(AccountingClient updated) async {
-    state = state.map((c) => c.id == updated.id ? updated : c).toList();
     await _persist(updated);
+    if (!mounted) return;
+    state = state.map((c) => c.id == updated.id ? updated : c).toList();
   }
 
   Future<void> removeClient(String id) async {
@@ -303,13 +388,41 @@ class AccountingNotifier extends StateNotifier<List<AccountingClient>> {
     if (changed != null) await _persist(changed!);
   }
 
-  Future<void> toggleFee(String clientId) async {
-    AccountingClient? changed;
-    state = state.map((c) {
-      if (c.id != clientId) return c;
-      return changed = c.copyWith(feeReceivedThisMonth: !c.feeReceivedThisMonth);
-    }).toList();
-    if (changed != null) await _persist(changed!);
+  Future<void> toggleFee(String clientId, {DateTime? month}) async {
+    final period = month ?? DateTime.now();
+    final key = feeMonthKey(period);
+    if (!_pendingFees.add('$clientId/$key')) return;
+    try {
+      final client = state.firstWhere((c) => c.id == clientId);
+      final received = !client.feeReceivedFor(period);
+      List<FeePayment> payments;
+      if (_ref.read(isDemoProvider)) {
+        final previous =
+            client.feePayments.where((p) => p.month == key).firstOrNull;
+        payments = [
+          ...client.feePayments.where((p) => p.month != key),
+          FeePayment(
+              month: key,
+              amount: previous?.amount ?? client.monthlyFee,
+              received: received)
+        ];
+      } else {
+        final result = await ApiClient.put(
+            '/accounting/clients/${Uri.encodeComponent(clientId)}/fees/$key',
+            {'received': received});
+        payments = (result['payments'] as List)
+            .map((p) => FeePayment.fromJson(p as Map))
+            .toList();
+      }
+      if (mounted) {
+        state = state
+            .map(
+                (c) => c.id == clientId ? c.copyWith(feePayments: payments) : c)
+            .toList();
+      }
+    } finally {
+      _pendingFees.remove('$clientId/$key');
+    }
   }
 
   AccountingClient createEmpty() => AccountingClient(
@@ -352,7 +465,8 @@ final accountingProvider =
 final allUpcomingDeadlinesProvider = Provider<List<ClientDeadline>>((ref) {
   final clients = ref.watch(accountingProvider);
   final now = DateTime.now();
-  final all = clients.expand((c) => generateClientDeadlines(c, now, 60)).toList();
+  final all =
+      clients.expand((c) => generateClientDeadlines(c, now, 60)).toList();
   all.sort((a, b) => a.date.compareTo(b.date));
   return all;
 });
@@ -374,24 +488,27 @@ final awaitingDocsCountProvider = Provider<int>((ref) {
 final totalFeeProvider = Provider<({double total, double received})>((ref) {
   final clients = ref.watch(accountingProvider);
   final total = clients.fold(0.0, (s, c) => s + c.monthlyFee);
-  final received =
-      clients.where((c) => c.feeReceivedThisMonth).fold(0.0, (s, c) => s + c.monthlyFee);
+  final received = clients.fold(0.0, (s, c) => s + c.receivedFeeThisMonth);
   return (total: total, received: received);
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 String _monthName(int month) => const [
-      '', 'янв', 'фев', 'мар', 'апр', 'май', 'июн',
-      'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'
+      '',
+      'янв',
+      'фев',
+      'мар',
+      'апр',
+      'май',
+      'июн',
+      'июл',
+      'авг',
+      'сен',
+      'окт',
+      'ноя',
+      'дек'
     ][month];
-
-String _quarterLabel(int firstMonth) => switch (firstMonth) {
-      4 => 'I кв.',
-      7 => 'II кв.',
-      10 => 'III кв.',
-      _ => 'IV кв.',
-    };
 
 DateTime _addMonths(DateTime base, int offset) {
   var m = base.month + offset;

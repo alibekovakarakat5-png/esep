@@ -1,6 +1,6 @@
-import 'package:web/web.dart' as web;
-
 String detectApiBase() {
-  // Always use Railway production backend
-  return 'https://api.esepkz.com/api';
+  // Local tests must never need production credentials or mutate production.
+  // Release default is unchanged; preview builds explicitly override it.
+  return const String.fromEnvironment('ESEP_API_BASE',
+      defaultValue: 'https://api.esepkz.com/api');
 }

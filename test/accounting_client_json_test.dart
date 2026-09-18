@@ -36,6 +36,20 @@ void main() {
     expect((j['checklist'] as List).last['received'], isFalse);
   });
 
+  test('редактирование реквизитов сохраняет сотрудников, оплату и архивность',
+      () {
+    final archived = client.copyWith(isActive: false);
+    final edited = archived.copyWith(name: 'Новое имя', clearNotes: true);
+    expect(edited.employees, archived.employees);
+    expect(edited.checklist, archived.checklist);
+    expect(edited.legacyFeeReceived, isTrue);
+    expect(
+        edited.feeReceivedThisMonth, isFalse); // undated is not current payment
+    expect(edited.isActive, isFalse);
+    expect(edited.notes, isNull);
+    expect(edited.id, client.id);
+  });
+
   test('fromJson восстанавливает клиента без потерь', () {
     final restored = AccountingClient.fromJson(client.toJson());
 
@@ -45,7 +59,8 @@ void main() {
     expect(restored.entityType, ClientEntityType.too);
     expect(restored.regime, ClientTaxRegime.our);
     expect(restored.monthlyFee, 25000);
-    expect(restored.feeReceivedThisMonth, isTrue);
+    expect(restored.legacyFeeReceived, isTrue);
+    expect(restored.feeReceivedThisMonth, isFalse);
     expect(restored.notes, 'НДС с сентября');
     expect(restored.employees.single.name, 'Иванов А.А.');
     expect(restored.checklist.map((d) => d.received), [true, false]);

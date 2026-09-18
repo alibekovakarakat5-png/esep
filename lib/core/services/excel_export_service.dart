@@ -231,7 +231,7 @@ class ExcelExportService {
     final totalRow = clients.length + 2;
     final boldStyle = CellStyle(bold: true);
     final totalFee = clients.fold(0.0, (s, c) => s + c.monthlyFee);
-    final receivedFee = clients.where((c) => c.feeReceivedThisMonth).fold(0.0, (s, c) => s + c.monthlyFee);
+    final receivedFee = clients.fold(0.0, (s, c) => s + c.receivedFeeThisMonth);
 
     sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: totalRow)).value = TextCellValue('Итого ежемес. плата:');
     sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: totalRow)).cellStyle = boldStyle;

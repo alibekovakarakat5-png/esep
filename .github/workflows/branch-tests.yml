@@ -2,8 +2,7 @@ name: Tests (branches)
 
 # Ветки (кроме main): Dart-тесты + web-артефакт для локальной e2e-проверки.
 # Деплоя здесь НЕТ — прод собирается только из main (build-release.yml).
-# dart.exe локально заблокирован Device Guard, поэтому красный/зелёный
-# смотрим по статусам шагов CI ещё до мерджа в main.
+# Локальная проверка и CI используют одну версию Flutter.
 
 on:
   push:
@@ -41,17 +40,25 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: beta
+          channel: stable
+          flutter-version: '3.38.2'
           cache: true
 
       - name: Get dependencies
         run: flutter pub get
+
+      - name: Full Flutter regression suite
+        run: flutter test
 
       # Пофайлово, как в build-release.yml: логи джобов без админ-прав не
       # читаются, виновника видно по имени красного шага.
       - name: "Dart: гейт загрузки по авторизации"
         if: ${{ !cancelled() }}
         run: flutter test test/provider_auth_gating_test.dart
+
+      - name: "Dart: сохранение клиентов бухфирмы"
+        if: ${{ !cancelled() }}
+        run: flutter test test/accounting_client_json_test.dart test/accounting_provider_gating_test.dart test/accounting_calendar_fees_test.dart
 
       - name: "Dart: паритет tax core (Dart ↔ Node)"
         if: ${{ !cancelled() }}
@@ -74,7 +81,7 @@ jobs:
         run: flutter test test/widget_test.dart
 
   build-web:
-    needs: [tests]
+    needs: [tests, server-tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -82,7 +89,8 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: beta
+          channel: stable
+          flutter-version: '3.38.2'
           cache: true
 
       - name: Get dependencies

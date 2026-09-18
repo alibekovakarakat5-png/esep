@@ -1,358 +1,130 @@
-// ── Routes: /api/esf-recon ───────────────────────────────────────────────────
-// Сверка входящих ЭСФ с зачётом по НДС (форма 300).
-//
-// POST /sessions                    создать сессию
-// POST /sessions/:id/registry       загрузить XLSX реестр ЭСФ (multipart)
-// POST /sessions/:id/notice         загрузить XLSX извещение ф.300 (multipart)
-// POST /sessions/:id/match          запустить матчинг
-// GET  /sessions                    список сессий пользователя
-// GET  /sessions/:id                деталь + статистика
-// GET  /sessions/:id/results?type=  расхождения (matched|amount_diff|...)
-// DELETE /sessions/:id              удалить
+// Reconciliations have immutable company ownership and session-local inputs.
+const express = require('express');
+const multer = require('multer');
+const defaultDb = require('../db');
+const defaultParsers = require('../services/esf_xlsx_parser');
+const { match, buildStats } = require('../services/esf_matcher');
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
+const fail = (status, message) => Object.assign(new Error(message), { status });
+const day = v => v instanceof Date ? v.toISOString().slice(0,10) : String(v).slice(0,10);
+const validDate = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)
+  && Number.isFinite(Date.parse(v)) && new Date(v).toISOString().slice(0,10) === v;
 
-const router  = require('express').Router();
-const multer  = require('multer');
-const db      = require('../db');
-
-const { parseEsfRegistry, parseForm300Notice } = require('../services/esf_xlsx_parser');
-const { match: runMatch, buildStats } = require('../services/esf_matcher');
-
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 30 * 1024 * 1024 }, // 30 MB
-});
-
-function requireUser(req, res) {
-  const id = req.user?.id;
-  if (!id) { res.status(401).json({ error: 'Требуется авторизация' }); return null; }
-  return id;
+function createRouter(db = defaultDb, parsers = defaultParsers) {
+ const router = express.Router();
+ router.use((req,res,next) => {
+  req.ownerId = req.userId || req.user?.id;
+  if (!req.ownerId) return res.status(401).json({error:'Требуется авторизация'});
+  next();
+ });
+ const wrap = fn => async (req,res) => {
+  try { await fn(req,res); } catch(e) {
+   res.status(e.status || 500).json({error:e.status ? e.message : 'Не удалось выполнить сверку. Изменения не сохранены.'});
+  }
+ };
+ const sessionTask = fn => wrap(async (req,res) => {
+  if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) throw fail(404,'Сессия не найдена');
+  const tx = await db.connect();
+  try {
+   await tx.query('BEGIN');
+   const {rows} = await tx.query('SELECT * FROM esf_recon_session WHERE id=$1 AND user_id=$2 FOR UPDATE',[req.params.id,req.ownerId]);
+   const s = rows[0];
+   if (!s) throw fail(404,'Сессия не найдена');
+   if (!s.accounting_client_id) throw fail(409,'Старая сверка без компании. Создайте новую и загрузите исходные файлы. Старые данные сохранены.');
+   const owner = await tx.query('SELECT id FROM accounting_clients WHERE id=$1 AND user_id=$2',[s.accounting_client_id,req.ownerId]);
+   if (!owner.rows.length) throw fail(404,'Компания не найдена');
+   const result = await fn(req,tx,s);
+   await tx.query('COMMIT'); res.json(result);
+  } catch(e) { await tx.query('ROLLBACK'); throw e; } finally { tx.release(); }
+ });
+ const invalidate = async (tx,id) => {
+  await tx.query('DELETE FROM esf_recon_result WHERE session_id=$1',[id]);
+  await tx.query("UPDATE esf_recon_session SET status='draft',stats='{}'::jsonb,updated_at=NOW() WHERE id=$1",[id]);
+ };
+ router.post('/sessions',wrap(async (req,res) => {
+  const {id,title,period_from,period_to,accounting_client_id} = req.body || {};
+  if (id != null && (typeof id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))) throw fail(400,'Некорректный ID сверки');
+  if (!validDate(period_from) || !validDate(period_to) || period_from > period_to) throw fail(400,'Укажите корректный период YYYY-MM-DD');
+  if (typeof accounting_client_id !== 'string' || !accounting_client_id) throw fail(400,'Выберите обслуживаемую компанию');
+  const {rows} = await db.query(`INSERT INTO esf_recon_session
+   (user_id,title,period_from,period_to,accounting_client_id,client_bin,id)
+   SELECT $1,$2,$3,$4,id,bin_or_iin,COALESCE($6::uuid,gen_random_uuid()) FROM accounting_clients
+   WHERE id=$5 AND user_id=$1 AND bin_or_iin ~ '^[0-9]{12}$' AND is_active=true
+   ON CONFLICT(id) DO UPDATE SET title=esf_recon_session.title
+   WHERE esf_recon_session.user_id=EXCLUDED.user_id
+     AND esf_recon_session.accounting_client_id=EXCLUDED.accounting_client_id
+     AND esf_recon_session.period_from=EXCLUDED.period_from AND esf_recon_session.period_to=EXCLUDED.period_to RETURNING *`,
+   [req.ownerId,typeof title==='string'?title.slice(0,250):'',period_from,period_to,accounting_client_id,id||null]);
+  if (!rows.length) throw fail(400,'Компания недоступна или не заполнен ИИН/БИН из 12 цифр');
+  res.status(201).json(rows[0]);
+ }));
+ router.get('/sessions',wrap(async (req,res) => {
+  const {rows} = await db.query(`SELECT s.*,c.name AS client_name,(s.accounting_client_id IS NULL) AS requires_reimport
+   FROM esf_recon_session s LEFT JOIN accounting_clients c ON c.id=s.accounting_client_id AND c.user_id=s.user_id
+   WHERE s.user_id=$1 AND ($2::text IS NULL OR s.accounting_client_id=$2)
+   ORDER BY s.created_at DESC LIMIT 100`,[req.ownerId,req.query.accounting_client_id || null]);
+  res.json(rows);
+ }));
+ router.get('/sessions/:id',sessionTask(async (_,tx,s) => {
+  const {rows} = await tx.query('SELECT name FROM accounting_clients WHERE id=$1',[s.accounting_client_id]);
+  return {...s,client_name:rows[0].name};
+ }));
+ router.delete('/sessions/:id',sessionTask(async (_,tx,s) => {
+  await tx.query('DELETE FROM esf_recon_session WHERE id=$1',[s.id]);return {ok:true};
+ }));
+ router.post('/sessions/:id/registry',upload.single('file'),sessionTask(async (req,tx,s) => {
+  if (!req.file) throw fail(400,'Файл не передан');
+  const rows = await parsers.parseEsfRegistry(req.file.buffer);
+  if (!rows.length) throw fail(400,'В реестре не найдены строки ЭСФ');
+  if (rows.some(r=>r.buyer_iin!==s.client_bin)) throw fail(400,'ИИН/БИН получателя в реестре отсутствует или не совпадает с выбранной компанией');
+  const selected=rows.filter(r=>day(r.invoice_date)>=day(s.period_from)&&day(r.invoice_date)<=day(s.period_to));
+  if (!selected.length) throw fail(400,'В файле нет ЭСФ за выбранный период');
+  await invalidate(tx,s.id);
+  await tx.query('DELETE FROM esf_recon_registry_row WHERE session_id=$1',[s.id]);
+  for(const r of selected) await tx.query(`INSERT INTO esf_recon_registry_row
+   (session_id,registration_no,invoice_no,invoice_date,status,seller_iin,seller_name,buyer_iin,amount_net,amount_vat,amount_total,raw_row)
+   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb)`,
+   [s.id,r.registration_no,r.invoice_no,r.invoice_date,r.status,r.seller_iin,r.seller_name,r.buyer_iin,r.amount_net,r.amount_vat,r.amount_total,JSON.stringify(r.raw_row)]);
+  await tx.query('UPDATE esf_recon_session SET registry_filename=$1 WHERE id=$2',[req.file.originalname,s.id]);
+  return {inserted:selected.length,skipped:rows.length-selected.length,total_rows:rows.length};
+ }));
+ router.post('/sessions/:id/notice',upload.single('file'),sessionTask(async (req,tx,s) => {
+  if (!req.file) throw fail(400,'Файл не передан');
+  const rows=await parsers.parseForm300Notice(req.file.buffer);
+  if(!rows.length) throw fail(400,'В извещении не найдены строки');
+  await invalidate(tx,s.id);
+  await tx.query('DELETE FROM esf_notice_row WHERE session_id=$1',[s.id]);
+  for(const [i,r] of rows.entries()) await tx.query(`INSERT INTO esf_notice_row
+   (session_id,row_index,seller_iin,seller_name,invoice_no,invoice_date,amount_net,amount_vat,amount_total,vat_rate,raw_row)
+   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb)`,
+   [s.id,i+1,r.seller_iin,r.seller_name,r.invoice_no,r.invoice_date,r.amount_net,r.amount_vat,r.amount_total,r.vat_rate,JSON.stringify(r.raw_row)]);
+  await tx.query('UPDATE esf_recon_session SET notice_filename=$1 WHERE id=$2',[req.file.originalname,s.id]);
+  return {inserted:rows.length};
+ }));
+ router.post('/sessions/:id/match',sessionTask(async (_,tx,s) => {
+  const esf=await tx.query('SELECT * FROM esf_recon_registry_row WHERE session_id=$1',[s.id]);
+  const notice=await tx.query('SELECT * FROM esf_notice_row WHERE session_id=$1',[s.id]);
+  if(!esf.rows.length||!notice.rows.length) throw fail(400,'Загрузите оба файла для полной сверки');
+  const results=match(esf.rows,notice.rows),stats=buildStats(results);
+  await invalidate(tx,s.id);
+  for(const r of results) await tx.query(`INSERT INTO esf_recon_result
+   (session_id,esf_id,notice_row_id,match_type,confidence,diff) VALUES ($1,$2,$3,$4,$5,$6::jsonb)`,
+   [s.id,r.esf_id||null,r.notice_row_id||null,r.match_type,r.confidence,JSON.stringify(r.diff)]);
+  await tx.query("UPDATE esf_recon_session SET status='matched',stats=$1::jsonb WHERE id=$2",[JSON.stringify(stats),s.id]);
+  return {ok:true,stats};
+ }));
+ router.get('/sessions/:id/results',sessionTask(async (req,tx,s) => {
+  const {rows}=await tx.query(`SELECT m.id,m.match_type,m.confidence,m.diff,
+   e.registration_no,e.invoice_no AS esf_invoice_no,e.invoice_date AS esf_date,e.status AS esf_status,
+   e.seller_iin AS esf_seller_iin,e.seller_name AS esf_seller_name,e.amount_total AS esf_total,e.amount_vat AS esf_vat,
+   n.invoice_no AS notice_invoice_no,n.invoice_date AS notice_date,n.seller_iin AS notice_seller_iin,
+   n.seller_name AS notice_seller_name,n.amount_total AS notice_total,n.amount_vat AS notice_vat
+   FROM esf_recon_result m LEFT JOIN esf_recon_registry_row e ON e.id=m.esf_id AND e.session_id=m.session_id
+   LEFT JOIN esf_notice_row n ON n.id=m.notice_row_id AND n.session_id=m.session_id
+   WHERE m.session_id=$1 AND ($2::text IS NULL OR m.match_type=$2) ORDER BY m.match_type,m.id`,[s.id,req.query.type||null]);
+  return rows;
+ }));
+ return router;
 }
-
-// ── POST /sessions ──────────────────────────────────────────────────────────
-
-router.post('/sessions', async (req, res) => {
-  const userId = requireUser(req, res);
-  if (!userId) return;
-  const { title, period_from, period_to } = req.body;
-  if (!period_from || !period_to) {
-    return res.status(400).json({ error: 'Укажите period_from и period_to' });
-  }
-  try {
-    const r = await db.query(
-      `INSERT INTO esf_recon_session (user_id, title, period_from, period_to)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [userId, title || `Сверка за ${period_from} – ${period_to}`, period_from, period_to]
-    );
-    res.json(r.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ── GET /sessions ───────────────────────────────────────────────────────────
-
-router.get('/sessions', async (req, res) => {
-  const userId = requireUser(req, res);
-  if (!userId) return;
-  try {
-    const r = await db.query(
-      `SELECT id, title, period_from, period_to, status,
-              registry_filename, notice_filename, stats,
-              created_at, updated_at
-         FROM esf_recon_session
-        WHERE user_id = $1
-        ORDER BY created_at DESC
-        LIMIT 50`,
-      [userId]
-    );
-    res.json(r.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ── GET /sessions/:id ───────────────────────────────────────────────────────
-
-router.get('/sessions/:id', async (req, res) => {
-  const userId = requireUser(req, res);
-  if (!userId) return;
-  try {
-    const r = await db.query(
-      `SELECT * FROM esf_recon_session WHERE id = $1 AND user_id = $2`,
-      [req.params.id, userId]
-    );
-    if (r.rows.length === 0) return res.status(404).json({ error: 'Сессия не найдена' });
-    res.json(r.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ── DELETE /sessions/:id ────────────────────────────────────────────────────
-
-router.delete('/sessions/:id', async (req, res) => {
-  const userId = requireUser(req, res);
-  if (!userId) return;
-  try {
-    await db.query(
-      `DELETE FROM esf_recon_session WHERE id = $1 AND user_id = $2`,
-      [req.params.id, userId]
-    );
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ── POST /sessions/:id/registry ─────────────────────────────────────────────
-
-router.post('/sessions/:id/registry', upload.single('file'), async (req, res) => {
-  const userId = requireUser(req, res);
-  if (!userId) return;
-  const sessionId = req.params.id;
-  if (!req.file) return res.status(400).json({ error: 'Файл не передан (поле "file")' });
-
-  try {
-    // Проверка владельца
-    const own = await db.query(
-      `SELECT period_from, period_to FROM esf_recon_session WHERE id = $1 AND user_id = $2`,
-      [sessionId, userId]
-    );
-    if (own.rows.length === 0) return res.status(404).json({ error: 'Сессия не найдена' });
-    const { period_from, period_to } = own.rows[0];
-
-    const rows = await parseEsfRegistry(req.file.buffer);
-    if (rows.length === 0) {
-      return res.status(400).json({
-        error: 'Не удалось распознать ни одной строки. Проверьте, что файл — это реестр ЭСФ из esf.gov.kz в формате XLSX.',
-      });
-    }
-
-    // Удалим старые ЭСФ за этот период от этого пользователя из этого источника
-    await db.query(
-      `DELETE FROM esf_invoice
-        WHERE user_id = $1 AND source_file = $2`,
-      [userId, req.file.originalname]
-    );
-
-    // Вставим новые
-    let inserted = 0, skipped = 0;
-    for (const row of rows) {
-      // Фильтруем по периоду сессии
-      if (row.invoice_date < period_from || row.invoice_date > period_to) {
-        skipped++;
-        continue;
-      }
-      try {
-        await db.query(
-          `INSERT INTO esf_invoice
-             (user_id, registration_no, invoice_no, invoice_date, turnover_date,
-              direction, status, seller_iin, seller_name, buyer_iin, buyer_name,
-              amount_net, amount_vat, amount_total, vat_rate, currency,
-              source, source_file, raw_row)
-           VALUES ($1,$2,$3,$4,$5,'INCOMING',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
-                   'xlsx_import', $16, $17::jsonb)
-           ON CONFLICT (user_id, registration_no) DO UPDATE
-             SET invoice_no   = EXCLUDED.invoice_no,
-                 invoice_date = EXCLUDED.invoice_date,
-                 status       = EXCLUDED.status,
-                 amount_total = EXCLUDED.amount_total,
-                 amount_vat   = EXCLUDED.amount_vat,
-                 imported_at  = NOW()`,
-          [
-            userId, row.registration_no, row.invoice_no, row.invoice_date, row.turnover_date,
-            row.status, row.seller_iin, row.seller_name, row.buyer_iin, row.buyer_name,
-            row.amount_net, row.amount_vat, row.amount_total, row.vat_rate, row.currency,
-            req.file.originalname, JSON.stringify(row.raw_row),
-          ]
-        );
-        inserted++;
-      } catch (e) {
-        skipped++;
-      }
-    }
-
-    await db.query(
-      `UPDATE esf_recon_session
-          SET registry_filename = $1, updated_at = NOW()
-        WHERE id = $2`,
-      [req.file.originalname, sessionId]
-    );
-
-    res.json({ inserted, skipped, total_rows: rows.length });
-  } catch (err) {
-    console.error('[esf-recon] registry upload failed:', err);
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// ── POST /sessions/:id/notice ───────────────────────────────────────────────
-
-router.post('/sessions/:id/notice', upload.single('file'), async (req, res) => {
-  const userId = requireUser(req, res);
-  if (!userId) return;
-  const sessionId = req.params.id;
-  if (!req.file) return res.status(400).json({ error: 'Файл не передан (поле "file")' });
-
-  try {
-    const own = await db.query(
-      `SELECT id FROM esf_recon_session WHERE id = $1 AND user_id = $2`,
-      [sessionId, userId]
-    );
-    if (own.rows.length === 0) return res.status(404).json({ error: 'Сессия не найдена' });
-
-    const rows = await parseForm300Notice(req.file.buffer);
-    if (rows.length === 0) {
-      return res.status(400).json({
-        error: 'Не удалось распознать строки извещения. Проверьте, что это XLSX извещения по форме 300.',
-      });
-    }
-
-    // Перезаписываем все строки извещения в сессии
-    await db.query(`DELETE FROM esf_notice_row WHERE session_id = $1`, [sessionId]);
-    let i = 0;
-    for (const row of rows) {
-      i++;
-      await db.query(
-        `INSERT INTO esf_notice_row
-           (session_id, row_index, seller_iin, seller_name, invoice_no, invoice_date,
-            amount_net, amount_vat, amount_total, vat_rate, raw_row)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb)`,
-        [
-          sessionId, i, row.seller_iin, row.seller_name, row.invoice_no, row.invoice_date,
-          row.amount_net, row.amount_vat, row.amount_total, row.vat_rate,
-          JSON.stringify(row.raw_row),
-        ]
-      );
-    }
-
-    await db.query(
-      `UPDATE esf_recon_session
-          SET notice_filename = $1, updated_at = NOW()
-        WHERE id = $2`,
-      [req.file.originalname, sessionId]
-    );
-
-    res.json({ inserted: rows.length });
-  } catch (err) {
-    console.error('[esf-recon] notice upload failed:', err);
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// ── POST /sessions/:id/match ────────────────────────────────────────────────
-
-router.post('/sessions/:id/match', async (req, res) => {
-  const userId = requireUser(req, res);
-  if (!userId) return;
-  const sessionId = req.params.id;
-  try {
-    const own = await db.query(
-      `SELECT period_from, period_to FROM esf_recon_session WHERE id = $1 AND user_id = $2`,
-      [sessionId, userId]
-    );
-    if (own.rows.length === 0) return res.status(404).json({ error: 'Сессия не найдена' });
-    const { period_from, period_to } = own.rows[0];
-
-    const esfRes = await db.query(
-      `SELECT id, registration_no, invoice_no, invoice_date, status,
-              seller_iin, seller_name, amount_net, amount_vat, amount_total
-         FROM esf_invoice
-        WHERE user_id = $1
-          AND direction = 'INCOMING'
-          AND invoice_date BETWEEN $2 AND $3`,
-      [userId, period_from, period_to]
-    );
-
-    const noticeRes = await db.query(
-      `SELECT id, seller_iin, seller_name, invoice_no, invoice_date,
-              amount_net, amount_vat, amount_total
-         FROM esf_notice_row WHERE session_id = $1`,
-      [sessionId]
-    );
-
-    if (esfRes.rows.length === 0 && noticeRes.rows.length === 0) {
-      return res.status(400).json({ error: 'Загрузите хотя бы один из файлов: реестр ЭСФ или извещение ф.300' });
-    }
-
-    const matches = runMatch(esfRes.rows, noticeRes.rows);
-    const stats   = buildStats(matches);
-
-    // Чистим старые результаты
-    await db.query(`DELETE FROM esf_recon_match WHERE session_id = $1`, [sessionId]);
-    for (const m of matches) {
-      await db.query(
-        `INSERT INTO esf_recon_match
-           (session_id, esf_id, notice_row_id, match_type, confidence, diff)
-         VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
-        [sessionId, m.esf_id || null, m.notice_row_id || null,
-         m.match_type, m.confidence, JSON.stringify(m.diff)]
-      );
-    }
-
-    await db.query(
-      `UPDATE esf_recon_session
-          SET status = 'matched', stats = $1::jsonb, updated_at = NOW()
-        WHERE id = $2`,
-      [JSON.stringify(stats), sessionId]
-    );
-
-    res.json({ ok: true, stats });
-  } catch (err) {
-    console.error('[esf-recon] match failed:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ── GET /sessions/:id/results?type=... ──────────────────────────────────────
-
-router.get('/sessions/:id/results', async (req, res) => {
-  const userId = requireUser(req, res);
-  if (!userId) return;
-  const sessionId = req.params.id;
-  const type = req.query.type || null;
-
-  try {
-    const own = await db.query(
-      `SELECT id FROM esf_recon_session WHERE id = $1 AND user_id = $2`,
-      [sessionId, userId]
-    );
-    if (own.rows.length === 0) return res.status(404).json({ error: 'Сессия не найдена' });
-
-    const params = [sessionId];
-    let where = `m.session_id = $1`;
-    if (type) { params.push(type); where += ` AND m.match_type = $${params.length}`; }
-
-    const r = await db.query(
-      `SELECT m.id, m.match_type, m.confidence, m.diff,
-              e.registration_no, e.invoice_no AS esf_invoice_no, e.invoice_date AS esf_date,
-              e.status AS esf_status, e.seller_iin AS esf_seller_iin,
-              e.seller_name AS esf_seller_name,
-              e.amount_total AS esf_total, e.amount_vat AS esf_vat,
-              n.invoice_no AS notice_invoice_no, n.invoice_date AS notice_date,
-              n.seller_iin AS notice_seller_iin, n.seller_name AS notice_seller_name,
-              n.amount_total AS notice_total, n.amount_vat AS notice_vat
-         FROM esf_recon_match m
-         LEFT JOIN esf_invoice e ON e.id = m.esf_id
-         LEFT JOIN esf_notice_row n ON n.id = m.notice_row_id
-        WHERE ${where}
-        ORDER BY
-          CASE m.match_type
-            WHEN 'status_red'  THEN 0
-            WHEN 'only_notice' THEN 1
-            WHEN 'amount_diff' THEN 2
-            WHEN 'only_esf'    THEN 3
-            WHEN 'matched'     THEN 4
-            ELSE 5
-          END,
-          COALESCE(e.invoice_date, n.invoice_date) DESC`,
-      params
-    );
-
-    res.json(r.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-module.exports = router;
+module.exports=createRouter();
+module.exports.createRouter=createRouter;

@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const db     = require('../db');
+router.use('/clients', require('./accounting-fees').createFeeRouter(db));
 
 // ── Клиенты бухгалтера ───────────────────────────────────────────────────────
 // Владелец строки — сам бухгалтер (user_id). Сотрудники и чеклист документов
@@ -44,6 +45,7 @@ function serializeClient(r) {
     is_active:               r.is_active,
     employees:               asArray(r.employees).map(normalizeEmployee),
     checklist:               asArray(r.checklist).map(normalizeChecklistItem),
+    ...(r.fee_payments ? { fee_payments: r.fee_payments } : {}),
   };
 }
 
@@ -80,8 +82,11 @@ router.get('/clients', async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT id, name, bin_or_iin, entity_type, regime, monthly_fee,
-              fee_received_this_month, notes, is_active, employees, checklist
-       FROM accounting_clients
+              fee_received_this_month, notes, is_active, employees, checklist,
+              COALESCE((SELECT jsonb_agg(jsonb_build_object('month',p.month,'amount',p.amount,
+                'received',p.received,'updated_at',p.updated_at) ORDER BY p.month DESC)
+                FROM accounting_fee_payments p WHERE p.client_id=c.id),'[]'::jsonb) AS fee_payments
+       FROM accounting_clients c
        WHERE user_id = $1
        ORDER BY created_at`,
       [req.userId],

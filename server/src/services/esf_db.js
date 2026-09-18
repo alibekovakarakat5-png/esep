@@ -1,9 +1,9 @@
 // ── ESF reconciliation + Personal account monitor schema ────────────────────
 // Запускается при старте сервера. Идемпотентно.
 
-const db = require('../db');
+const defaultDb = require('../db');
 
-async function migrateEsfAndAccount() {
+async function migrateEsfAndAccount(db = defaultDb) {
   await db.query(`
     -- ── ЭСФ: реестр входящих и исходящих счёт-фактур ─────────────────────────
     CREATE TABLE IF NOT EXISTS esf_invoice (
@@ -124,6 +124,7 @@ async function migrateEsfAndAccount() {
       ON account_payment(user_id, paid_at DESC);
   `);
 
+  await db.query(require('./accounting_safety_schema').SAFETY_SCHEMA);
   console.log('✅  ESF + account migrated');
 }
 

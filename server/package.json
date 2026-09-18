@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "test": "node --test test",
+    "test": "node --test \"test/*.test.js\"",
     "build:tax-core": "node scripts/build_tax_core.js"
   },
   "dependencies": {
@@ -21,6 +21,7 @@
     "pg": "^8.12.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "esbuild": "0.27.3"
   }
 }

@@ -1,0 +1,9 @@
+{
+  "name": "esep-context-tools",
+  "private": true,
+  "description": "Local audit context tooling; not a product dependency",
+  "devDependencies": { "repomix": "1.18.0" },
+  "scripts": {
+    "pack:accountant": "repomix ../.. --include lib/core/models/accounting_client.dart,lib/core/providers/accounting_provider.dart,lib/features/accountant/**/*.dart,server/src/routes/accounting.js,server/test/accounting_contract.test.js --output accountant-context.xml --style xml --remove-empty-lines"
+  }
+}

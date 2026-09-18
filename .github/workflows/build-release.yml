@@ -32,11 +32,15 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: beta
+          channel: stable
+          flutter-version: '3.38.2'
           cache: true
 
       - name: Get dependencies
         run: flutter pub get
+
+      - name: Full Flutter regression suite (including accountant safety)
+        run: flutter test
 
       # Dart-тесты пофайлово: при падении сразу видно виновника по имени
       # шага (логи джобов без админ-прав не читаются). if: !cancelled() —
@@ -92,7 +96,8 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: beta
+          channel: stable
+          flutter-version: '3.38.2'
           cache: true
 
       - name: Generate local.properties
@@ -153,7 +158,8 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: beta
+          channel: stable
+          flutter-version: '3.38.2'
           cache: true
 
       - name: Get dependencies

@@ -13,10 +13,10 @@ enum ClientTaxRegime { esp, patent, simplified910, our }
 
 extension ClientTaxRegimeExt on ClientTaxRegime {
   String get label => switch (this) {
-        ClientTaxRegime.esp         => 'ЕСП',
-        ClientTaxRegime.patent      => 'Патент',
+        ClientTaxRegime.esp => 'ЕСП',
+        ClientTaxRegime.patent => 'Патент',
         ClientTaxRegime.simplified910 => 'Упрощёнка',
-        ClientTaxRegime.our         => 'ОУР',
+        ClientTaxRegime.our => 'ОУР',
       };
 }
 
@@ -64,7 +64,8 @@ class DocChecklistItem {
     this.received = false,
   });
 
-  factory DocChecklistItem.fromJson(Map<dynamic, dynamic> j) => DocChecklistItem(
+  factory DocChecklistItem.fromJson(Map<dynamic, dynamic> j) =>
+      DocChecklistItem(
         id: j['id'] as String? ?? '',
         label: j['label'] as String? ?? '',
         received: j['received'] as bool? ?? false,
@@ -83,6 +84,23 @@ class DocChecklistItem {
 
 // ── Accounting Client ─────────────────────────────────────────────────────────
 
+String feeMonthKey(DateTime date) =>
+    '${date.year}-${date.month.toString().padLeft(2, '0')}';
+
+class FeePayment {
+  final String month;
+  final double amount;
+  final bool received;
+  const FeePayment(
+      {required this.month, required this.amount, required this.received});
+  factory FeePayment.fromJson(Map<dynamic, dynamic> j) => FeePayment(
+      month: j['month'] as String,
+      amount: _toDouble(j['amount']),
+      received: j['received'] == true);
+  Map<String, dynamic> toJson() =>
+      {'month': month, 'amount': amount, 'received': received};
+}
+
 class AccountingClient {
   final String id;
   final String name;
@@ -91,7 +109,14 @@ class AccountingClient {
   final ClientTaxRegime regime;
   final List<Employee> employees;
   final double monthlyFee;
-  final bool feeReceivedThisMonth;
+  final bool legacyFeeReceived;
+  final List<FeePayment> feePayments;
+  bool feeReceivedFor(DateTime month) =>
+      feePayments.any((p) => p.month == feeMonthKey(month) && p.received);
+  bool get feeReceivedThisMonth => feeReceivedFor(DateTime.now());
+  double get receivedFeeThisMonth => feePayments
+      .where((p) => p.month == feeMonthKey(DateTime.now()) && p.received)
+      .fold(0.0, (sum, p) => sum + p.amount);
   final List<DocChecklistItem> checklist;
   final String? notes;
   final bool isActive;
@@ -104,17 +129,20 @@ class AccountingClient {
     required this.regime,
     this.employees = const [],
     this.monthlyFee = 0,
-    this.feeReceivedThisMonth = false,
+    bool feeReceivedThisMonth = false,
+    this.feePayments = const [],
     this.checklist = const [],
     this.notes,
     this.isActive = true,
-  });
+  }) : legacyFeeReceived = feeReceivedThisMonth;
 
   int get missingDocs => checklist.where((d) => !d.received).length;
-  bool get allDocsReceived => checklist.isEmpty || checklist.every((d) => d.received);
+  bool get allDocsReceived =>
+      checklist.isEmpty || checklist.every((d) => d.received);
 
   /// Контракт с сервером — snake_case, как у transactions/invoices.
-  factory AccountingClient.fromJson(Map<dynamic, dynamic> j) => AccountingClient(
+  factory AccountingClient.fromJson(Map<dynamic, dynamic> j) =>
+      AccountingClient(
         id: j['id'] as String,
         name: j['name'] as String? ?? '',
         binOrIin: j['bin_or_iin'] as String? ?? '',
@@ -128,6 +156,9 @@ class AccountingClient {
         ),
         monthlyFee: _toDouble(j['monthly_fee']),
         feeReceivedThisMonth: j['fee_received_this_month'] as bool? ?? false,
+        feePayments: (j['fee_payments'] as List<dynamic>? ?? [])
+            .map((p) => FeePayment.fromJson(p as Map<dynamic, dynamic>))
+            .toList(),
         notes: j['notes'] as String?,
         isActive: j['is_active'] as bool? ?? true,
         employees: (j['employees'] as List<dynamic>? ?? const [])
@@ -145,7 +176,8 @@ class AccountingClient {
         'entity_type': entityType.name,
         'regime': regime.name,
         'monthly_fee': monthlyFee,
-        'fee_received_this_month': feeReceivedThisMonth,
+        // Preserve the undated historical flag; monthly payments use a dedicated API.
+        'fee_received_this_month': legacyFeeReceived,
         'notes': notes,
         'is_active': isActive,
         'employees': employees.map((e) => e.toJson()).toList(),
@@ -161,8 +193,10 @@ class AccountingClient {
     List<Employee>? employees,
     double? monthlyFee,
     bool? feeReceivedThisMonth,
+    List<FeePayment>? feePayments,
     List<DocChecklistItem>? checklist,
     String? notes,
+    bool clearNotes = false,
     bool? isActive,
   }) =>
       AccountingClient(
@@ -173,9 +207,10 @@ class AccountingClient {
         regime: regime ?? this.regime,
         employees: employees ?? this.employees,
         monthlyFee: monthlyFee ?? this.monthlyFee,
-        feeReceivedThisMonth: feeReceivedThisMonth ?? this.feeReceivedThisMonth,
+        feeReceivedThisMonth: feeReceivedThisMonth ?? legacyFeeReceived,
+        feePayments: feePayments ?? this.feePayments,
         checklist: checklist ?? this.checklist,
-        notes: notes ?? this.notes,
+        notes: clearNotes ? null : (notes ?? this.notes),
         isActive: isActive ?? this.isActive,
       );
 }
@@ -185,7 +220,7 @@ class AccountingClient {
 class ClientDeadline {
   final String clientId;
   final String clientName;
-  final String type;   // 'social', '910', '200', '700', 'esp', 'patent'
+  final String type; // 'social', '910', '200', '700', 'esp', 'patent'
   final String label;
   final DateTime date;
 
@@ -197,7 +232,13 @@ class ClientDeadline {
     required this.date,
   });
 
-  int get daysLeft => date.difference(DateTime.now()).inDays;
+  int get daysLeft {
+    final now = DateTime.now();
+    return DateTime.utc(date.year, date.month, date.day)
+        .difference(DateTime.utc(now.year, now.month, now.day))
+        .inDays;
+  }
+
   bool get isUrgent => daysLeft <= 3;
   bool get isWarning => daysLeft <= 7;
   bool get isPast => daysLeft < 0;
@@ -207,11 +248,11 @@ class ClientDeadline {
 
 class EmployeeSocialCalc {
   final Employee employee;
-  final double opv;       // ОПВ — пенсионные (из з/п сотрудника, 10%)
-  final double ipn;       // ИПН — подоходный (из з/п, ~10%)
-  final double opvr;      // ОПВР — пенсионные работодателя (3.5% в 2026)
-  final double so;        // СО — соцотчисления работодателя (5%)
-  final double vosms;     // ВОСМС работодателя (2%)
+  final double opv; // ОПВ — пенсионные (из з/п сотрудника, 10%)
+  final double ipn; // ИПН — подоходный (из з/п, ~10%)
+  final double opvr; // ОПВР — пенсионные работодателя (3.5% в 2026)
+  final double so; // СО — соцотчисления работодателя (5%)
+  final double vosms; // ВОСМС работодателя (2%)
   final double vosmsSelf; // ВОСМС сотрудника (1%)
 
   const EmployeeSocialCalc({
