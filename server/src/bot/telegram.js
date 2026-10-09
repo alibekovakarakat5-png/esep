@@ -18,6 +18,7 @@ const { parseAmount, textCalculation } = require('./input');
 const { createBotRequest, requireTelegramSuccess } = require('./transport');
 const { createBotStore } = require('../services/bot_foundation');
 const { validSecret } = require('../routes/telegram-webhook');
+const ui = require('./ui');
 const store = createBotStore(db);
 
 const TOKEN      = process.env.TELEGRAM_BOT_TOKEN;
@@ -109,8 +110,7 @@ async function allowCalculation(chatId, updateId) {
   const account = await store.verifiedAccount(chatId);
   if (account && account.tier !== 'free') return true;
   if (await store.consumeQuota(chatId, updateId, FREE_DAILY_LIMIT, almatyDay())) return true;
-  await send(chatId, '⏳ Лимит расчётов на сегодня исчерпан (5 в день). Справка и настройки доступны.\n' +
-    'Для привязки аккаунта откройте настройки Esep → Telegram. Или вернитесь завтра.');
+  await send(chatId, '⏳ <b>Лимит расчётов на сегодня</b>\n\nДоступно 5 бесплатных расчётов в день. Можно вернуться завтра, открыть справку или привязать платный аккаунт Esep.', ui.inline([[{text:'Мой Esep',callback_data:'ui:account'},{text:'Справка',callback_data:'ui:reference'}]]));
   return false;
 }
 
@@ -154,63 +154,13 @@ async function handleStart(chatId, from, payload) {
     }
   }
 
-  // Welcome series: instant value first, then regime selection
-  return send(chatId,
-    `Привет, ${escapeTelegramText(from.first_name || 'друг')}! Я — <b>Esep Bot</b> 🤖\n\n` +
-    `💡 Узнай свой налог за 10 секунд: напиши доход за полугодие ` +
-    `(например, <code>5000000</code>) — посчитаю сам.\n\n` +
-    `Или выбери, что тебе ближе 👇`,
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: '🧮 Показать пример расчёта', callback_data: 'demo_calc_5000000' },
-          ],
-          [
-            { text: '📋 Упрощёнка (910)', callback_data: 'regime_910' },
-            { text: '👤 Самозанятый', callback_data: 'regime_self' },
-          ],
-          [
-            { text: '🏢 ОУР', callback_data: 'regime_our' },
-          ],
-          [
-            { text: '🧮 Я бухгалтер / веду клиентов', callback_data: 'regime_buh' },
-          ],
-          [
-            { text: '❓ Не знаю / хочу разобраться', callback_data: 'regime_unknown' },
-          ],
-        ],
-      },
-    },
-  );
-
+  return sendView(chatId,ui.home(from.first_name));
 }
 
 // ── Оффер для бухгалтерских фирм (B2B-ветка) ─────────────────────────────────
 // Вызывается из кнопки regime_buh и deep-link /start buh. НЕ трогает B2C-поток.
 async function sendBuhOffer(chatId, from = {}) {
-  await send(chatId,
-    `🧮 <b>Esep для бухгалтерских фирм</b>\n\n` +
-    `Ведёте несколько клиентов? Esep — система управления бухгалтерской фирмой под НК 2026:\n\n` +
-    `• Все клиенты (ИП и ТОО) в одном окне\n` +
-    `• Формы <b>910 / 200 / 300</b> — автоматически в формат ИСНА\n` +
-    `• Расчёт зарплат и соцплатежей, дедлайны по каждому клиенту\n` +
-    `• Распознавание чеков из фото + импорт выписок Kaspi\n\n` +
-    `<b>Для бухфирм — особые условия:</b>\n` +
-    `🎁 Пилот: <b>50% на 3 месяца</b>\n` +
-    `💰 Партнёрка: <b>30%</b> с каждой подписки клиента, которого приведёте — навсегда\n` +
-    `🤝 Настрою вашего первого клиента лично за 24 часа\n\n` +
-    `Покажу за 15 минут под ваш случай 👇`,
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '📊 Посчитать мою выгоду', callback_data: 'roi:start' }],
-          [{ text: '💬 Записаться на демо', url: 'https://wa.me/77059914789' }],
-          [{ text: '🌐 Подробнее', url: 'https://buhfirma.esepkz.com' }],
-        ],
-      },
-    },
-  );
+  await sendView(chatId,ui.accountant());
 
   await sendAdmin(
     '🧮 <b>Пользователь выбрал раздел для бухгалтеров</b>\n' +
@@ -278,7 +228,7 @@ async function handleRoiStep(cb, data) {
 function handleSalary(chatId, args) {
   const gross = parseAmount(args);
   if (!gross || gross <= 0) {
-    return send(chatId, 'Укажите зарплату (gross): <code>/salary 300000</code>');
+    return sendView(chatId,ui.prompt('salary',Boolean(args)));
   }
   const MZP = 85000, MRP = 4325; // НК-2026, см. kz_tax_constants.dart
   const f = (x) => Math.round(x).toLocaleString('ru-RU');
@@ -311,17 +261,14 @@ function handleSalary(chatId, args) {
     `  Итого взносов: ${f(empCosts)} ₸\n\n` +
     `🏢 <b>Стоимость для работодателя: ${f(totalCost)} ₸</b>\n\n` +
     `<i>ОПВР не начисляется на пенсионеров (рожд. до 1975). Для дохода свыше 8500 МРП/год ИПН — 15%.</i>\n` +
-    `Зарплату и форму 200 считаем за вас — Esep.`,
-    { reply_markup: { inline_keyboard: [
-      [{ text: '🧮 Налог 910', callback_data: 'prompt_calc' }],
-      [{ text: '✨ Попробовать Esep', url: 'https://app.esepkz.com' }],
-    ] } });
+    `Предварительный расчёт по настройкам бота.`,
+    ui.inline([[{text:'Другая зарплата',callback_data:'prompt_salary'},{text:'Другой расчёт',callback_data:'ui:calculators'}]]));
 }
 
 async function handleCalc(chatId, args) {
   const income = parseAmount(args);
   if (!income || income <= 0) {
-    return send(chatId, 'Укажите доход: <code>/calc 5000000</code>');
+    return sendView(chatId,ui.prompt('calc',Boolean(args)));
   }
 
   const c = await getTaxConfig();
@@ -346,41 +293,19 @@ async function handleCalc(chatId, args) {
     : '';
 
   return send(chatId,
-    `🧮 <b>Расчёт по упрощёнке (910)</b>\n` +
-    `Доход за полугодие: <b>${fmt(income)} ₸</b>\n\n` +
-    `<b>Налоги (${rate}):</b>\n` +
-    `  ИПН (${formatRate(c.ipn_rate_910)}): ${fmt(ipn)} ₸\n` +
-    `  СН (${formatRate(c.sn_rate_910)}): ${fmt(sn)} ₸\n` +
-    `  <b>Итого налоги: ${fmt(total)} ₸</b>\n\n` +
-    `<b>Соцплатежи за 6 мес:</b>\n` +
-    `  ОПВ 10%: ${fmt(opv)} ₸/мес\n` +
-    `  ОПВР 3.5%: ${fmt(opvr)} ₸/мес\n` +
-    `  СО 5%: ${fmt(so)} ₸/мес\n` +
-    `  ВОСМС 5%×1.4МЗП: ${fmt(vosms)} ₸/мес\n` +
-    `  6 мес: <b>${fmt(social6)} ₸</b>\n\n` +
-    `💰 <b>Общий итог: ${fmt(grand)} ₸</b>\n` +
-    `📊 Эффективная ставка: ${(grand / income * 100).toFixed(1)}%` +
-    warn +
-    `\n\n✨ <b>А в приложении Esep всё считается само</b> — вы только загружаете выписку Kaspi, ` +
-    `налог и форму 910 делаем мы и напоминаем о сроках. Для ИП — 7 900 ₸/мес, 7 дней бесплатно. Поможем настроить.`,
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: '✨ Попробовать Esep бесплатно', url: 'https://app.esepkz.com' },
-          ],
-          [
-            { text: '📊 Помесячная разбивка', callback_data: `monthly_${Math.round(income)}` },
-            { text: '💼 Соцплатежи', callback_data: 'go_social' },
-          ],
-          [
-            { text: '🔢 Другая сумма', callback_data: 'prompt_calc' },
-            { text: '📅 Сроки сдачи', callback_data: 'go_deadlines' },
-          ],
-        ],
-      },
-    },
-  );
+    '🧮 <b>Расчёт по упрощёнке (910)</b>\n' +
+    'Доход за полугодие: <b>' + fmt(income) + ' ₸</b>\n\n' +
+    '<b>Налоги (' + rate + '): ' + fmt(total) + ' ₸</b>\n' +
+    'ИПН: ' + fmt(ipn) + ' ₸ · СН: ' + fmt(sn) + ' ₸\n\n' +
+    '<b>Соцплатежи за 6 месяцев: ' + fmt(social6) + ' ₸</b>\n' +
+    'В месяц: ОПВ ' + fmt(opv) + ' · ОПВР ' + fmt(opvr) + '\n' +
+    'СО ' + fmt(so) + ' · ВОСМС ' + fmt(vosms) + ' ₸\n\n' +
+    '💰 <b>Общий итог: ' + fmt(grand) + ' ₸</b>' + warn +
+    '\n\nПредварительный расчёт по настройкам бота. Соцплатежи — по минимальной базе. Можно ввести другую сумму.',
+    ui.inline([
+      [{text:'Другая сумма',callback_data:'prompt_calc'},{text:'Другой расчёт',callback_data:'ui:calculators'}],
+      [{text:'Разбивка по месяцам',callback_data:'monthly_'+Math.round(income)},{text:'Сроки',callback_data:'go_deadlines'}],
+    ]));
 }
 
 async function handleSocial(chatId) {
@@ -404,16 +329,7 @@ async function handleSocial(chatId) {
     `💰 <b>Итого: ${fmt(total)} ₸/мес</b>\n` +
     `  (без ОПВР, до 1975 г.р.: ${fmt(totalNoOpvr)} ₸)\n\n` +
     `📅 Срок оплаты: до 25 числа следующего месяца`,
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: '🧮 Калькулятор 910', callback_data: 'prompt_calc' },
-            { text: '📅 Сроки сдачи', callback_data: 'go_deadlines' },
-          ],
-        ],
-      },
-    },
+    ui.inline([[{text:'Другой расчёт',callback_data:'ui:calculators'},{text:'Сроки',callback_data:'go_deadlines'}]]),
   );
 }
 
@@ -423,7 +339,7 @@ async function handleRates(chatId) {
   const halfYearLimitMrp = (c['910_year_mrp'] ?? 600000) / 2;
 
   return send(chatId,
-    `📊 <b>Актуальные ставки 2026</b>\n\n` +
+    `📊 <b>Параметры расчётов · 2026</b>\n\n` +
     `🔹 МРП: <b>${fmt(c.mrp)} ₸</b>\n` +
     `🔹 МЗП: <b>${fmt(c.mzp)} ₸</b>\n\n` +
     `<b>Упрощёнка (910):</b>\n` +
@@ -436,13 +352,14 @@ async function handleRates(chatId) {
     `<b>Другие режимы:</b>\n` +
     `  Самозанятый: ${formatRate(c.self_emp_rate)}, лимит ${fmt(c.self_emp_month_limit)} МРП/мес\n` +
     `  НДС: ${formatRate(c.vat_rate)}, порог ${fmt(c.vat_threshold_mrp)} МРП`,
+    ui.inline([[{text:'К расчётам',callback_data:'ui:calculators'},{text:'Справка',callback_data:'ui:reference'}]]),
   );
 }
 
 async function handleSelf(chatId, args) {
   const income = parseAmount(args);
   if (!income || income <= 0) {
-    return send(chatId, 'Укажите доход в месяц: <code>/self 1000000</code>');
+    return sendView(chatId,ui.prompt('self',Boolean(args)));
   }
   const c = await getTaxConfig();
   const tax   = income * c.self_emp_rate;
@@ -458,20 +375,12 @@ async function handleSelf(chatId, args) {
     `Ставка: ${c.self_emp_rate * 100}%\n` +
     `Налог: <b>${fmt(tax)} ₸</b>\n\n` +
     `Лимит: ${fmt(limit)} ₸/мес (${c.self_emp_month_limit} МРП/мес)` + warn,
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: '🔢 Другая сумма', callback_data: 'prompt_self' },
-            { text: '💼 Соцплатежи', callback_data: 'go_social' },
-          ],
-        ],
-      },
-    },
+    ui.inline([[{text:'Другая сумма',callback_data:'prompt_self'},{text:'Другой расчёт',callback_data:'ui:calculators'}]]),
   );
 }
 
-function handleDeadlines(chatId) {
+async function handleDeadlines(chatId) {
+  const user=await getUserState(chatId);
   return send(chatId,
     `📅 <b>Сроки сдачи и оплаты (910)</b>\n\n` +
     `<b>1-е полугодие (янв—июнь):</b>\n` +
@@ -484,11 +393,7 @@ function handleDeadlines(chatId) {
     `  Ежемесячно до 25 числа следующего месяца\n` +
     `  Январь → до 25 февраля и т.д.`,
     {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '🔔 Напоминать мне о сроках', callback_data: 'remind_on' }],
-        ],
-      },
+      ...ui.inline([[{text:user.reminders_on?'🔕 Выключить напоминания':'🔔 Напоминать мне о сроках',callback_data:user.reminders_on?'remind_off':'remind_on'}]]),
     },
   );
 }
@@ -527,34 +432,21 @@ async function handleStatus(chatId) {
     `${limitLine}\n` +
     `${accountLine}\n` +
     `${tierLine}\n\n` +
-    (unlimited ? '' : `Для безлимита привяжите платный аккаунт:\n<code>/link</code>`),
+    (unlimited ? '' : 'Для безлимита можно привязать платный аккаунт Esep.'),
+    ui.inline([[{text:account?'Открыть кабинет':'Привязать аккаунт',...(account?{url:'https://app.esepkz.com'}:{callback_data:'ui:link'})}],[{text:user.reminders_on?'🔕 Выключить напоминания':'🔔 Включить напоминания',callback_data:user.reminders_on?'remind_off':'remind_on'}]]),
   );
 }
 
-function handleHelp(chatId) {
-  return send(chatId,
-    `📖 <b>Команды Esep Bot</b>\n\n` +
-    `/calc 5000000 — налог 910 за полугодие\n` +
-    `/social — соцплатежи за себя\n` +
-    `/rates — актуальные ставки 2026\n` +
-    `/self 1000000 — налог самозанятого\n` +
-    `/salary 300000 — зарплата сотрудника (на руки + взносы)\n` +
-    `/deadlines — сроки сдачи\n` +
-    `/status — ваш статус и лимиты\n` +
-    `/link — как безопасно привязать аккаунт Esep\n` +
-    `/reset — помощь с восстановлением доступа\n\n` +
-    `Или просто спросите: <i>"сколько налогов с 3 млн?"</i>`,
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: '🧮 Рассчитать налог', callback_data: 'prompt_calc' },
-            { text: '📊 Ставки 2026', callback_data: 'go_rates' },
-          ],
-        ],
-      },
-    },
-  );
+function sendView(chatId,view) { return send(chatId,view.text,view.extra); }
+function handleHelp(chatId) { return sendView(chatId,ui.home()); }
+function handleNavigation(chatId,action,from={}) {
+  if(action==='menu')return sendView(chatId,ui.home(from.first_name));
+  if(action==='deadlines')return handleDeadlines(chatId);
+  if(action==='account')return handleStatus(chatId);
+  if(action==='accountant')return sendBuhOffer(chatId,from);
+  if(action==='link')return handleLink(chatId);
+  const views={calculators:ui.calculators,reference:ui.reference,help:ui.help,commands:ui.commands,support:ui.support,form910:ui.form910};
+  return sendView(chatId,(views[action]||ui.home)());
 }
 
 // ── Безопасная привязка через одноразовый токен ────────────────────────────
@@ -682,21 +574,20 @@ async function handleBindReject(cb, token) {
 function handleReset(chatId) {
   return send(chatId, 'Восстановление пароля через бота временно отключено. ' +
     'Если вы вошли в Esep, смените пароль в настройках. Если войти не получается, обратитесь в поддержку.',
-    {reply_markup:{inline_keyboard:[[{text:'Связаться с поддержкой',url:'https://wa.me/77059914789'}]]}});
+    ui.inline([[{text:'Связаться с поддержкой',url:'https://wa.me/77059914789'}]]));
 }
 function handleLink(chatId) {
   return send(chatId, '🔗 Для безопасной привязки войдите в Esep → Настройки → Telegram. ' +
     'Откройте одноразовую ссылку и подтвердите свой аккаунт. Указывать email в чате не нужно.',
-    {reply_markup:{inline_keyboard:[[{text:'Открыть Esep',url:'https://app.esepkz.com'}]]}});
+    ui.inline([[{text:'Открыть Esep',url:'https://app.esepkz.com'}]]));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SMART TEXT — обработка свободного текста (вопросы про налоги)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function handleFreeText(chatId, text) {
+async function handleFreeText(chatId, text, calculation) {
   const lower = text.toLowerCase();
-  const calculation = textCalculation(text);
   if (calculation) {
     const handlers = {calc:handleCalc,self:handleSelf,salary:handleSalary};
     return handlers[calculation.kind](chatId,String(calculation.amount));
@@ -704,11 +595,11 @@ async function handleFreeText(chatId, text) {
   if (lower.includes('соцплатеж') || lower.includes('опв') || lower.includes('за себя')) return handleSocial(chatId);
   if (lower.includes('ставк') || lower.includes('мрп') || lower.includes('мзп')) return handleRates(chatId);
   if (lower.includes('срок') || lower.includes('дедлайн') || lower.includes('когда сдавать')) return handleDeadlines(chatId);
-  if (lower.includes('самозанят')) return send(chatId,'Для расчёта самозанятого укажите доход: <code>/self 1000000</code>.');
-  if (lower.includes('910') || lower.includes('упрощ')) return send(chatId,
-    '910.00 — форма декларации. Номер формы не является суммой дохода.\nДля предварительного расчёта укажите доход за полугодие: <code>/calc 5000000</code>.');
-  return send(chatId,'Не удалось однозначно определить сумму или вопрос. Укажите одну сумму, например <code>5 000 000</code> или <code>3 млн</code>.\n' +
-    'Расчёт 910 — за полугодие. Для другого сценария используйте /self, /salary или /help.');
+  if (lower.includes('910') || lower.includes('упрощ')) return sendView(chatId,ui.form910());
+  const selected=await store.calculationKind(chatId);
+  if(selected)return sendView(chatId,ui.prompt(selected,true));
+  if(/^(привет|здравствуйте|добрый день|спасибо)[!.\s]*$/u.test(lower))return handleHelp(chatId);
+  return send(chatId,'Давайте выберем задачу — так я подскажу, что ввести дальше.',ui.inline([[{text:'🧮 Рассчитать',callback_data:'ui:calculators'},{text:'📚 Справка',callback_data:'ui:reference'}]]));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -733,7 +624,8 @@ async function handleUpdate(update) {
   const cmd = commandToken.toLowerCase().replace(/@\w+$/, '');
   const args = text.slice(commandToken.length).trim();
   const payload = cmd === '/start' ? args : undefined;
-  const b2b = cb?.data === 'regime_buh' || (cmd === '/start' && /^(buh|buhgalter|firma|partner)$/i.test(args));
+  const navigation = ui.textAction(text);
+  const b2b = cb?.data === 'regime_buh' || cb?.data === 'ui:accountant' || navigation === 'accountant' || (cmd === '/start' && /^(buh|buhgalter|firma|partner)$/i.test(args));
   const intent = b2b ? 'b2b' : detectIntent(cb?.data || text);
   const visitor = await store.trackVisitor(chatId,from,payload,intent);
   if (visitor.isNew && String(chatId) !== String(ADMIN_ID)) {
@@ -741,17 +633,40 @@ async function handleUpdate(update) {
       escapeTelegramText([from.first_name,from.last_name].filter(Boolean).join(' ')) +
       '\nUsername: @' + escapeTelegramText(from.username || '—') + '\nChat ID: <code>' + chatId + '</code>');
   }
-  const directCalc = ['/calc','/self','/salary'].includes(cmd) && parseAmount(args) !== null;
-  const startCalc = cmd === '/start' && /^(calc|self)_/i.test(args) && parseAmount(args.replace(/^(calc|self)_/i,'')) !== null;
-  const buttonCalc = cb && (/^demo_(calc|self)_/.test(cb.data) || /^monthly_/.test(cb.data));
-  const freeCalc = text && !cmd.startsWith('/') && textCalculation(text);
-  if ((directCalc || startCalc || buttonCalc || freeCalc) && !await allowCalculation(chatId,update.update_id)) return;
-  if (cb) return handleCallbackQuery(cb);
-  if (!text) return send(chatId,'Пока я работаю с текстом и кнопками. Фото, документы и голосовые сообщения здесь не разбираю. Наберите /help.');
+  const explicitKind = ({'/calc':'calc','/self':'self','/salary':'salary'})[cmd];
+  const startMatch=cmd==='/start'&&args.match(/^(calc|self)_(.+)$/i);
+  const sample=cb?.data?.match(/^run_(calc|self|salary)_(\d+)$/);
+  const promptKind=({'prompt_calc':'calc','prompt_self':'self','prompt_salary':'salary'})[cb?.data];
+  let freeCalc=text&&!cmd.startsWith('/')&&!navigation?textCalculation(text):null;
+  if(freeCalc&&parseAmount(text)!==null){
+    const kind=await store.resolveCalculationKind(chatId,update.update_id);
+    if(kind==='expired')return send(chatId,'Прошло больше 30 минут. Выберите расчёт ещё раз, чтобы я верно понял сумму.',ui.inline([[{text:'Выбрать расчёт',callback_data:'ui:calculators'}]]));
+    freeCalc.kind=kind;
+  }
+  const wordPrompt=!cb&&!navigation&&!cmd.startsWith('/')&&!freeCalc&&
+    (/самозанят/u.test(text.toLowerCase())?'self':/зарплат/u.test(text.toLowerCase())?'salary':null);
+  const selectedKind=explicitKind||promptKind||sample?.[1]||startMatch?.[1]?.toLowerCase()||freeCalc?.kind||wordPrompt;
+  const directCalc = explicitKind && parseAmount(args) !== null;
+  const startCalc = startMatch && parseAmount(startMatch[2]) !== null;
+  const buttonCalc = cb && (sample&&parseAmount(sample[2])!==null || /^demo_(calc|self)_/.test(cb.data) || /^monthly_/.test(cb.data));
+  if ((directCalc || startCalc || buttonCalc || freeCalc) && !await allowCalculation(chatId,update.update_id)) {
+    if(cb)await botRequest('answerCallbackQuery',{callback_query_id:cb.id,text:'Лимит расчётов на сегодня исчерпан.'});
+    return;
+  }
+  const demoKind=cb?.data==='demo_calc_5000000'?'calc':cb?.data==='demo_self_1000000'?'self':null;
+  if(selectedKind||demoKind)await store.setCalculationKind(chatId,selectedKind||demoKind,update.update_id);
+  else if(cb||navigation||['/start','/help','/menu','/cancel','/status','/social','/rates','/deadlines','/link','/reset'].includes(cmd))await store.setCalculationKind(chatId,null,update.update_id);
+  if (cb) {
+    if(sample&&parseAmount(sample[2])!==null){await botRequest('answerCallbackQuery',{callback_query_id:cb.id});return ({calc:handleCalc,self:handleSelf,salary:handleSalary})[sample[1]](chatId,sample[2]);}
+    return handleCallbackQuery(cb);
+  }
+  if (!text) return send(chatId,'Фото, документы и голосовые сообщения бот пока не разбирает. Выберите задачу ниже или введите сумму текстом.',ui.inline([[{text:'Выбрать расчёт',callback_data:'ui:calculators'}]]));
+  if(navigation)return handleNavigation(chatId,navigation,from);
+  if(wordPrompt)return sendView(chatId,ui.prompt(wordPrompt));
   if (await handleAdminChannelCommand(chatId,cmd,args)) return;
   switch (cmd) {
     case '/start': return handleStart(chatId,from,args);
-    case '/help': return handleHelp(chatId);
+    case '/help': case '/menu': case '/cancel': return handleHelp(chatId);
     case '/status': return handleStatus(chatId);
     case '/calc': return handleCalc(chatId,args);
     case '/self': return handleSelf(chatId,args);
@@ -761,7 +676,7 @@ async function handleUpdate(update) {
     case '/deadlines': return handleDeadlines(chatId);
     case '/link': return handleLink(chatId);
     case '/reset': return handleReset(chatId);
-    default: return handleFreeText(chatId,text);
+    default: return handleFreeText(chatId,text,freeCalc);
   }
 }
 
@@ -939,6 +854,11 @@ async function handleCallbackQuery(cb) {
   const chatId = cb.message?.chat?.id;
   if (!chatId) return;
 
+  if(data.startsWith('ui:')){
+    await botRequest('answerCallbackQuery',{callback_query_id:cb.id});
+    return handleNavigation(chatId,data.slice(3),cb.from);
+  }
+
   // ── Inline keyboards after calculations ──
 
   // Monthly breakdown: monthly_{income}
@@ -968,6 +888,7 @@ async function handleCallbackQuery(cb) {
       `  ВОСМС: ${fmt(vosms)} ₸\n\n` +
       `💰 <b>Итого в месяц: ~${fmt(totalMonth)} ₸</b>\n` +
       `📅 Налог платится раз в полугодие, соцплатежи — ежемесячно`,
+      ui.inline([[{text:'Другая сумма',callback_data:'prompt_calc'},{text:'Сроки',callback_data:'go_deadlines'}]]),
     );
   }
 
@@ -990,21 +911,16 @@ async function handleCallbackQuery(cb) {
       );
     } catch (e) { return send(cb.from.id,'Не удалось сохранить настройку напоминаний. Попробуйте ещё раз.'); }
     await botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: on ? '🔔 Напоминания включены' : 'Выключено' });
-    if (on) return send(cb.from.id,
-      '🔔 Готово! Заранее напомню про сдачу 910, оплату налога и соцплатежи — чтобы вы не попали на штраф.');
-    return;
+    return send(cb.from.id,on?'🔔 Напоминания включены. Настройку можно изменить в «Мой Esep».':'🔕 Напоминания выключены.',
+      ui.inline([[{text:on?'Выключить напоминания':'Включить напоминания',callback_data:on?'remind_off':'remind_on'}]]));
   }
   if (data === 'go_rates') {
     await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return handleRates(chatId);
   }
-  if (data === 'prompt_calc') {
+  if (['prompt_calc','prompt_self','prompt_salary'].includes(data)) {
     await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
-    return send(chatId, '🔢 Введите сумму дохода за полугодие:\n\nНапример: <code>/calc 5000000</code>\n\nИли просто напишите: <i>"сколько налогов с 3 млн?"</i>');
-  }
-  if (data === 'prompt_self') {
-    await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
-    return send(chatId, '🔢 Введите сумму дохода самозанятого:\n\nНапример: <code>/self 1000000</code>');
+    return sendView(chatId,ui.prompt(data.slice(7)));
   }
   if (data === 'show_help') {
     await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
@@ -1105,6 +1021,8 @@ async function handleCallbackQuery(cb) {
     await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return sendBuhOffer(chatId, cb.from || {});
   }
+  await botRequest('answerCallbackQuery',{callback_query_id:cb.id,text:'Откройте меню для выбора действия.'});
+  return handleHelp(chatId);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1579,14 +1497,17 @@ async function setupWebhook(baseUrl) {
   // Register command hints
   requireTelegramSuccess(await botRequest('setMyCommands', {
     commands: [
+      { command: 'menu',      description: 'Главное меню' },
+      { command: 'cancel',    description: 'Отменить выбор расчёта' },
+      { command: 'salary',    description: 'Рассчитать зарплату' },
       { command: 'calc',      description: 'Рассчитать налог 910' },
       { command: 'social',    description: 'Соцплатежи за себя' },
-      { command: 'rates',     description: 'Актуальные ставки 2026' },
+      { command: 'rates',     description: 'Параметры расчётов 2026' },
       { command: 'self',      description: 'Налог самозанятого' },
       { command: 'deadlines', description: 'Сроки подачи и оплаты' },
       { command: 'status',    description: 'Статус и лимиты' },
       { command: 'link',      description: 'Привязать аккаунт Esep' },
-      { command: 'help',      description: 'Список команд' },
+      { command: 'help',      description: 'Меню и помощь' },
     ],
   }));
 }

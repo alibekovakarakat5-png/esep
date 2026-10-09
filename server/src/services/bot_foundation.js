@@ -6,6 +6,10 @@ const schema = `
   ALTER TABLE bot_users ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMPTZ;
   ALTER TABLE bot_users ADD COLUMN IF NOT EXISTS first_start_payload TEXT;
   ALTER TABLE bot_users ADD COLUMN IF NOT EXISTS last_start_payload TEXT;
+  ALTER TABLE bot_users ADD COLUMN IF NOT EXISTS calculation_kind TEXT;
+  ALTER TABLE bot_users ADD COLUMN IF NOT EXISTS calculation_expires_at TIMESTAMPTZ;
+  ALTER TABLE bot_users ADD COLUMN IF NOT EXISTS calculation_update_id BIGINT;
+  ALTER TABLE bot_users ADD COLUMN IF NOT EXISTS calculation_updated_at TIMESTAMPTZ;
   CREATE TABLE IF NOT EXISTS bot_updates (
     update_id BIGINT PRIMARY KEY,
     owner UUID NOT NULL,
@@ -14,6 +18,7 @@ const schema = `
     completed_at TIMESTAMPTZ,
     quota_chat_id TEXT
   );
+  ALTER TABLE bot_updates ADD COLUMN IF NOT EXISTS calculation_kind TEXT;
 `;
 
 function createBotStore(db) {
@@ -30,8 +35,40 @@ function createBotStore(db) {
   return {
     async migrate() { await db.query(schema); },
     async assertReady() {
-      await db.query('SELECT first_start_payload, last_activity_at FROM bot_users LIMIT 0');
-      await db.query('SELECT update_id, quota_chat_id FROM bot_updates LIMIT 0');
+      await db.query('SELECT first_start_payload, last_activity_at, calculation_kind, calculation_expires_at, calculation_update_id, calculation_updated_at FROM bot_users LIMIT 0');
+      await db.query('SELECT update_id, quota_chat_id, calculation_kind FROM bot_updates LIMIT 0');
+    },
+    async calculationKind(chatId) {
+      const r=await db.query(`SELECT calculation_kind FROM bot_users
+        WHERE chat_id=$1 AND calculation_expires_at>NOW()`,[String(chatId)]);
+      const kind=r.rows[0]?.calculation_kind;
+      return ['calc','self','salary'].includes(kind) ? kind : null;
+    },
+    async setCalculationKind(chatId,kind,updateId) {
+      if(kind!==null&&!['calc','self','salary'].includes(kind))throw Error('INVALID_CALCULATION_KIND');
+      if(!Number.isSafeInteger(updateId)||updateId<0)throw Error('INVALID_UPDATE_ID');
+      // Do not let retries overwrite a newer selection. After a week of inactivity
+      // Telegram may choose a new random update_id, so the ordering fence must expire.
+      await db.query(`UPDATE bot_users SET calculation_kind=$2,
+        calculation_expires_at=CASE WHEN $2::text IS NULL THEN NULL ELSE NOW()+INTERVAL '30 minutes' END,
+        calculation_update_id=$3,calculation_updated_at=NOW() WHERE chat_id=$1
+        AND (calculation_update_id IS NULL OR calculation_update_id<$3
+          OR calculation_updated_at<NOW()-INTERVAL '7 days')`,[String(chatId),kind,updateId]);
+    },
+    async resolveCalculationKind(chatId,updateId) {
+      return transaction(async c=>{
+        const receipt=await c.query('SELECT calculation_kind FROM bot_updates WHERE update_id=$1 FOR UPDATE',[updateId]);
+        if(!receipt.rows.length)throw Error('BOT_UPDATE_MISSING');
+        if(receipt.rows[0].calculation_kind)return receipt.rows[0].calculation_kind;
+        const r=await c.query(`SELECT calculation_kind,calculation_expires_at>NOW() AS valid
+          FROM bot_users WHERE chat_id=$1`,[String(chatId)]);
+        const selection=r.rows[0];
+        const kind=['calc','self','salary'].includes(selection?.calculation_kind)
+          ? (selection.valid?selection.calculation_kind:'expired') : 'calc';
+        // Persist the interpretation so a delivery retry cannot use a later menu choice.
+        await c.query('UPDATE bot_updates SET calculation_kind=$2 WHERE update_id=$1',[updateId,kind]);
+        return kind;
+      });
     },
     async publishPost(postId, deliver) {
       return transaction(async c => {

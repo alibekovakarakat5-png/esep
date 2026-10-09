@@ -71,7 +71,7 @@ test('bot foundation: real SQL and HTTP with synthetic Telegram delivery',async 
       }};
       if(name==='../jobs/taxMonitor')return {revertLastAutoUpdate:async()=>{mutations.push('revert');return {ok:true};}};
       if(name==='../services/leads_db')return {detectIntent:s=>/бухгалтер|regime_buh/.test(s)?'b2b':'unknown'};
-      const allowed={'./input':'../src/bot/input','../services/telegram_text':'../src/services/telegram_text','../services/bot_foundation':'../src/services/bot_foundation','../routes/telegram-webhook':'../src/routes/telegram-webhook'};
+      const allowed={'./ui':'../src/bot/ui','./input':'../src/bot/input','../services/telegram_text':'../src/services/telegram_text','../services/bot_foundation':'../src/services/bot_foundation','../routes/telegram-webhook':'../src/routes/telegram-webhook'};
       if(!allowed[name])throw Error('Unexpected dependency '+name);return require(allowed[name]);
     }};
   vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../src/bot/telegram.js'),'utf8'),context);
@@ -129,7 +129,7 @@ test('bot foundation: real SQL and HTTP with synthetic Telegram delivery',async 
   await t.test('legacy link/reset do not disclose or mutate any account, even after daily limit',async()=>{
     const id=randomUUID();await pg.query("INSERT INTO users(id,email,name,tier,password_hash) VALUES($1,'victim@example.invalid','Secret','accountant','unchanged')",[id]);
     await post(message('/start',106));await pg.query("UPDATE bot_users SET linked_user_id=$1,queries_today=5,last_query_date=$2 WHERE chat_id='106'",[id,new Date(Date.now()+5*3600e3).toISOString().slice(0,10)]);
-    for(const text of ['/link victim@example.invalid','/reset victim@example.invalid','/status'])await post(message(text,106));
+    for(const text of ['/link victim@example.invalid','/reset victim@example.invalid','/status'])assert.equal((await post(message(text,106))).status,200);
     assert(responses(106).every(s=>!s.includes('victim@example.invalid')&&!s.includes('Secret')));
     assert.equal((await pg.query('SELECT password_hash,telegram_chat_id FROM users WHERE id=$1',[id])).rows[0].password_hash,'unchanged');
     await post(message('5000000',106));assert.match(responses(106).at(-1),/Лимит/);
@@ -176,7 +176,7 @@ test('bot foundation: real SQL and HTTP with synthetic Telegram delivery',async 
   await t.test('button and deep-link calculations obey the limit; reference help remains available',async()=>{
     for(let i=0;i<5;i++)await post(callback('demo_calc_5000000',120));
     await post(message('/start calc_5000000',120));assert.match(responses(120).at(-1),/Лимит/);
-    await post(message('/help',120));assert.match(responses(120).at(-1),/Команды/);
+    await post(message('/help',120));assert.match(responses(120).at(-1),/С чего начнём/);
     assert.equal((await pg.query("SELECT queries_today FROM bot_users WHERE chat_id='120'")).rows[0].queries_today,5);
   });
   await t.test('binding rollback leaves account and token unchanged if audit persistence fails',async()=>{
@@ -188,5 +188,67 @@ test('bot foundation: real SQL and HTTP with synthetic Telegram delivery',async 
     await assert.rejects(createBotStore(faulty).confirmBinding('rollback',121,'fixture'),/fixture failure/);
     assert.equal((await pg.query('SELECT telegram_chat_id FROM users WHERE id=$1',[id])).rows[0].telegram_chat_id,null);
     assert.equal((await pg.query("SELECT consumed_at FROM telegram_bind_token WHERE token='rollback'")).rows[0].consumed_at,null);
+  });
+  await t.test('home keyboard and every main task are available without commands or quota charges',async()=>{
+    const ui=require('../src/bot/ui');
+    await post(message('/menu',130));
+    const home=calls.filter(c=>c.chat_id===130&&c.method==='sendMessage').at(-1);
+    assert.equal(home.reply_markup.is_persistent,true);assert.equal(home.reply_markup.keyboard.flat().length,6);
+    assert(!home.text.includes('/salary'));
+    for(const label of Object.values(ui.labels))assert.equal((await post(message(label,130))).status,200,label);
+    assert.equal((await pg.query("SELECT queries_today FROM bot_users WHERE chat_id='130'")).rows[0].queries_today,0);
+    assert.equal((await pg.query("SELECT intent FROM leads WHERE tg_chat_id='130'")).rows[0].intent,'b2b');
+  });
+  await t.test('salary and self prompts accept bare amounts and persist across bot process reload',async()=>{
+    await post(callback('prompt_salary',131));await post(message('300 000',131));
+    assert.match(responses(131).at(-1),/Расчёт зарплаты/);
+    await post(callback('prompt_self',131));
+    const reloaded={...context,module:{exports:{}}};
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../src/bot/telegram.js'),'utf8'),reloaded);
+    const update=message('300 тыс',131);
+    await store.processUpdate(update,reloaded.module.exports.handleUpdate);
+    assert.match(responses(131).at(-1),/Режим самозанятого/);
+    assert.equal((await pg.query("SELECT queries_today FROM bot_users WHERE chat_id='131'")).rows[0].queries_today,2);
+  });
+  await t.test('invalid amounts retain selection; explicit commands override; cancel and expiry do not silently reuse selection',async()=>{
+    await post(callback('prompt_salary',132));await post(message('300 или 500',132));
+    assert.match(responses(132).at(-1),/зарплата начислена/);
+    assert.equal((await pg.query("SELECT queries_today FROM bot_users WHERE chat_id='132'")).rows[0].queries_today,0);
+    await post(message('/self 300000',132));assert.match(responses(132).at(-1),/Режим самозанятого/);
+    await post(message('/cancel',132));assert.equal(await store.calculationKind(132),null);
+    await post(callback('prompt_salary',132));
+    await pg.query("UPDATE bot_users SET calculation_expires_at=NOW()-INTERVAL '1 minute' WHERE chat_id='132'");
+    await post(message('300000',132));assert.match(responses(132).at(-1),/Выберите расчёт ещё раз/);
+    assert.equal((await pg.query("SELECT queries_today FROM bot_users WHERE chat_id='132'")).rows[0].queries_today,1);
+  });
+  await t.test('sample buttons obey quota and exhausted callback is acknowledged',async()=>{
+    for(let i=0;i<5;i++)await post(callback('run_salary_300000',133));
+    const blocked=callback('run_self_300000',133);await post(blocked);
+    assert.match(responses(133).at(-1),/Лимит/);
+    assert(calls.some(c=>c.method==='answerCallbackQuery'&&c.callback_query_id===blocked.callback_query.id));
+    assert.equal((await pg.query("SELECT queries_today FROM bot_users WHERE chat_id='133'")).rows[0].queries_today,5);
+  });
+  await t.test('selection ordering recovers after a week without activity, including cancelled state',async()=>{
+    await post(message('/menu',137));
+    await pg.query("UPDATE bot_users SET calculation_update_id=9999999,calculation_updated_at=NOW()-INTERVAL '8 days' WHERE chat_id='137'");
+    await post(callback('prompt_salary',137));
+    assert.equal(await store.calculationKind(137),'salary');
+    await post(message('300000',137));assert.match(responses(137).at(-1),/Расчёт зарплаты/);
+  });
+  await t.test('failed bare-amount delivery retries original calculation even after another menu choice',async()=>{
+    await post(callback('prompt_self',134));const u=message('300000',134);
+    sendFailure=b=>b.chat_id===134;assert.equal((await post(u)).status,503);sendFailure=null;
+    await post(callback('prompt_salary',134));assert.equal((await post(u)).status,200);
+    assert.match(responses(134).at(-1),/Режим самозанятого/);
+    assert.equal(await store.calculationKind(134),'salary');
+    assert.equal((await pg.query("SELECT queries_today FROM bot_users WHERE chat_id='134'")).rows[0].queries_today,1);
+    const count=responses(134).length;await post(u);assert.equal(responses(134).length,count);
+  });
+  await t.test('menu selections are isolated per user and unknown buttons recover to home',async()=>{
+    await post(callback('prompt_self',135));await post(callback('prompt_salary',136));
+    await post(message('300000',135));await post(message('300000',136));
+    assert.match(responses(135).at(-1),/Режим самозанятого/);assert.match(responses(136).at(-1),/Расчёт зарплаты/);
+    await post(callback('obsolete_button',135));assert.match(responses(135).at(-1),/С чего начнём/);
+    for(const data of ['ui:reference','ui:form910','ui:commands','ui:help','ui:link','ui:menu'])assert.equal((await post(callback(data,135))).status,200);
   });
 });
