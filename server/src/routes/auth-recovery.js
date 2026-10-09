@@ -5,8 +5,8 @@
 //   GET    /api/auth/telegram/status     → проверить статус привязки
 //   DELETE /api/auth/telegram/unbind     → отвязать
 //
-// Восстановление пароля теперь идёт через TG-бота напрямую (см. handleReset
-// в src/bot/telegram.js — команда /reset email@example.com).
+// Небезопасный сброс пароля по email в боте отключён. Эти маршруты только
+// управляют Telegram-привязкой из авторизованной сессии.
 
 const router = require('express').Router();
 const crypto = require('crypto');
@@ -56,7 +56,7 @@ function requireUser(req, res) {
   return id;
 }
 
-const BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME || 'esep_bot';
+const BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME || 'EsepKZ_bot';
 
 // ╔════════════════════════════════════════════════════════════════════╗
 // ║ Telegram-привязка                                                  ║

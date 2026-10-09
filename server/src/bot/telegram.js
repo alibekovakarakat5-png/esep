@@ -1,18 +1,24 @@
 /**
  * Telegram Bot — Esep
  *
- * Пользователям: умный помощник по налогам ИП Казахстана
+ * Пользователям: справка и предварительные расчёты по командам
  * Администратору: уведомления о регистрациях, налогах, статьях
  *
  * Переменные среды:
  *   TELEGRAM_BOT_TOKEN      — токен от @BotFather
  *   TELEGRAM_ADMIN_CHAT_ID  — chat_id разработчика
+ *   TELEGRAM_WEBHOOK_SECRET — общий секрет webhook (32-256 символов)
  */
 
-const https     = require('https');
 const db        = require('../db');
 const marketing = require('./marketing');
-const { upsertLead, detectIntent } = require('../services/leads_db');
+const { escapeTelegramText, marketingPostHtml } = require('../services/telegram_text');
+const { detectIntent } = require('../services/leads_db');
+const { parseAmount, textCalculation } = require('./input');
+const { createBotRequest, requireTelegramSuccess } = require('./transport');
+const { createBotStore } = require('../services/bot_foundation');
+const { validSecret } = require('../routes/telegram-webhook');
+const store = createBotStore(db);
 
 const TOKEN      = process.env.TELEGRAM_BOT_TOKEN;
 const ADMIN_ID   = process.env.TELEGRAM_ADMIN_CHAT_ID;
@@ -23,46 +29,25 @@ const PRIVATE_CHANNEL_ID = process.env.TELEGRAM_PRIVATE_CHANNEL_ID || null;
 // CORE — Bot API
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function botRequest(method, body) {
-  if (!TOKEN) return Promise.resolve(null);
-  return new Promise((resolve, reject) => {
-    const data = JSON.stringify(body);
-    const req  = https.request({
-      hostname: 'api.telegram.org',
-      path: `/bot${TOKEN}/${method}`,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
-    }, (res) => {
-      let buf = '';
-      res.on('data', (c) => buf += c);
-      res.on('end', () => {
-        try { resolve(JSON.parse(buf)); }
-        catch { resolve(null); }
-      });
-    });
-    req.on('error', (e) => { console.error('[bot] request error:', e.message); resolve(null); });
-    req.write(data);
-    req.end();
-  });
-}
+const botRequest = createBotRequest({ token: TOKEN });
 
-function send(chatId, text, extra = {}) {
-  return botRequest('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', ...extra });
+async function send(chatId, text, extra = {}) {
+  return requireTelegramSuccess(await botRequest('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', ...extra }));
 }
 
 function sendAdmin(text, extra = {}) {
-  if (!ADMIN_ID) return;
-  return send(ADMIN_ID, text, extra);
+  if (!ADMIN_ID) return Promise.resolve({ ok: false, error_code: 503 });
+  // Ancillary admin notifications must not fail a successful user request.
+  return send(ADMIN_ID, text, extra).catch(e => {
+    console.error('[bot] admin notification failed', e.code);
+    return { ok: false, error_code: e.telegramCode || 503 };
+  });
 }
 
 async function postToChannel(text, extra = {}) {
   console.log(`[bot] postToChannel → ${CHANNEL_ID}`);
   const result = await send(CHANNEL_ID, text, extra);
-  if (result && !result.ok) {
-    console.error('[bot] postToChannel FAILED:', result.description);
-  } else {
-    console.log('[bot] postToChannel OK');
-  }
+  console.log('[bot] postToChannel OK');
   return result;
 }
 
@@ -117,34 +102,16 @@ async function getUserState(chatId) {
   return u;
 }
 
-async function checkAndBump(chatId) {
-  const user = await getUserState(chatId);
-
-  // Linked to paid Esep account → unlimited
-  if (user.linked_user_id) {
-    const { rows } = await db.query('SELECT tier FROM users WHERE id = $1', [user.linked_user_id]);
-    if (rows.length && rows[0].tier !== 'free') return { ok: true, remaining: Infinity };
-  }
-
-  // Free: 5/day
-  const today = new Date().toISOString().slice(0, 10);
-  if (user.last_query_date !== today) {
-    await db.query(
-      `UPDATE bot_users SET queries_today = 1, last_query_date = $1 WHERE chat_id = $2`,
-      [today, String(chatId)],
-    );
-    return { ok: true, remaining: FREE_DAILY_LIMIT - 1 };
-  }
-
-  if (user.queries_today >= FREE_DAILY_LIMIT) {
-    return { ok: false, remaining: 0 };
-  }
-
-  await db.query(
-    `UPDATE bot_users SET queries_today = queries_today + 1 WHERE chat_id = $1`,
-    [String(chatId)],
-  );
-  return { ok: true, remaining: FREE_DAILY_LIMIT - user.queries_today - 1 };
+function almatyDay() {
+  return new Date(Date.now() + 5 * 3600e3).toISOString().slice(0, 10);
+}
+async function allowCalculation(chatId, updateId) {
+  const account = await store.verifiedAccount(chatId);
+  if (account && account.tier !== 'free') return true;
+  if (await store.consumeQuota(chatId, updateId, FREE_DAILY_LIMIT, almatyDay())) return true;
+  await send(chatId, '⏳ Лимит расчётов на сегодня исчерпан (5 в день). Справка и настройки доступны.\n' +
+    'Для привязки аккаунта откройте настройки Esep → Telegram. Или вернитесь завтра.');
+  return false;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -188,8 +155,8 @@ async function handleStart(chatId, from, payload) {
   }
 
   // Welcome series: instant value first, then regime selection
-  send(chatId,
-    `Привет, ${from.first_name || 'друг'}! Я — <b>Esep Bot</b> 🤖\n\n` +
+  return send(chatId,
+    `Привет, ${escapeTelegramText(from.first_name || 'друг')}! Я — <b>Esep Bot</b> 🤖\n\n` +
     `💡 Узнай свой налог за 10 секунд: напиши доход за полугодие ` +
     `(например, <code>5000000</code>) — посчитаю сам.\n\n` +
     `Или выбери, что тебе ближе 👇`,
@@ -217,21 +184,6 @@ async function handleStart(chatId, from, payload) {
     },
   );
 
-  // Notify admin about new bot user
-  sendAdmin(
-    `🤖 <b>Новый пользователь бота</b>\n` +
-    `Имя: ${from.first_name || ''} ${from.last_name || ''}\n` +
-    `Username: @${from.username || '—'}\n` +
-    `Chat ID: <code>${chatId}</code>`,
-  );
-  // Единая база лидов: новый контакт из бота
-  upsertLead({
-    tg_chat_id: chatId,
-    tg_username: from.username,
-    name: [from.first_name, from.last_name].filter(Boolean).join(' '),
-    source: 'tg_bot',
-    intent: detectIntent(payload || ''),
-  }).catch(e => console.error('[leads] upsert (start):', e.message));
 }
 
 // ── Оффер для бухгалтерских фирм (B2B-ветка) ─────────────────────────────────
@@ -260,22 +212,12 @@ async function sendBuhOffer(chatId, from = {}) {
     },
   );
 
-  // Горячий B2B-лид — отдельный пинг владельцу (отличаем от B2C)
-  sendAdmin(
-    `🧮 <b>БУХГАЛТЕР в боте — горячий лид!</b>\n` +
-    `Имя: ${from.first_name || ''} ${from.last_name || ''}\n` +
-    `Username: @${from.username || '—'}\n` +
-    `Chat ID: <code>${chatId}</code>\n\n` +
-    `Показан оффер бухфирм (пилот 50% + партнёрка 30%). Напишет на WhatsApp +7 705 991 47 89 для демо.`,
+  await sendAdmin(
+    '🧮 <b>Пользователь выбрал раздел для бухгалтеров</b>\n' +
+    'Имя: ' + escapeTelegramText([from.first_name, from.last_name].filter(Boolean).join(' ')) + '\n' +
+    'Username: @' + escapeTelegramText(from.username || '—') + '\n' +
+    'Выбор раздела не означает заявку на демо.'
   );
-  // Единая база лидов: горячий B2B (бухгалтер)
-  upsertLead({
-    tg_chat_id: chatId,
-    tg_username: from.username,
-    name: [from.first_name, from.last_name].filter(Boolean).join(' '),
-    source: 'tg_bot',
-    intent: 'b2b',
-  }).catch(e => console.error('[leads] upsert (buh):', e.message));
 }
 
 // ── ROI-визард для бухфирм: 3 вопроса → выгода от автоматизации → демо ──
@@ -320,8 +262,8 @@ function roiResult(chatId, acc, cpa, hrs) {
       [{ text: '🌐 Подробнее', url: 'https://buhfirma.esepkz.com' }],
     ] } });
 }
-function handleRoiStep(cb, data) {
-  botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+async function handleRoiStep(cb, data) {
+  await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
   const chatId = cb.from.id;
   const p = {};
   data.replace(/^roi:/, '').split(':').forEach((kv) => { const [k, v] = kv.split('='); if (k) p[k] = v; });
@@ -334,7 +276,7 @@ function handleRoiStep(cb, data) {
 // ── /salary — расчёт зарплаты сотрудника (НК-2026).
 // Логика 1:1 из lib/.../salary_calculator_screen.dart (выверенный источник).
 function handleSalary(chatId, args) {
-  const gross = parseFloat((args || '').replace(/\s/g, ''));
+  const gross = parseAmount(args);
   if (!gross || gross <= 0) {
     return send(chatId, 'Укажите зарплату (gross): <code>/salary 300000</code>');
   }
@@ -377,7 +319,7 @@ function handleSalary(chatId, args) {
 }
 
 async function handleCalc(chatId, args) {
-  const income = parseFloat(args.replace(/\s/g, ''));
+  const income = parseAmount(args);
   if (!income || income <= 0) {
     return send(chatId, 'Укажите доход: <code>/calc 5000000</code>');
   }
@@ -403,7 +345,7 @@ async function handleCalc(chatId, args) {
     ? `\n\n⚠️ <b>Доход превышает лимит 910</b> (${fmt(limit)} ₸). Нужен другой режим.`
     : '';
 
-  send(chatId,
+  return send(chatId,
     `🧮 <b>Расчёт по упрощёнке (910)</b>\n` +
     `Доход за полугодие: <b>${fmt(income)} ₸</b>\n\n` +
     `<b>Налоги (${rate}):</b>\n` +
@@ -452,7 +394,7 @@ async function handleSocial(chatId) {
 
   const fmt = (n) => Math.round(n).toLocaleString('ru-RU');
 
-  send(chatId,
+  return send(chatId,
     `📋 <b>Ежемесячные соцплатежи ИП "за себя"</b>\n` +
     `(база: 1 МЗП = ${fmt(c.mzp)} ₸)\n\n` +
     `  ОПВ 10%: <b>${fmt(opv)} ₸</b>\n` +
@@ -480,7 +422,7 @@ async function handleRates(chatId) {
   const fmt = (n) => typeof n === 'number' ? n.toLocaleString('ru-RU') : n;
   const halfYearLimitMrp = (c['910_year_mrp'] ?? 600000) / 2;
 
-  send(chatId,
+  return send(chatId,
     `📊 <b>Актуальные ставки 2026</b>\n\n` +
     `🔹 МРП: <b>${fmt(c.mrp)} ₸</b>\n` +
     `🔹 МЗП: <b>${fmt(c.mzp)} ₸</b>\n\n` +
@@ -498,7 +440,7 @@ async function handleRates(chatId) {
 }
 
 async function handleSelf(chatId, args) {
-  const income = parseFloat(args.replace(/\s/g, ''));
+  const income = parseAmount(args);
   if (!income || income <= 0) {
     return send(chatId, 'Укажите доход в месяц: <code>/self 1000000</code>');
   }
@@ -510,7 +452,7 @@ async function handleSelf(chatId, args) {
     ? `\n\n⚠️ Доход за месяц превышает лимит (${fmt(limit)} ₸/мес)`
     : '';
 
-  send(chatId,
+  return send(chatId,
     `👤 <b>Режим самозанятого</b>\n\n` +
     `Доход/мес: <b>${fmt(income)} ₸</b>\n` +
     `Ставка: ${c.self_emp_rate * 100}%\n` +
@@ -530,7 +472,7 @@ async function handleSelf(chatId, args) {
 }
 
 function handleDeadlines(chatId) {
-  send(chatId,
+  return send(chatId,
     `📅 <b>Сроки сдачи и оплаты (910)</b>\n\n` +
     `<b>1-е полугодие (янв—июнь):</b>\n` +
     `  Подача 910.00: до 15 августа\n` +
@@ -553,48 +495,44 @@ function handleDeadlines(chatId) {
 
 async function handleStatus(chatId) {
   const user = await getUserState(chatId);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = almatyDay();
 
   // Queries remaining
   let queriesUsed = 0;
   if (user.last_query_date === today) {
     queriesUsed = user.queries_today || 0;
   }
-  const remaining = FREE_DAILY_LIMIT - queriesUsed;
+  const remaining = Math.max(0, FREE_DAILY_LIMIT - queriesUsed);
 
   // Linked account info
   let accountLine = 'Аккаунт Esep: <b>не привязан</b>';
   let tierLine = 'Тариф: Бесплатный';
   let unlimited = false;
 
-  if (user.linked_user_id) {
-    try {
-      const { rows } = await db.query('SELECT email, name, tier FROM users WHERE id = $1', [user.linked_user_id]);
-      if (rows.length) {
-        const u = rows[0];
-        const tierLabel = { free: 'Бесплатный', ip: 'ИП', accountant: 'Бухгалтер', corporate: 'Корпоративный' };
-        accountLine = `Аккаунт: <b>${u.email}</b>`;
-        tierLine = `Тариф: <b>${tierLabel[u.tier] || u.tier}</b>`;
-        if (u.tier !== 'free') unlimited = true;
-      }
-    } catch {}
+  const account = await store.verifiedAccount(chatId);
+  if (account) {
+    accountLine = 'Аккаунт: <b>' + escapeTelegramText(account.email) + '</b>';
+    const tierLabel = {free:'Бесплатный',ip:'ИП',accountant:'Бухгалтер',corporate:'Корпоративный'};
+    tierLine = 'Тариф: <b>' + escapeTelegramText(tierLabel[account.tier] || account.tier) + '</b>';
+    unlimited = account.tier !== 'free';
   }
 
-  const limitLine = unlimited
-    ? 'Запросы: <b>безлимит</b>'
-    : `Запросов сегодня: <b>${remaining} из ${FREE_DAILY_LIMIT}</b>`;
 
-  send(chatId,
+  const limitLine = unlimited
+    ? 'Расчёты: <b>безлимит</b>'
+    : `Расчётов осталось сегодня: <b>${remaining} из ${FREE_DAILY_LIMIT}</b>`;
+
+  return send(chatId,
     `📊 <b>Ваш статус</b>\n\n` +
     `${limitLine}\n` +
     `${accountLine}\n` +
     `${tierLine}\n\n` +
-    (unlimited ? '' : `Для безлимита привяжите платный аккаунт:\n<code>/link your@email.com</code>`),
+    (unlimited ? '' : `Для безлимита привяжите платный аккаунт:\n<code>/link</code>`),
   );
 }
 
 function handleHelp(chatId) {
-  send(chatId,
+  return send(chatId,
     `📖 <b>Команды Esep Bot</b>\n\n` +
     `/calc 5000000 — налог 910 за полугодие\n` +
     `/social — соцплатежи за себя\n` +
@@ -603,8 +541,8 @@ function handleHelp(chatId) {
     `/salary 300000 — зарплата сотрудника (на руки + взносы)\n` +
     `/deadlines — сроки сдачи\n` +
     `/status — ваш статус и лимиты\n` +
-    `/link email — привязать аккаунт Esep\n` +
-    `/reset email — восстановить пароль\n\n` +
+    `/link — как безопасно привязать аккаунт Esep\n` +
+    `/reset — помощь с восстановлением доступа\n\n` +
     `Или просто спросите: <i>"сколько налогов с 3 млн?"</i>`,
     {
       reply_markup: {
@@ -634,7 +572,7 @@ function handleHelp(chatId) {
 //   - Токен одноразовый и валиден 10 минут.
 //   - Бот показывает email — пользователь видит чьё именно имя он привязывает.
 //     Если кто-то скинул ему ссылку — он отклонит.
-//   - При повторной привязке к существующему аккаунту — заменяем chat_id.
+//   - Токен, привязка и журнал изменяются атомарно в одной транзакции.
 //   - Audit log в auth_security_log.
 
 async function handleBindRequest(chatId, from, token) {
@@ -664,8 +602,8 @@ async function handleBindRequest(chatId, from, token) {
       return send(chatId, '❌ Срок действия ссылки истёк (10 минут). Запросите новую в Esep.');
     }
 
-    const safeEmail = String(row.email || '').replace(/</g, '&lt;');
-    const safeName  = String(row.name || '').replace(/</g, '&lt;');
+    const safeEmail = escapeTelegramText(row.email);
+    const safeName = escapeTelegramText(row.name);
 
     return send(chatId,
       `🔐 <b>Привязка Telegram к Esep</b>\n\n` +
@@ -675,7 +613,7 @@ async function handleBindRequest(chatId, from, token) {
       `\n<b>Это вы?</b>\n\n` +
       `Если этот аккаунт ваш — нажмите "Это я". Если нет — нажмите "Это не я", ` +
       `и мы ничего не привяжем.\n\n` +
-      `<i>После подтверждения вы сможете восстанавливать пароль через этот Telegram.</i>`,
+      `<i>Подтверждайте только свой аккаунт.</i>`,
       {
         reply_markup: {
           inline_keyboard: [
@@ -686,115 +624,36 @@ async function handleBindRequest(chatId, from, token) {
       }
     );
   } catch (err) {
-    console.error('[bot/bind] failed:', err);
+    console.error('[bot/bind] failed:', err.code || 'FAILED');
     return send(chatId, '❌ Ошибка привязки. Попробуйте снова.');
   }
 }
 
 async function handleBindConfirm(cb, token) {
-  const chatId = cb.from.id;
-  try {
-    const r = await db.query(
-      `SELECT t.user_id, t.expires_at, t.consumed_at,
-              u.email
-         FROM telegram_bind_token t
-         JOIN users u ON u.id = t.user_id
-        WHERE t.token = $1`,
-      [token]
-    );
-    if (r.rows.length === 0) {
-      botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: '❌ Токен не найден' });
-      return;
-    }
-    const row = r.rows[0];
-    if (row.consumed_at) {
-      botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: 'Уже использовано' });
-      return send(chatId, '❌ Эта ссылка уже была использована.');
-    }
-    if (new Date(row.expires_at) < new Date()) {
-      botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: 'Просрочено' });
-      return send(chatId, '❌ Срок ссылки истёк.');
-    }
-
-    const username = cb.from.username || null;
-
-    // Если у этого chat_id уже привязан другой user — отвяжем (chat_id уникален)
-    await db.query(
-      `UPDATE users SET telegram_chat_id = NULL,
-                        telegram_username = NULL,
-                        telegram_linked_at = NULL
-        WHERE telegram_chat_id = $1`,
-      [String(chatId)]
-    );
-
-    // Привязываем
-    await db.query(
-      `UPDATE users
-          SET telegram_chat_id = $1,
-              telegram_username = $2,
-              telegram_linked_at = NOW()
-        WHERE id = $3`,
-      [String(chatId), username, row.user_id]
-    );
-
-    // bot_users — сохраняем для совместимости с существующим ботом
-    await db.query(
-      `INSERT INTO bot_users (chat_id, linked_user_id)
-       VALUES ($1, $2)
-       ON CONFLICT (chat_id) DO UPDATE SET linked_user_id = EXCLUDED.linked_user_id`,
-      [String(chatId), row.user_id]
-    );
-
-    // Помечаем токен использованным
-    await db.query(
-      `UPDATE telegram_bind_token
-          SET consumed_at = NOW(),
-              consumed_chat_id = $1,
-              consumed_username = $2
-        WHERE token = $3`,
-      [String(chatId), username, token]
-    );
-
-    await db.query(
-      `INSERT INTO auth_security_log (user_id, event, meta)
-       VALUES ($1, 'tg_bind_confirmed', $2::jsonb)`,
-      [row.user_id, JSON.stringify({ chat_id: String(chatId), username })]
-    );
-
-    botRequest('answerCallbackQuery',
-      { callback_query_id: cb.id, text: '✅ Привязано!' });
-
-    return send(chatId,
-      `✅ <b>Telegram привязан к аккаунту Esep</b>\n\n` +
-      `📧 ${String(row.email).replace(/</g, '&lt;')}\n\n` +
-      `Теперь вы можете восстановить пароль через этот Telegram, если забудете его.\n\n` +
-      `<i>Если вы не привязывали аккаунт — отвяжите Telegram через настройки в приложении.</i>`
-    );
-  } catch (err) {
-    console.error('[bot/bind-confirm] failed:', err);
-    botRequest('answerCallbackQuery',
-      { callback_query_id: cb.id, text: '❌ Ошибка' });
-  }
+  const account = await store.confirmBinding(token, cb.from.id, cb.from.username);
+  await botRequest('answerCallbackQuery', {callback_query_id:cb.id,
+    text:account ? '✅ Привязано!' : 'Ссылка недействительна или использована'});
+  return send(cb.from.id, account
+    ? '✅ <b>Telegram привязан к аккаунту Esep</b>\n' + escapeTelegramText(account.email) +
+      '\nОтвязать его можно в настройках Esep.'
+    : 'Ссылка недействительна, просрочена или уже использована. Запросите новую ссылку в настройках Esep.');
 }
 
 async function handleBindReject(cb, token) {
   const chatId = cb.from.id;
   try {
+    // Do not rewrite an already consumed token, including after a successful bind.
     const r = await db.query(
-      `SELECT user_id FROM telegram_bind_token WHERE token = $1`,
-      [token]
-    );
-    const userId = r.rows[0]?.user_id || null;
-
-    // Помечаем токен недействительным
-    await db.query(
       `UPDATE telegram_bind_token
           SET expires_at = NOW(),
               consumed_at = NOW(),
               consumed_chat_id = $1
-        WHERE token = $2`,
+        WHERE token = $2 AND consumed_at IS NULL AND expires_at > NOW()
+        RETURNING user_id`,
       [String(chatId), token]
     );
+    const userId = r.rows[0]?.user_id || null;
+    if (!userId) return send(chatId, 'Ссылка недействительна или уже использована. Существующая привязка не изменена.');
 
     if (userId) {
       await db.query(
@@ -804,7 +663,7 @@ async function handleBindReject(cb, token) {
       );
     }
 
-    botRequest('answerCallbackQuery',
+    await botRequest('answerCallbackQuery',
       { callback_query_id: cb.id, text: '🛡 Отклонено' });
     return send(chatId,
       `🛡 <b>Привязка отклонена.</b>\n\n` +
@@ -813,96 +672,22 @@ async function handleBindReject(cb, token) {
       `попытка получить доступ к чужому аккаунту.`
     );
   } catch (err) {
-    console.error('[bot/bind-reject] failed:', err);
-    botRequest('answerCallbackQuery',
+    console.error('[bot/bind-reject] failed:', err.code || 'FAILED');
+    await botRequest('answerCallbackQuery',
       { callback_query_id: cb.id, text: '❌ Ошибка' });
   }
 }
 
-// /reset email@example.com — генерит временный пароль и присылает в чат
-async function handleReset(chatId, args) {
-  const email = args.trim().toLowerCase();
-  if (!email || !email.includes('@')) {
-    return send(chatId,
-      `🔑 <b>Восстановление пароля</b>\n\n` +
-      `Напиши: <code>/reset your@email.com</code>\n\n` +
-      `Я сгенерирую временный пароль и пришлю сюда.\n` +
-      `После входа смени его в настройках.`,
-    );
-  }
-
-  const { rows } = await db.query(
-    'SELECT id, name FROM users WHERE email = $1',
-    [email],
-  );
-  if (!rows.length) {
-    return send(chatId,
-      `❌ Email <code>${email}</code> не найден.\n\n` +
-      `Проверь что не опечатался — или зарегистрируйся в приложении.`,
-    );
-  }
-
-  // Генерим временный пароль (легко набрать, но безопасный)
-  const bcrypt = require('bcryptjs');
-  const crypto = require('crypto');
-  const tempPass = crypto.randomBytes(6).toString('base64url').slice(0, 10);
-  const hash = await bcrypt.hash(tempPass, 12);
-
-  await db.query(
-    'UPDATE users SET password_hash = $1 WHERE id = $2',
-    [hash, rows[0].id],
-  );
-
-  send(chatId,
-    `✅ <b>Временный пароль готов</b>\n\n` +
-    `Email: <code>${email}</code>\n` +
-    `Пароль: <code>${tempPass}</code>\n\n` +
-    `Зайди в Esep → ${process.env.APP_URL || 'app.esepkz.com'}\n` +
-    `<i>После входа смени пароль в настройках!</i>`,
-    { disable_web_page_preview: true },
-  );
-
-  // Уведомляем админа о восстановлении
-  sendAdmin(
-    `🔑 <b>Восстановление пароля</b>\n\n` +
-    `Email: <code>${email}</code>\n` +
-    `Имя: ${rows[0].name || '—'}\n` +
-    `Чат TG: <code>${chatId}</code>`,
-  );
+// Legacy password mutation is disabled until a complete verified recovery flow exists.
+function handleReset(chatId) {
+  return send(chatId, 'Восстановление пароля через бота временно отключено. ' +
+    'Если вы вошли в Esep, смените пароль в настройках. Если войти не получается, обратитесь в поддержку.',
+    {reply_markup:{inline_keyboard:[[{text:'Связаться с поддержкой',url:'https://wa.me/77059914789'}]]}});
 }
-
-async function handleLink(chatId, args) {
-  const email = args.trim().toLowerCase();
-  if (!email || !email.includes('@')) {
-    return send(chatId, 'Укажите email: <code>/link your@email.com</code>');
-  }
-
-  const { rows } = await db.query('SELECT id, tier, name FROM users WHERE email = $1', [email]);
-  if (!rows.length) {
-    return send(chatId, `Email <code>${email}</code> не найден в Esep.\nСначала зарегистрируйтесь в приложении.`);
-  }
-
-  await db.query(
-    'UPDATE bot_users SET linked_user_id = $1 WHERE chat_id = $2',
-    [rows[0].id, String(chatId)],
-  );
-
-  const tierLabel = { free: 'Бесплатный', ip: 'ИП', accountant: 'Бухгалтер', corporate: 'Корпоративный' };
-  const isPaid = rows[0].tier !== 'free';
-
-  send(chatId,
-    `✅ <b>Аккаунт привязан!</b>\n\n` +
-    `Имя: ${rows[0].name || '—'}\n` +
-    `Тариф: <b>${tierLabel[rows[0].tier] || rows[0].tier}</b>\n\n` +
-    (isPaid
-      ? 'Запросы к боту — без ограничений.'
-      : `Бесплатный тариф: ${FREE_DAILY_LIMIT} запросов/день.\nДля безлимита — перейдите на платный тариф.`),
-  );
-
-  sendAdmin(
-    `🔗 <b>Привязка бота</b>\n` +
-    `Chat: <code>${chatId}</code> → ${email} (${rows[0].tier})`,
-  );
+function handleLink(chatId) {
+  return send(chatId, '🔗 Для безопасной привязки войдите в Esep → Настройки → Telegram. ' +
+    'Откройте одноразовую ссылку и подтвердите свой аккаунт. Указывать email в чате не нужно.',
+    {reply_markup:{inline_keyboard:[[{text:'Открыть Esep',url:'https://app.esepkz.com'}]]}});
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -911,50 +696,19 @@ async function handleLink(chatId, args) {
 
 async function handleFreeText(chatId, text) {
   const lower = text.toLowerCase();
-
-  // Попытка вытащить сумму из текста
-  const numMatch = lower.match(/(\d[\d\s]*\d)/);
-  const num = numMatch ? parseFloat(numMatch[1].replace(/\s/g, '')) : null;
-
-  // Detect intent
-  if ((lower.includes('налог') || lower.includes('сколько')) && num && num > 10000) {
-    return handleCalc(chatId, String(num));
+  const calculation = textCalculation(text);
+  if (calculation) {
+    const handlers = {calc:handleCalc,self:handleSelf,salary:handleSalary};
+    return handlers[calculation.kind](chatId,String(calculation.amount));
   }
-  if (lower.includes('соцплатеж') || lower.includes('опв') || lower.includes('за себя')) {
-    return handleSocial(chatId);
-  }
-  if (lower.includes('ставк') || lower.includes('мрп') || lower.includes('мзп')) {
-    return handleRates(chatId);
-  }
-  if (lower.includes('есп') || lower.includes('совокупн')) {
-    return send(chatId,
-      'ЕСП (единый совокупный платёж) отменён с 1 января 2026 года.\n\n' +
-      'Его заменил <b>режим самозанятых</b>: 4% от дохода (ИПН 0% + соцплатежи ' +
-      'ОПВ/ОПВР/СО/ОСМС по 1%), лимит 300 МРП/мес, учёт через приложение ' +
-      'E-Salyq Business.\n\n' +
-      'Расчёт: <code>/self 1000000</code>');
-  }
-  if (lower.includes('самозаня')) {
-    if (num) return handleSelf(chatId, String(num));
-    return send(chatId, 'Режим самозанятого: 4% от дохода, лимит 300 МРП/мес.\nУкажите сумму: <code>/self 1000000</code>');
-  }
-  if (lower.includes('срок') || lower.includes('дедлайн') || lower.includes('когда сдавать')) {
-    return handleDeadlines(chatId);
-  }
-  if (lower.includes('910') || lower.includes('упрощён') || lower.includes('упрощен')) {
-    if (num) return handleCalc(chatId, String(num));
-    return send(chatId, 'Упрощёнка (910): 4% от дохода (ИПН 4%, СН 0%).\nУкажите сумму: <code>/calc 5000000</code>');
-  }
-
-  // Default: не понял
-  send(chatId,
-    `Не совсем понял вопрос. Попробуйте:\n\n` +
-    `/calc 5000000 — расчёт налога\n` +
-    `/social — соцплатежи\n` +
-    `/rates — ставки 2026\n` +
-    `/deadlines — сроки\n\n` +
-    `Или напишите сумму: <i>"сколько налогов с 3 млн?"</i>`,
-  );
+  if (lower.includes('соцплатеж') || lower.includes('опв') || lower.includes('за себя')) return handleSocial(chatId);
+  if (lower.includes('ставк') || lower.includes('мрп') || lower.includes('мзп')) return handleRates(chatId);
+  if (lower.includes('срок') || lower.includes('дедлайн') || lower.includes('когда сдавать')) return handleDeadlines(chatId);
+  if (lower.includes('самозанят')) return send(chatId,'Для расчёта самозанятого укажите доход: <code>/self 1000000</code>.');
+  if (lower.includes('910') || lower.includes('упрощ')) return send(chatId,
+    '910.00 — форма декларации. Номер формы не является суммой дохода.\nДля предварительного расчёта укажите доход за полугодие: <code>/calc 5000000</code>.');
+  return send(chatId,'Не удалось однозначно определить сумму или вопрос. Укажите одну сумму, например <code>5 000 000</code> или <code>3 млн</code>.\n' +
+    'Расчёт 910 — за полугодие. Для другого сценария используйте /self, /salary или /help.');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -962,88 +716,52 @@ async function handleFreeText(chatId, text) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function handleUpdate(update) {
-  try {
-    // Callback queries (inline buttons)
-    if (update.callback_query) {
-      return handleCallbackQuery(update.callback_query);
+  const cb = update.callback_query;
+  // Authorize privileged callbacks before tracking or any database mutation.
+  if (cb && /^(?:tax_|pub_channel_|skip_post_)/.test(cb.data || '')) {
+    if (!ADMIN_ID || String(cb.from?.id) !== String(ADMIN_ID)) {
+      return botRequest('answerCallbackQuery',{callback_query_id:cb.id,text:'Это действие доступно только администратору.'});
     }
-
-    // Channel posts — capture chat_id and notify admin
-    if (update.channel_post) {
-      const cp = update.channel_post;
-      const channelId = cp.chat.id;
-      const channelTitle = cp.chat.title || '';
-      console.log(`[bot] Channel post from: ${channelId} (${channelTitle})`);
-      sendAdmin(
-        `📢 <b>Канал обнаружен</b>\n\n` +
-        `Название: ${channelTitle}\n` +
-        `Chat ID: <code>${channelId}</code>\n\n` +
-        `Добавь в Railway:\n<code>TELEGRAM_PRIVATE_CHANNEL_ID=${channelId}</code>`,
-      );
-      return;
-    }
-
-    const msg = update.message;
-    if (!msg || !msg.text) return;
-
-    const chatId = msg.chat.id;
-    const text   = msg.text.trim();
-    const from   = msg.from || {};
-
-    // Commands that don't consume rate limit
-    if (text === '/start' || text.startsWith('/start ')) {
-      const payload = text.startsWith('/start ') ? text.slice(7).trim() : null;
-      return handleStart(chatId, from, payload);
-    }
-    if (text === '/status' || text.startsWith('/status ')) {
-      return handleStatus(chatId);
-    }
-    if (text === '/help' || text.startsWith('/help ')) {
-      return handleHelp(chatId);
-    }
-
-    // Admin channel commands (no rate limit)
-    const adminCmd = text.split(/\s+/)[0].toLowerCase();
-    const adminArgs = text.slice(adminCmd.length).trim();
-    if (await handleAdminChannelCommand(chatId, adminCmd, adminArgs)) return;
-
-    // Rate limit check for everything else
-    const { ok, remaining } = await checkAndBump(chatId);
-    if (!ok) {
-      return send(chatId,
-        `⏳ Лимит бесплатных запросов исчерпан (${FREE_DAILY_LIMIT}/день).\n\n` +
-        `Для безлимита — привяжите платный аккаунт Esep:\n<code>/link your@email.com</code>\n\n` +
-        `Или попробуйте завтра.`,
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '🌐 Открыть Esep', url: 'https://esepkz.com' }],
-              [{ text: '💬 Консультация', url: 'https://wa.me/77059914789' }],
-            ],
-          },
-        },
-      );
-    }
-
-    // Parse command
-    const cmd = text.split(/\s+/)[0].toLowerCase().replace(/@\w+$/, '');
-    const args = text.slice(cmd.length).trim();
-
-    switch (cmd) {
-      case '/calc':      return handleCalc(chatId, args);
-      case '/social':    return handleSocial(chatId);
-      case '/rates':     return handleRates(chatId);
-      case '/self':      return handleSelf(chatId, args);
-      case '/salary':    return handleSalary(chatId, args);
-      case '/deadlines': return handleDeadlines(chatId);
-      case '/link':      return handleLink(chatId, args);
-      case '/reset':     return handleReset(chatId, args);
-      default:
-        // Free text
-        return handleFreeText(chatId, text);
-    }
-  } catch (err) {
-    console.error('[bot] handleUpdate error:', err);
+    return handleCallbackQuery(cb);
+  }
+  const msg = cb?.message || update.message;
+  const from = cb?.from || msg?.from;
+  if (!msg || msg.chat?.type !== 'private' || !from || from.is_bot || String(msg.chat.id) !== String(from.id)) return;
+  const chatId = msg.chat.id;
+  const text = typeof msg.text === 'string' && !cb ? msg.text.trim() : '';
+  const commandToken = text.split(/\s+/)[0];
+  const cmd = commandToken.toLowerCase().replace(/@\w+$/, '');
+  const args = text.slice(commandToken.length).trim();
+  const payload = cmd === '/start' ? args : undefined;
+  const b2b = cb?.data === 'regime_buh' || (cmd === '/start' && /^(buh|buhgalter|firma|partner)$/i.test(args));
+  const intent = b2b ? 'b2b' : detectIntent(cb?.data || text);
+  const visitor = await store.trackVisitor(chatId,from,payload,intent);
+  if (visitor.isNew && String(chatId) !== String(ADMIN_ID)) {
+    await sendAdmin('🤖 <b>Новый пользователь бота</b>\nИмя: ' +
+      escapeTelegramText([from.first_name,from.last_name].filter(Boolean).join(' ')) +
+      '\nUsername: @' + escapeTelegramText(from.username || '—') + '\nChat ID: <code>' + chatId + '</code>');
+  }
+  const directCalc = ['/calc','/self','/salary'].includes(cmd) && parseAmount(args) !== null;
+  const startCalc = cmd === '/start' && /^(calc|self)_/i.test(args) && parseAmount(args.replace(/^(calc|self)_/i,'')) !== null;
+  const buttonCalc = cb && (/^demo_(calc|self)_/.test(cb.data) || /^monthly_/.test(cb.data));
+  const freeCalc = text && !cmd.startsWith('/') && textCalculation(text);
+  if ((directCalc || startCalc || buttonCalc || freeCalc) && !await allowCalculation(chatId,update.update_id)) return;
+  if (cb) return handleCallbackQuery(cb);
+  if (!text) return send(chatId,'Пока я работаю с текстом и кнопками. Фото, документы и голосовые сообщения здесь не разбираю. Наберите /help.');
+  if (await handleAdminChannelCommand(chatId,cmd,args)) return;
+  switch (cmd) {
+    case '/start': return handleStart(chatId,from,args);
+    case '/help': return handleHelp(chatId);
+    case '/status': return handleStatus(chatId);
+    case '/calc': return handleCalc(chatId,args);
+    case '/self': return handleSelf(chatId,args);
+    case '/salary': return handleSalary(chatId,args);
+    case '/social': return handleSocial(chatId);
+    case '/rates': return handleRates(chatId);
+    case '/deadlines': return handleDeadlines(chatId);
+    case '/link': return handleLink(chatId);
+    case '/reset': return handleReset(chatId);
+    default: return handleFreeText(chatId,text);
   }
 }
 
@@ -1094,8 +812,8 @@ function regimeResult(chatId, ip, inc, emp) {
       [{ text: '🔔 Напоминать о сроках', callback_data: 'remind_on' }],
     ] } });
 }
-function handleQuizStep(cb, data) {
-  botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+async function handleQuizStep(cb, data) {
+  await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
   const chatId = cb.from.id;
   const p = {};
   data.replace(/^quiz:/, '').split(':').forEach((kv) => { const [k, v] = kv.split('='); if (k) p[k] = v; });
@@ -1140,9 +858,9 @@ async function handleCallbackQuery(cb) {
   }
 
   if (data === 'tax_auto_ok') {
-    botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: '✅ Подтверждено!' });
+    await botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: '✅ Подтверждено!' });
     if (cb.message) {
-      botRequest('editMessageReplyMarkup', {
+      await botRequest('editMessageReplyMarkup', {
         chat_id: cb.message.chat.id,
         message_id: cb.message.message_id,
         reply_markup: { inline_keyboard: [[{ text: '✅ Подтверждено', callback_data: 'noop' }]] },
@@ -1155,12 +873,12 @@ async function handleCallbackQuery(cb) {
     try {
       const { revertLastAutoUpdate } = require('../jobs/taxMonitor');
       const result = await revertLastAutoUpdate();
-      botRequest('answerCallbackQuery', {
+      await botRequest('answerCallbackQuery', {
         callback_query_id: cb.id,
         text: result.ok ? '↩️ Откат выполнен!' : result.error,
       });
       if (cb.message && result.ok) {
-        botRequest('editMessageReplyMarkup', {
+        await botRequest('editMessageReplyMarkup', {
           chat_id: cb.message.chat.id,
           message_id: cb.message.message_id,
           reply_markup: { inline_keyboard: [[{ text: '↩️ Откачено', callback_data: 'noop' }]] },
@@ -1168,7 +886,7 @@ async function handleCallbackQuery(cb) {
       }
     } catch (err) {
       console.error('[bot] tax_auto_revert error:', err.message);
-      botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: 'Ошибка отката' });
+      await botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: 'Ошибка отката' });
     }
     return;
   }
@@ -1177,17 +895,16 @@ async function handleCallbackQuery(cb) {
   if (data.startsWith('pub_channel_')) {
     const postId = parseInt(data.replace('pub_channel_', ''));
     try {
-      const { rows } = await db.query('SELECT * FROM marketing_posts WHERE id = $1', [postId]);
-      if (!rows.length) {
-        return botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: 'Пост не найден' });
+      if (!Number.isSafeInteger(postId) || postId <= 0) return;
+      const status = await store.publishPost(postId, post => postToChannel(marketingPostHtml(post), CHANNEL_CTA_KEYBOARD));
+      if (status !== 'posted') {
+        return botRequest('answerCallbackQuery', { callback_query_id: cb.id,
+          text: status === 'missing' ? 'Пост не найден' : 'Уже опубликован или пропущен' });
       }
-      const post = rows[0];
-      await postToChannel(`<b>${post.title}</b>\n\n${post.body}`, CHANNEL_CTA_KEYBOARD);
-      await marketing.markPosted(postId);
-      botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: '✅ Опубликовано в канал!' });
+      await botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: '✅ Опубликовано в канал!' });
       // Update the message in private channel
       if (cb.message) {
-        botRequest('editMessageReplyMarkup', {
+        await botRequest('editMessageReplyMarkup', {
           chat_id: cb.message.chat.id,
           message_id: cb.message.message_id,
           reply_markup: { inline_keyboard: [[{ text: '✅ Опубликовано', callback_data: 'noop' }]] },
@@ -1195,7 +912,7 @@ async function handleCallbackQuery(cb) {
       }
     } catch (err) {
       console.error('[bot] pub_channel error:', err.message);
-      botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: 'Ошибка публикации' });
+      await botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: 'Ошибка публикации' });
     }
     return;
   }
@@ -1204,9 +921,9 @@ async function handleCallbackQuery(cb) {
   if (data.startsWith('skip_post_')) {
     const postId = parseInt(data.replace('skip_post_', ''));
     await marketing.markPosted(postId);
-    botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: '⏭ Пропущено' });
+    await botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: '⏭ Пропущено' });
     if (cb.message) {
-      botRequest('editMessageReplyMarkup', {
+      await botRequest('editMessageReplyMarkup', {
         chat_id: cb.message.chat.id,
         message_id: cb.message.message_id,
         reply_markup: { inline_keyboard: [[{ text: '⏭ Пропущено', callback_data: 'noop' }]] },
@@ -1226,9 +943,9 @@ async function handleCallbackQuery(cb) {
 
   // Monthly breakdown: monthly_{income}
   if (data.startsWith('monthly_')) {
-    const income = parseFloat(data.replace('monthly_', ''));
+    const income = parseAmount(data.replace('monthly_', ''));
     if (!income) return;
-    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
 
     const c = await getTaxConfig();
     const monthlyTax = income * (c.ipn_rate_910 + c.sn_rate_910) / 6;
@@ -1256,11 +973,11 @@ async function handleCallbackQuery(cb) {
 
   // Navigation callbacks
   if (data === 'go_social') {
-    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return handleSocial(chatId);
   }
   if (data === 'go_deadlines') {
-    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return handleDeadlines(chatId);
   }
   if (data === 'remind_on' || data === 'remind_off') {
@@ -1271,33 +988,33 @@ async function handleCallbackQuery(cb) {
          ON CONFLICT (chat_id) DO UPDATE SET reminders_on = $2`,
         [String(cb.from.id), on],
       );
-    } catch (e) { console.error('[bot] remind toggle:', e.message); }
-    botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: on ? '🔔 Напоминания включены' : 'Выключено' });
+    } catch (e) { return send(cb.from.id,'Не удалось сохранить настройку напоминаний. Попробуйте ещё раз.'); }
+    await botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: on ? '🔔 Напоминания включены' : 'Выключено' });
     if (on) return send(cb.from.id,
       '🔔 Готово! Заранее напомню про сдачу 910, оплату налога и соцплатежи — чтобы вы не попали на штраф.');
     return;
   }
   if (data === 'go_rates') {
-    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return handleRates(chatId);
   }
   if (data === 'prompt_calc') {
-    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return send(chatId, '🔢 Введите сумму дохода за полугодие:\n\nНапример: <code>/calc 5000000</code>\n\nИли просто напишите: <i>"сколько налогов с 3 млн?"</i>');
   }
   if (data === 'prompt_self') {
-    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return send(chatId, '🔢 Введите сумму дохода самозанятого:\n\nНапример: <code>/self 1000000</code>');
   }
   if (data === 'show_help') {
-    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return handleHelp(chatId);
   }
 
   // ── Welcome series: regime selection ──
 
   if (data === 'regime_910') {
-    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return send(chatId,
       `📋 <b>Упрощёнка (форма 910)</b>\n\n` +
       `Самый популярный режим для ИП в Казахстане.\n\n` +
@@ -1321,7 +1038,7 @@ async function handleCallbackQuery(cb) {
   }
 
   if (data === 'regime_self') {
-    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return send(chatId,
       `👤 <b>Режим самозанятого</b>\n\n` +
       `Минимум бюрократии, без регистрации ИП.\n\n` +
@@ -1342,7 +1059,7 @@ async function handleCallbackQuery(cb) {
   }
 
   if (data === 'regime_our') {
-    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return send(chatId,
       `🏢 <b>ОУР (Общеустановленный режим)</b>\n\n` +
       `Для крупного бизнеса или тех, кто превысил лимит 910.\n\n` +
@@ -1365,27 +1082,27 @@ async function handleCallbackQuery(cb) {
   }
 
   if (data === 'regime_unknown') {
-    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return startRegimeQuiz(chatId);
   }
   if (data === 'kaspi_guide') {
-    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return sendKaspiGuide(chatId);
   }
 
-  // Demo calculations from welcome series (don't consume rate limit)
+  // Demo calculations use the same quota as command and deep-link calculations.
   if (data === 'demo_calc_5000000') {
-    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return handleCalc(chatId, '5000000');
   }
   if (data === 'demo_self_1000000') {
-    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return handleSelf(chatId, '1000000');
   }
 
   // B2B-ветка: бухгалтер выбрал «веду клиентов» в приветствии
   if (data === 'regime_buh') {
-    botRequest('answerCallbackQuery', { callback_query_id: cb.id });
+    await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return sendBuhOffer(chatId, cb.from || {});
   }
 }
@@ -1617,14 +1334,15 @@ async function postLatestArticle() {
 
     const art = rows[0];
     await postToChannel(
-      `📰 <b>${art.title}</b>\n\n${art.summary || ''}\n\n` +
+      `📰 <b>${escapeTelegramText(art.title)}</b>\n\n${escapeTelegramText(art.summary)}\n\n` +
       `Читайте полностью в приложении Esep.`,
       CHANNEL_CTA_KEYBOARD,
     );
 
     await db.query('UPDATE articles SET channel_posted = TRUE WHERE id = $1', [art.id]);
   } catch (err) {
-    console.error('[bot] postLatestArticle error:', err.message);
+    console.error('[bot] postLatestArticle error:', err.code || 'FAILED');
+    throw err;
   }
 }
 
@@ -1700,18 +1418,9 @@ function startChannelScheduler() {
 
 // — Send to private channel (drafts for admin) —
 async function sendToPrivate(text, extra = {}) {
-  if (!PRIVATE_CHANNEL_ID) {
-    // Fallback: send to admin DM
-    return sendAdmin(text, extra);
-  }
-  console.log(`[bot] sendToPrivate → ${PRIVATE_CHANNEL_ID}`);
-  const result = await send(PRIVATE_CHANNEL_ID, text, extra);
-  if (result && !result.ok) {
-    console.error('[bot] sendToPrivate FAILED:', result.description);
-    // Fallback to admin DM
-    return sendAdmin(text, extra);
-  }
-  return result;
+  if (!PRIVATE_CHANNEL_ID) return requireTelegramSuccess(await sendAdmin(text,extra));
+  try { return await send(PRIVATE_CHANNEL_ID,text,extra); }
+  catch { return requireTelegramSuccess(await sendAdmin(text,extra)); }
 }
 
 // — Post today's marketing content to private channel —
@@ -1731,10 +1440,9 @@ async function postDailyContent() {
   // Send to private channel as draft
   await sendToPrivate(
     `━━━━━━━━━━━━━━━━━━━━\n` +
-    `${typeLabel} | ${post.scheduled}\n` +
+    `${escapeTelegramText(typeLabel)} | ${escapeTelegramText(post.scheduled)}\n` +
     `━━━━━━━━━━━━━━━━━━━━\n\n` +
-    `<b>${post.title}</b>\n\n` +
-    `${post.body}`,
+    marketingPostHtml(post),
     {
       reply_markup: {
         inline_keyboard: [
@@ -1758,40 +1466,40 @@ async function handleAdminChannelCommand(chatId, cmd, args) {
     // ── Публичный канал ──
     case '/post_tip':
       await postTaxTip();
-      send(chatId, 'Совет опубликован в канал.');
+      await send(chatId, 'Совет опубликован в канал.');
       return true;
 
     case '/post_deadline':
       await postDeadlineReminder();
-      send(chatId, 'Напоминание о дедлайнах опубликовано.');
+      await send(chatId, 'Напоминание о дедлайнах опубликовано.');
       return true;
 
     case '/post_article':
       await postLatestArticle();
-      send(chatId, 'Статья опубликована в канал (если есть неопубликованные).');
+      await send(chatId, 'Статья опубликована в канал (если есть неопубликованные).');
       return true;
 
     case '/post_lead':
       await postLeadMagnet();
-      send(chatId, 'Лид-магнит опубликован.');
+      await send(chatId, 'Лид-магнит опубликован.');
       return true;
 
     case '/post_custom':
       if (!args) {
-        send(chatId, 'Использование: <code>/post_custom Текст поста</code>');
+        await send(chatId, 'Использование: <code>/post_custom Текст поста</code>');
         return true;
       }
       await postToChannel(args, CHANNEL_CTA_KEYBOARD);
-      send(chatId, 'Опубликовано в канал.');
+      await send(chatId, 'Опубликовано в канал.');
       return true;
 
     case '/channel_stats':
       try {
-        const r = await botRequest('getChatMemberCount', { chat_id: CHANNEL_ID });
-        const count = r?.result || '?';
-        send(chatId, `📊 Подписчиков в канале: <b>${count}</b>`);
+        const r = requireTelegramSuccess(await botRequest('getChatMemberCount', { chat_id: CHANNEL_ID }));
+        const count = r.result;
+        await send(chatId, `📊 Подписчиков в канале: <b>${count}</b>`);
       } catch {
-        send(chatId, 'Не удалось получить статистику.');
+        await send(chatId, 'Не удалось получить статистику.');
       }
       return true;
 
@@ -1799,14 +1507,14 @@ async function handleAdminChannelCommand(chatId, cmd, args) {
     case '/draft':
     case '/today': {
       const post = await postDailyContent();
-      if (!post) send(chatId, 'На сегодня постов нет. Все опубликованы.');
+      if (!post) await send(chatId, 'На сегодня постов нет. Все опубликованы.');
       return true;
     }
 
     case '/week': {
       const schedule = await marketing.getWeekSchedule();
       if (!schedule.length) {
-        send(chatId, 'Расписание пусто. Контент закончился.');
+        await send(chatId, 'Расписание пусто. Контент закончился.');
         return true;
       }
       const lines = schedule.map(p => {
@@ -1814,13 +1522,13 @@ async function handleAdminChannelCommand(chatId, cmd, args) {
         const typeShort = { pain: 'Боль', education: 'Обуч', case: 'Кейс', selling: 'Прод', engagement: 'Вовл' };
         return `${status} ${p.scheduled} [${typeShort[p.type] || p.type}] ${p.title}`;
       });
-      send(chatId, `📅 <b>Расписание на неделю:</b>\n\n${lines.join('\n')}`);
+      await send(chatId, `📅 <b>Расписание на неделю:</b>\n\n${lines.map(escapeTelegramText).join('\n')}`);
       return true;
     }
 
     case '/mstats': {
       const stats = await marketing.getStats();
-      send(chatId,
+      await send(chatId,
         `📊 <b>Маркетинг-статистика</b>\n\n` +
         `Всего постов: ${stats.total}\n` +
         `Опубликовано: ${stats.posted}\n` +
@@ -1830,7 +1538,7 @@ async function handleAdminChannelCommand(chatId, cmd, args) {
     }
 
     case '/admin_help':
-      send(chatId,
+      await send(chatId,
         `🔧 <b>Админ-команды</b>\n\n` +
         `<b>Контент:</b>\n` +
         `/today — получить пост дня (в приватный канал)\n` +
@@ -1857,15 +1565,19 @@ async function handleAdminChannelCommand(chatId, cmd, args) {
 
 async function setupWebhook(baseUrl) {
   if (!TOKEN) return;
+  const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (!validSecret(secret)) throw new Error('TELEGRAM_WEBHOOK_SECRET must contain 32-256 allowed characters');
+  await store.assertReady();
   const url = `${baseUrl}/api/bot/webhook`;
-  const r = await botRequest('setWebhook', { url, allowed_updates: ['message', 'callback_query', 'channel_post'] });
-  console.log('[bot] setWebhook:', r?.ok ? 'OK' : r?.description);
+  const r = await botRequest('setWebhook', { url, secret_token: secret, allowed_updates: ['message', 'callback_query', 'channel_post'] });
+  requireTelegramSuccess(r);
+  console.log('[bot] setWebhook: OK');
 
   // Start channel auto-posting scheduler
   startChannelScheduler();
 
   // Register command hints
-  await botRequest('setMyCommands', {
+  requireTelegramSuccess(await botRequest('setMyCommands', {
     commands: [
       { command: 'calc',      description: 'Рассчитать налог 910' },
       { command: 'social',    description: 'Соцплатежи за себя' },
@@ -1876,7 +1588,7 @@ async function setupWebhook(baseUrl) {
       { command: 'link',      description: 'Привязать аккаунт Esep' },
       { command: 'help',      description: 'Список команд' },
     ],
-  });
+  }));
 }
 
 module.exports = {

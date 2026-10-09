@@ -463,10 +463,13 @@ app.use('/api/auth', authMiddleware, authRecoveryRoutes);
 
 // ── Telegram bot webhook ──────────────────────────────────────────────────────
 const tg = require('./bot/telegram');
-app.post('/api/bot/webhook', (req, res) => {
-  tg.handleUpdate(req.body);
-  res.json({ ok: true });
-});
+const { createTelegramWebhook } = require('./routes/telegram-webhook');
+const { createBotStore } = require('./services/bot_foundation');
+app.post('/api/bot/webhook', createTelegramWebhook({
+  secret: process.env.TELEGRAM_WEBHOOK_SECRET,
+  store: createBotStore(db),
+  handleUpdate: tg.handleUpdate,
+}));
 
 // Test channel posting (admin only)
 const { adminAuth: adminCheck } = require('./routes/admin');
