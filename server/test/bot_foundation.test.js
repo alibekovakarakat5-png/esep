@@ -189,12 +189,20 @@ test('bot foundation: real SQL and HTTP with synthetic Telegram delivery',async 
     assert.equal((await pg.query('SELECT telegram_chat_id FROM users WHERE id=$1',[id])).rows[0].telegram_chat_id,null);
     assert.equal((await pg.query("SELECT consumed_at FROM telegram_bind_token WHERE token='rollback'")).rows[0].consumed_at,null);
   });
-  await t.test('home keyboard and every main task are available without commands or quota charges',async()=>{
+  await t.test('home tasks are attached to the message and every main button works without quota charges',async()=>{
     const ui=require('../src/bot/ui');
     await post(message('/menu',130));
     const home=calls.filter(c=>c.chat_id===130&&c.method==='sendMessage').at(-1);
-    assert.equal(home.reply_markup.is_persistent,true);assert.equal(home.reply_markup.keyboard.flat().length,6);
+    assert.equal(home.reply_markup.keyboard,undefined);
+    const buttons=home.reply_markup.inline_keyboard.flat();assert.equal(buttons.length,6);
+    assert.match(home.text,/кнопку под этим сообщением/);
     assert(!home.text.includes('/salary'));
+    for(const button of buttons){
+      const pressed=callback(button.callback_data,130);
+      assert.equal((await post(pressed)).status,200,button.text);
+      assert(calls.some(c=>c.method==='answerCallbackQuery'&&c.callback_query_id===pressed.callback_query.id));
+      assert(!responses(130).at(-1).includes('С чего начнём'),button.text);
+    }
     for(const label of Object.values(ui.labels))assert.equal((await post(message(label,130))).status,200,label);
     assert.equal((await pg.query("SELECT queries_today FROM bot_users WHERE chat_id='130'")).rows[0].queries_today,0);
     assert.equal((await pg.query("SELECT intent FROM leads WHERE tg_chat_id='130'")).rows[0].intent,'b2b');

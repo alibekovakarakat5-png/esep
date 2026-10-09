@@ -23,8 +23,12 @@ function home(name) {
   return {
     text:`<b>Esep · ваш помощник</b>\n\n${name?`Здравствуйте, ${escapeTelegramText(name)}!\n`:''}`+
       'Здесь можно прикинуть налоги и зарплату, посмотреть сроки и перейти в свой кабинет.\n\n'+
-      '<b>С чего начнём?</b> Выберите задачу на клавиатуре внизу.\nКоманды запоминать не нужно.',
-    extra:{reply_markup:{keyboard:[[labels.calculators,labels.deadlines],[labels.accountant,labels.account],[labels.reference,labels.support]],resize_keyboard:true,is_persistent:true,one_time_keyboard:false,input_field_placeholder:'Выберите задачу или напишите сумму'}},
+      '<b>С чего начнём?</b> Нажмите кнопку под этим сообщением.',
+    extra:{reply_markup:{inline_keyboard:[
+      [callback(labels.calculators,'ui:calculators'),callback(labels.deadlines,'ui:deadlines')],
+      [callback(labels.accountant,'ui:accountant'),callback(labels.account,'ui:account')],
+      [callback(labels.reference,'ui:reference'),callback(labels.support,'ui:support')],
+    ]}},
   };
 }
 function calculators() {
