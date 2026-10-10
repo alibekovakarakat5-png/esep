@@ -20,12 +20,14 @@ const { createBotStore } = require('../services/bot_foundation');
 const { validSecret } = require('../routes/telegram-webhook');
 const ui = require('./ui');
 const {canPublish}=require('../services/marketing_review');
+const {createWorkspace}=require('../services/bot_workspace');
 const store = createBotStore(db);
 
 const TOKEN      = process.env.TELEGRAM_BOT_TOKEN;
 const ADMIN_ID   = process.env.TELEGRAM_ADMIN_CHAT_ID;
 const CHANNEL_ID = process.env.TELEGRAM_CHANNEL_ID || '@esepfinancialsupport';
 const PRIVATE_CHANNEL_ID = process.env.TELEGRAM_PRIVATE_CHANNEL_ID || null;
+const workspace = createWorkspace(db,{adminId:ADMIN_ID});
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CORE — Bot API
@@ -382,7 +384,6 @@ async function handleSelf(chatId, args) {
 }
 
 async function handleDeadlines(chatId) {
-  const user=await getUserState(chatId);
   return send(chatId,
     `📅 <b>Сроки сдачи и оплаты (910)</b>\n\n` +
     `<b>1-е полугодие (янв—июнь):</b>\n` +
@@ -395,7 +396,7 @@ async function handleDeadlines(chatId) {
     `  Ежемесячно до 25 числа следующего месяца\n` +
     `  Январь → до 25 февраля и т.д.`,
     {
-      ...ui.inline([[{text:user.reminders_on?'🔕 Выключить напоминания':'🔔 Напоминать мне о сроках',callback_data:user.reminders_on?'remind_off':'remind_on'}]]),
+      ...ui.inline([[{text:'📂 Задачи и личные напоминания',callback_data:'ws:list'}]]),
     },
   );
 }
@@ -435,7 +436,7 @@ async function handleStatus(chatId) {
     `${accountLine}\n` +
     `${tierLine}\n\n` +
     (unlimited ? '' : 'Для безлимита можно привязать платный аккаунт Esep.'),
-    ui.inline([[{text:account?'Открыть кабинет':'Привязать аккаунт',...(account?{url:'https://app.esepkz.com'}:{callback_data:'ui:link'})}],[{text:user.reminders_on?'🔕 Выключить напоминания':'🔔 Включить напоминания',callback_data:user.reminders_on?'remind_off':'remind_on'}]]),
+    ui.inline([[{text:'📂 Мои задачи',callback_data:'ws:list'},{text:'💬 Мои обращения',callback_data:'ws:requests'}],[{text:account?'Открыть кабинет':'Привязать аккаунт',...(account?{url:'https://app.esepkz.com'}:{callback_data:'ui:link'})}],[{text:'Настройки напоминаний',callback_data:'ws:profile'}]]),
   );
 }
 
@@ -610,6 +611,8 @@ async function handleFreeText(chatId, text, calculation) {
 
 async function handleUpdate(update) {
   const cb = update.callback_query;
+  if(cb?.data?.startsWith('wa:')&&(!ADMIN_ID||String(cb.from?.id)!==String(ADMIN_ID)))
+    return botRequest('answerCallbackQuery',{callback_query_id:cb.id,text:'Это действие доступно только владельцу Esep.'});
   // Authorize privileged callbacks before tracking or any database mutation.
   if (cb && /^(?:tax_|pub_channel_|skip_post_)/.test(cb.data || '')) {
     if (!ADMIN_ID || String(cb.from?.id) !== String(ADMIN_ID)) {
@@ -630,6 +633,17 @@ async function handleUpdate(update) {
   const b2b = cb?.data === 'regime_buh' || cb?.data === 'ui:accountant' || navigation === 'accountant' || (cmd === '/start' && /^(buh|buhgalter|firma|partner)$/i.test(args));
   const intent = b2b ? 'b2b' : detectIntent(cb?.data || text);
   const visitor = await store.trackVisitor(chatId,from,payload,intent);
+  // Persist workspace mutations before sending. A delivery retry reuses its saved response.
+  const workData=cb?.data==='remind_on'?'ws:list':cb?.data==='remind_off'?'ws:offAll':cb?.data||'';
+  const workText=text.startsWith('/')?cmd+(args?' '+args:''):text;
+  const workView = await workspace.handle({chatId,updateId:update.update_id,text:workText,data:workData,username:from.username,navigation:Boolean(navigation)});
+  if(workView){
+    await store.setCalculationKind(chatId,null,update.update_id);
+    if(cb)await botRequest('answerCallbackQuery',{callback_query_id:cb.id});
+    const receipt=await sendView(chatId,workView);
+    try{await workspace.recordDelivered(chatId,update.update_id,receipt);}catch(e){console.error('[workspace] Delivery metric not saved:',e.code||'DATABASE_ERROR');}
+    return receipt;
+  }
   if (visitor.isNew && String(chatId) !== String(ADMIN_ID)) {
     await sendAdmin('🤖 <b>Новый пользователь бота</b>\nИмя: ' +
       escapeTelegramText([from.first_name,from.last_name].filter(Boolean).join(' ')) +
@@ -726,7 +740,7 @@ function regimeResult(chatId, ip, inc, emp) {
     { reply_markup: { inline_keyboard: [
       [{ text: '📎 Как выгрузить выписку Kaspi', callback_data: 'kaspi_guide' }],
       [{ text: '✨ Попробовать Esep бесплатно', url: 'https://app.esepkz.com' }],
-      [{ text: '🔔 Напоминать о сроках', callback_data: 'remind_on' }],
+      [{ text: '📂 Мои задачи и напоминания', callback_data: 'ws:list' }],
     ] } });
 }
 async function handleQuizStep(cb, data) {
@@ -904,19 +918,6 @@ async function handleCallbackQuery(cb) {
   if (data === 'go_deadlines') {
     await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
     return handleDeadlines(chatId);
-  }
-  if (data === 'remind_on' || data === 'remind_off') {
-    const on = data === 'remind_on';
-    try {
-      await db.query(
-        `INSERT INTO bot_users (chat_id, reminders_on) VALUES ($1, $2)
-         ON CONFLICT (chat_id) DO UPDATE SET reminders_on = $2`,
-        [String(cb.from.id), on],
-      );
-    } catch (e) { return send(cb.from.id,'Не удалось сохранить настройку напоминаний. Попробуйте ещё раз.'); }
-    await botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: on ? '🔔 Напоминания включены' : 'Выключено' });
-    return send(cb.from.id,on?'🔔 Напоминания включены. Настройку можно изменить в «Мой Esep».':'🔕 Напоминания выключены.',
-      ui.inline([[{text:on?'Выключить напоминания':'Включить напоминания',callback_data:on?'remind_off':'remind_on'}]]));
   }
   if (data === 'go_rates') {
     await botRequest('answerCallbackQuery', { callback_query_id: cb.id });
@@ -1476,6 +1477,7 @@ async function setupWebhook(baseUrl) {
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
   if (!validSecret(secret)) throw new Error('TELEGRAM_WEBHOOK_SECRET must contain 32-256 allowed characters');
   await store.assertReady();
+  await workspace.assertReady();
   const url = `${baseUrl}/api/bot/webhook`;
   const r = await botRequest('setWebhook', { url, secret_token: secret, allowed_updates: ['message', 'callback_query', 'channel_post'] });
   requireTelegramSuccess(r);
@@ -1488,6 +1490,8 @@ async function setupWebhook(baseUrl) {
   requireTelegramSuccess(await botRequest('setMyCommands', {
     commands: [
       { command: 'menu',      description: 'Главное меню' },
+      { command: 'my',        description: 'Мои задачи и обращения' },
+      { command: 'docs',      description: 'Подготовить запрос документов' },
       { command: 'cancel',    description: 'Отменить выбор расчёта' },
       { command: 'salary',    description: 'Рассчитать зарплату' },
       { command: 'calc',      description: 'Рассчитать налог 910' },

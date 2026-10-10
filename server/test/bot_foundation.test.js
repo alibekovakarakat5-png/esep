@@ -11,6 +11,7 @@ const {parseAmount,textCalculation,startTag} = require('../src/bot/input');
 const {createBotRequest,requireTelegramSuccess} = require('../src/bot/transport');
 const {createBotStore,schema} = require('../src/services/bot_foundation');
 const review = require('../src/services/marketing_review');
+const work = require('../src/services/bot_workspace');
 const REVIEW_NOW=new Date('2026-10-10T12:00:00.000Z');
 const {createTelegramWebhook} = require('../src/routes/telegram-webhook');
 
@@ -62,6 +63,7 @@ test('bot foundation: real SQL and HTTP with synthetic Telegram delivery',async 
   `);
   await pg.exec(schema);await pg.exec(schema);
   await pg.exec(review.schema);
+  await pg.exec(work.schema);
   const store=createBotStore(db);await store.assertReady();
   const calls=[],mutations=[];let sendFailure=null,scheduledTick;
   const context={module:{exports:{}},process:{env:{TELEGRAM_BOT_TOKEN:'fixture',TELEGRAM_ADMIN_CHAT_ID:'999',TELEGRAM_WEBHOOK_SECRET:'x'.repeat(32)}},
@@ -75,6 +77,7 @@ test('bot foundation: real SQL and HTTP with synthetic Telegram delivery',async 
       if(name==='../jobs/taxMonitor')return {revertLastAutoUpdate:async()=>{mutations.push('revert');return {ok:true};}};
       if(name==='../services/leads_db')return {detectIntent:s=>/бухгалтер|regime_buh/.test(s)?'b2b':'unknown'};
       if(name==='../services/marketing_review')return {...review,canPublish:p=>review.canPublish(p,REVIEW_NOW)};
+      if(name==='../services/bot_workspace')return work;
       if(name==='../services/bot_foundation')return {createBotStore:d=>createBotStore(d,{now:()=>REVIEW_NOW})};
       const allowed={'./ui':'../src/bot/ui','./input':'../src/bot/input','../services/telegram_text':'../src/services/telegram_text','../services/bot_foundation':'../src/services/bot_foundation','../routes/telegram-webhook':'../src/routes/telegram-webhook'};
       if(!allowed[name])throw Error('Unexpected dependency '+name);return require(allowed[name]);
@@ -140,7 +143,7 @@ test('bot foundation: real SQL and HTTP with synthetic Telegram delivery',async 
     await post(message('5000000',106));assert.match(responses(106).at(-1),/Лимит/);
   });
   await t.test('all privileged callback paths reject non-admin before user tracking',async()=>{
-    for(const data of ['tax_auto_revert','tax_ok','tax_auto_ok','pub_channel_1','skip_post_1'])await post(callback(data,107));
+    for(const data of ['tax_auto_revert','tax_ok','tax_auto_ok','pub_channel_1','skip_post_1','wa:list','wa:open:1','wa:status:1:1:closed'])await post(callback(data,107));
     assert.equal(mutations.length,0);assert.equal((await pg.query("SELECT count(*)::int AS n FROM bot_users WHERE chat_id='107'")).rows[0].n,0);
   });
   await t.test('failed Telegram delivery is not acknowledged as success and retry does not recharge',async()=>{
@@ -216,7 +219,7 @@ test('bot foundation: real SQL and HTTP with synthetic Telegram delivery',async 
     await post(message('/menu',130));
     const home=calls.filter(c=>c.chat_id===130&&c.method==='sendMessage').at(-1);
     assert.equal(home.reply_markup.keyboard,undefined);
-    const buttons=home.reply_markup.inline_keyboard.flat();assert.equal(buttons.length,6);
+    const buttons=home.reply_markup.inline_keyboard.flat();assert.equal(buttons.length,8);
     assert.match(home.text,/кнопку под этим сообщением/);
     assert(!home.text.includes('/salary'));
     for(const button of buttons){
@@ -280,6 +283,37 @@ test('bot foundation: real SQL and HTTP with synthetic Telegram delivery',async 
     assert.match(responses(135).at(-1),/Режим самозанятого/);assert.match(responses(136).at(-1),/Расчёт зарплаты/);
     await post(callback('obsolete_button',135));assert.match(responses(135).at(-1),/С чего начнём/);
     for(const data of ['ui:reference','ui:form910','ui:commands','ui:help','ui:link','ui:menu'])assert.equal((await post(callback(data,135))).status,200);
+  });
+  await t.test('document flow through HTTP persists before receipt, survives failed delivery and resumes after reload',async()=>{
+    const id=150,last=()=>calls.filter(c=>c.chat_id===id&&c.method==='sendMessage').at(-1);
+    const press=async label=>{const b=last().reply_markup.inline_keyboard.flat().find(b=>label.test(b.text));assert(b,String(label));return post(callback(b.callback_data,id));};
+    await post(message('/start docs_ig',id));assert.match(last().text,/Для кого/);
+    await press(/Для клиентов/);await post(message('Клиент Тест',id));await post(message('09.2026',id));await press(/Выписка банка/);
+    const save=callback(last().reply_markup.inline_keyboard.flat().find(b=>b.text==='Сохранить список').callback_data,id);
+    sendFailure=b=>b.chat_id===id;assert.equal((await post(save)).status,503);sendFailure=null;
+    let tasks=(await pg.query('SELECT * FROM bot_document_tasks WHERE chat_id=$1',[String(id)])).rows;
+    assert.equal(tasks.length,1);assert.equal(tasks[0].client_name,'Клиент Тест');
+    assert.equal((await post(save)).status,200);assert.match(last().text,/Список сохранён/);
+    assert.equal((await pg.query('SELECT count(*)::int AS n FROM bot_document_tasks WHERE chat_id=$1',[String(id)])).rows[0].n,1);
+    await press(/Текст запроса/);assert.match(last().text,/не отправлял сообщение клиенту/);assert.match(last().text,/Выписка банка/);
+    const reloaded={...context,module:{exports:{}}};vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../src/bot/telegram.js'),'utf8'),reloaded);
+    const update=message('/my@EsepKZ_bot',id);await store.processUpdate(update,reloaded.module.exports.handleUpdate);assert.match(last().text,/Мои задачи/);
+    await press(/Клиент Тест/);await press(/Обсудить с Esep/);await press(/1–5/);await post(message('Хочу контролировать документы клиентов',id));
+    assert.equal((await pg.query('SELECT count(*)::int AS n FROM bot_service_requests WHERE chat_id=$1',[String(id)])).rows[0].n,0);
+    await press(/Отправить заявку/);assert.match(last().text,/Заявка №\d+ сохранена/);
+    const request=(await pg.query('SELECT * FROM bot_service_requests WHERE chat_id=$1',[String(id)])).rows[0];assert.equal(String(request.task_id),String(tasks[0].id));assert.deepEqual(request.context.pending,['Выписка банка']);
+    assert.equal((await pg.query('SELECT first_start_payload,queries_today FROM bot_users WHERE chat_id=$1',[String(id)])).rows[0].first_start_payload,'docs_ig');
+    assert.equal((await pg.query('SELECT queries_today FROM bot_users WHERE chat_id=$1',[String(id)])).rows[0].queries_today,0);
+    await post(message('/requests',999));assert.match(responses(999).at(-1),/Обращения в Esep/);
+    await post(callback('wa:open:'+request.id,999));assert.match(responses(999).at(-1),/Хочу контролировать/);
+  });
+  await t.test('ordinary menu labels pause the draft and old reminder buttons use the new workspace',async()=>{
+    await post(message('/docs',151));await post(callback('ws:role:1:clients',151));
+    await post(message('🧮 Рассчитать',151));assert.match(responses(151).at(-1),/Что рассчитать/);
+    assert.equal((await pg.query("SELECT active FROM bot_work_sessions WHERE chat_id='151'")).rows[0].active,false);
+    await post(callback('remind_on',151));assert.match(responses(151).at(-1),/Мои задачи/);
+    assert.equal((await pg.query("SELECT count(*)::int AS n FROM bot_task_reminders WHERE chat_id='151'")).rows[0].n,0);
+    await post(callback('remind_off',151));assert.match(responses(151).at(-1),/Будущие напоминания отключены/);
   });
   await t.test('old public posting hours no longer publish directly to the channel',async()=>{
     bot.startChannelScheduler();assert.equal(typeof scheduledTick,'function');

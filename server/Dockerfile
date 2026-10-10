@@ -13,6 +13,7 @@ RUN npm install --omit=dev --no-audit --no-fund
 COPY src/ ./src/
 COPY scripts/migrate_bot_foundation.js ./scripts/migrate_bot_foundation.js
 COPY scripts/migrate_marketing_content.js ./scripts/migrate_marketing_content.js
+COPY scripts/migrate_bot_workspace.js ./scripts/migrate_bot_workspace.js
 
 EXPOSE 3001
 CMD ["node", "src/index.js"]
