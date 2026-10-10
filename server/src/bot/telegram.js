@@ -19,6 +19,7 @@ const { createBotRequest, requireTelegramSuccess } = require('./transport');
 const { createBotStore } = require('../services/bot_foundation');
 const { validSecret } = require('../routes/telegram-webhook');
 const ui = require('./ui');
+const {canPublish}=require('../services/marketing_review');
 const store = createBotStore(db);
 
 const TOKEN      = process.env.TELEGRAM_BOT_TOKEN;
@@ -45,7 +46,8 @@ function sendAdmin(text, extra = {}) {
   });
 }
 
-async function postToChannel(text, extra = {}) {
+async function postToChannel(text, extra = {}, reviewedPost) {
+  if(!canPublish(reviewedPost)||text!==marketingPostHtml(reviewedPost))throw Error('MARKETING_REVIEW_REQUIRED');
   console.log(`[bot] postToChannel → ${CHANNEL_ID}`);
   const result = await send(CHANNEL_ID, text, extra);
   console.log('[bot] postToChannel OK');
@@ -808,13 +810,15 @@ async function handleCallbackQuery(cb) {
 
   // Publish post from private channel → public channel
   if (data.startsWith('pub_channel_')) {
-    const postId = parseInt(data.replace('pub_channel_', ''));
+    const match=data.match(/^pub_channel_(\d+)_([a-f0-9]{16})$/);
+    if(!match)return botRequest('answerCallbackQuery',{callback_query_id:cb.id,text:'Этот черновик устарел. Откройте /today для новой проверки.'});
+    const postId = Number(match[1]);
     try {
       if (!Number.isSafeInteger(postId) || postId <= 0) return;
-      const status = await store.publishPost(postId, post => postToChannel(marketingPostHtml(post), CHANNEL_CTA_KEYBOARD));
+      const status = await store.publishPost(postId, post => postToChannel(marketingPostHtml(post), CHANNEL_CTA_KEYBOARD,post),match[2],cb.from.id);
       if (status !== 'posted') {
         return botRequest('answerCallbackQuery', { callback_query_id: cb.id,
-          text: status === 'missing' ? 'Пост не найден' : 'Уже опубликован или пропущен' });
+          text: status === 'missing' ? 'Пост не найден' : status==='unreviewed'?'Публикация остановлена: текст требует актуальной проверки.':'Уже опубликован' });
       }
       await botRequest('answerCallbackQuery', { callback_query_id: cb.id, text: '✅ Опубликовано в канал!' });
       // Update the message in private channel
@@ -1294,33 +1298,14 @@ function startChannelScheduler() {
   if (_schedulerStarted) return;
   _schedulerStarted = true;
 
-  // Post a tax tip every day at ~10:00 AM Almaty (UTC+5)
-  // Check every hour, post when conditions match
+  // Check hourly for a reviewed private draft; no public publishing timer.
   setInterval(async () => {
     try {
       const now = new Date();
       const almatyHour = (now.getUTCHours() + 5) % 24;
-      const day = now.getDay(); // 0=Sun
 
-      // 10:00 — daily tax tip (Mon-Fri)
-      if (almatyHour === 10 && day >= 1 && day <= 5) {
-        await postTaxTip();
-      }
-
-      // 09:00 on 1st and 15th of month — deadline reminder
-      if (almatyHour === 9 && (now.getUTCDate() === 1 || now.getUTCDate() === 15)) {
-        await postDeadlineReminder();
-      }
-
-      // 12:00 on Wednesday — lead magnet
-      if (almatyHour === 12 && day === 3) {
-        await postLeadMagnet();
-      }
-
-      // 14:00 on Monday — article (if any unpublished)
-      if (almatyHour === 14 && day === 1) {
-        await postLatestArticle();
-      }
+      // Public tips, reminders, lead magnets and articles are paused pending review.
+      // Only private, verified drafts may be scheduled; publication remains an admin action.
 
       // 08:00 every day — send daily marketing post to private channel
       if (almatyHour === 8) {
@@ -1331,7 +1316,7 @@ function startChannelScheduler() {
     }
   }, 60 * 60 * 1000); // check every hour
 
-  console.log('[bot] Channel scheduler started');
+  console.log('[marketing-review] Public autoposting paused; verified private drafts only');
 }
 
 // — Send to private channel (drafts for admin) —
@@ -1345,7 +1330,7 @@ async function sendToPrivate(text, extra = {}) {
 async function postDailyContent() {
   const post = await marketing.getTodayPost();
   if (!post) {
-    console.log('[bot] No marketing post for today');
+    console.log('[marketing-review] No verified draft available');
     return null;
   }
 
@@ -1359,13 +1344,14 @@ async function postDailyContent() {
   await sendToPrivate(
     `━━━━━━━━━━━━━━━━━━━━\n` +
     `${escapeTelegramText(typeLabel)} | ${escapeTelegramText(post.scheduled)}\n` +
+    `Проверка текста: ${escapeTelegramText(post.review_key)}\n` +
     `━━━━━━━━━━━━━━━━━━━━\n\n` +
     marketingPostHtml(post),
     {
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '✅ Опубликовать в канал', callback_data: `pub_channel_${post.id}` },
+            { text: '✅ Опубликовать в канал', callback_data: `pub_channel_${post.id}_${post.content_hash.slice(0,16)}` },
             { text: '✏️ Пропустить', callback_data: `skip_post_${post.id}` },
           ],
         ],
@@ -1379,6 +1365,10 @@ async function postDailyContent() {
 // — Admin commands for channel (in private chat with admin) —
 async function handleAdminChannelCommand(chatId, cmd, args) {
   if (String(chatId) !== String(ADMIN_ID)) return false;
+  if(['/post_tip','/post_deadline','/post_article','/post_lead','/post_custom'].includes(cmd)){
+    await send(chatId,'Публикации без проверки приостановлены. Команда /today покажет проверенный черновик, если он есть. Старые посты сохранены для проверки.');
+    return true;
+  }
 
   switch (cmd) {
     // ── Публичный канал ──
@@ -1425,7 +1415,7 @@ async function handleAdminChannelCommand(chatId, cmd, args) {
     case '/draft':
     case '/today': {
       const post = await postDailyContent();
-      if (!post) await send(chatId, 'На сегодня постов нет. Все опубликованы.');
+      if (!post) await send(chatId, 'Готовых проверенных постов сейчас нет. Непроверенные заготовки сохранены и не публикуются.');
       return true;
     }
 
@@ -1436,7 +1426,7 @@ async function handleAdminChannelCommand(chatId, cmd, args) {
         return true;
       }
       const lines = schedule.map(p => {
-        const status = p.posted ? '✅' : '⏳';
+        const status = p.posted ? '✅' : p.review_state==='skipped'?'⏭':p.publishable?'🟢':'🔒';
         const typeShort = { pain: 'Боль', education: 'Обуч', case: 'Кейс', selling: 'Прод', engagement: 'Вовл' };
         return `${status} ${p.scheduled} [${typeShort[p.type] || p.type}] ${p.title}`;
       });
@@ -1448,9 +1438,12 @@ async function handleAdminChannelCommand(chatId, cmd, args) {
       const stats = await marketing.getStats();
       await send(chatId,
         `📊 <b>Маркетинг-статистика</b>\n\n` +
-        `Всего постов: ${stats.total}\n` +
-        `Опубликовано: ${stats.posted}\n` +
-        `В очереди: ${stats.queued}`,
+        `Всего записей: ${stats.total}\n` +
+        `Отмечено опубликованными ранее: ${stats.posted}\n` +
+        `Проверены и готовы: ${stats.ready}\n` +
+        `Нужна проверка: ${stats.held}\n` +
+        `Пропущены после обновления: ${stats.skipped}\n\n`+
+        'Автопубликации приостановлены. Старый счётчик публикаций мог включать пропуски.',
       );
       return true;
     }
@@ -1463,11 +1456,8 @@ async function handleAdminChannelCommand(chatId, cmd, args) {
         `/week — расписание на неделю\n` +
         `/mstats — статистика контента\n\n` +
         `<b>Публичный канал:</b>\n` +
-        `/post_tip — налоговый совет\n` +
-        `/post_lead — лид-магнит\n` +
-        `/post_deadline — дедлайн\n` +
-        `/post_article — статья из БД\n` +
-        `/post_custom текст — свой пост\n` +
+        `Публикация — кнопкой из проверенного черновика.\n` +
+        `Автоматические советы и непроверенные тексты приостановлены.\n` +
         `/channel_stats — подписчики\n`,
       );
       return true;

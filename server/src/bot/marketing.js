@@ -1,11 +1,12 @@
 /**
  * Marketing Bot — контент-конвейер и лиды для Esep
  *
- * Генерирует посты в приватный канал админа,
- * мониторит ключевые слова, находит лидов.
+ * Хранит историческую библиотеку; отправляет только проверенные черновики.
+ * Автозаполнение старой библиотекой остановлено до редакционной проверки.
  */
 
 const db = require('../db');
+const {VAT_POST,canPublish}=require('../services/marketing_review');
 
 // ── 30 дней контента ─────────────────────────────────────────────────────────
 // Типы: pain (боль), education (обучение), case (кейс), selling (продажа), engagement (вовлечение)
@@ -161,18 +162,7 @@ const CONTENT_LIBRARY = [
   {
     type: 'education', platform: 'telegram',
     title: 'НДС для ИП — когда вставать на учёт?',
-    body:
-`Порог НДС: оборот свыше 10 000 МРП за 12 месяцев.
-
-В 2026: 10 000 × 4 325 = 43 250 000 тенге.
-
-Что значит:
-— Если оборот < 43.25 млн — НДС не нужен
-— Если превысил — обязан встать на учёт
-— Ставка НДС: 16%
-— Можно зачитывать входящий НДС
-
-Следи за оборотом в Есеп: @EsepKZ_bot`,
+    ...VAT_POST,
   },
 
   // ═══ ДЕНЬ 11-15: КЕЙСЫ ═══
@@ -542,45 +532,10 @@ P.S. Независимо от дохода, соцплатежи одинако
   },
 ];
 
-// ── Seed: заполнить таблицу на 30 дней вперёд ─────────────────────────────────
+// ── Legacy seed paused; queue changes require an explicit reviewed migration ──
 async function seedMarketingContent() {
-  const { rows } = await db.query('SELECT COUNT(*) as cnt FROM marketing_posts WHERE posted = FALSE');
-  const remaining = parseInt(rows[0].cnt);
-
-  if (remaining >= 10) {
-    console.log(`[marketing] ${remaining} posts queued — skip seeding`);
-    return;
-  }
-
-  // Find last scheduled date
-  const { rows: last } = await db.query('SELECT MAX(scheduled) as last_date FROM marketing_posts');
-  let startDate = new Date();
-  if (last[0].last_date) {
-    const lastDate = new Date(last[0].last_date);
-    if (lastDate > startDate) startDate = new Date(lastDate.getTime() + 86400000);
-  }
-
-  let inserted = 0;
-  for (let i = 0; i < CONTENT_LIBRARY.length; i++) {
-    const post = CONTENT_LIBRARY[i];
-    const scheduled = new Date(startDate.getTime() + i * 86400000);
-    const dateStr = scheduled.toISOString().slice(0, 10);
-
-    // Skip if already exists for this date
-    const { rows: exists } = await db.query(
-      'SELECT 1 FROM marketing_posts WHERE scheduled = $1', [dateStr]
-    );
-    if (exists.length) continue;
-
-    await db.query(
-      `INSERT INTO marketing_posts (type, title, body, platform, scheduled)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [post.type, post.title, post.body, post.platform, dateStr],
-    );
-    inserted++;
-  }
-
-  console.log(`[marketing] Seeded ${inserted} posts (${remaining} were queued)`);
+  // Preserve the historical library, but never silently refill the queue with it.
+  console.log('[marketing-review] Legacy seeding paused; only reviewed drafts may be published');
 }
 
 // ── Получить пост на сегодня ─────────────────────────────────────────────────
@@ -588,17 +543,18 @@ async function getTodayPost() {
   const today = new Date().toISOString().slice(0, 10);
   const { rows } = await db.query(
     `SELECT * FROM marketing_posts
-     WHERE scheduled <= $1 AND posted = FALSE
-     ORDER BY scheduled ASC LIMIT 1`,
+     WHERE scheduled <= $1 AND posted = FALSE AND review_state='verified'
+       AND review_expires_at>NOW()
+     ORDER BY scheduled ASC LIMIT 100`,
     [today],
   );
-  return rows[0] || null;
+  return rows.find(post=>canPublish(post)) || null;
 }
 
-// ── Пометить как опубликованный ──────────────────────────────────────────────
+// ── Legacy function name: skip without pretending that delivery happened ─────
 async function markPosted(postId) {
   await db.query(
-    'UPDATE marketing_posts SET posted = TRUE, posted_at = NOW() WHERE id = $1',
+    "UPDATE marketing_posts SET review_state='skipped' WHERE id=$1 AND posted=FALSE",
     [postId],
   );
 }
@@ -608,23 +564,25 @@ async function getWeekSchedule() {
   const today = new Date();
   const weekLater = new Date(today.getTime() + 7 * 86400000);
   const { rows } = await db.query(
-    `SELECT id, type, title, scheduled, posted FROM marketing_posts
+    `SELECT * FROM marketing_posts
      WHERE scheduled BETWEEN $1 AND $2
      ORDER BY scheduled ASC`,
     [today.toISOString().slice(0, 10), weekLater.toISOString().slice(0, 10)],
   );
-  return rows;
+  return rows.map(p=>({...p,publishable:canPublish(p)}));
 }
 
 // ── Получить статистику ──────────────────────────────────────────────────────
 async function getStats() {
   const { rows: [total] } = await db.query('SELECT COUNT(*) as cnt FROM marketing_posts');
   const { rows: [posted] } = await db.query('SELECT COUNT(*) as cnt FROM marketing_posts WHERE posted = TRUE');
-  const { rows: [queued] } = await db.query('SELECT COUNT(*) as cnt FROM marketing_posts WHERE posted = FALSE');
+  const { rows: pending } = await db.query('SELECT * FROM marketing_posts WHERE posted = FALSE');
+  const ready=pending.filter(p=>canPublish(p)).length;
+  const skipped=pending.filter(p=>p.review_state==='skipped').length;
   return {
     total: parseInt(total.cnt),
     posted: parseInt(posted.cnt),
-    queued: parseInt(queued.cnt),
+    queued:pending.length-skipped,ready,skipped,held:pending.length-skipped-ready,
   };
 }
 

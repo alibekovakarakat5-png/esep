@@ -1,6 +1,7 @@
 'use strict';
 const { randomUUID } = require('crypto');
 const { startTag } = require('../bot/input');
+const {canPublish}=require('./marketing_review');
 
 const schema = `
   ALTER TABLE bot_users ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMPTZ;
@@ -21,7 +22,7 @@ const schema = `
   ALTER TABLE bot_updates ADD COLUMN IF NOT EXISTS calculation_kind TEXT;
 `;
 
-function createBotStore(db) {
+function createBotStore(db,{now=()=>new Date()}={}) {
   async function transaction(fn) {
     const c = await db.connect();
     try {
@@ -37,6 +38,7 @@ function createBotStore(db) {
     async assertReady() {
       await db.query('SELECT first_start_payload, last_activity_at, calculation_kind, calculation_expires_at, calculation_update_id, calculation_updated_at FROM bot_users LIMIT 0');
       await db.query('SELECT update_id, quota_chat_id, calculation_kind FROM bot_updates LIMIT 0');
+      await db.query('SELECT review_state,review_key,content_hash,reviewed_at,review_expires_at,telegram_chat_id,telegram_message_id,approved_by,approved_at FROM marketing_posts LIMIT 0');
     },
     async calculationKind(chatId) {
       const r=await db.query(`SELECT calculation_kind FROM bot_users
@@ -70,15 +72,19 @@ function createBotStore(db) {
         return kind;
       });
     },
-    async publishPost(postId, deliver) {
+    async publishPost(postId, deliver, expectedHash,approvedBy) {
       return transaction(async c => {
         const r = await c.query('SELECT * FROM marketing_posts WHERE id=$1 FOR UPDATE', [postId]);
         const post = r.rows[0];
         if (!post) return 'missing';
         if (post.posted) return 'already_posted';
+        if (!approvedBy||!canPublish(post,now())||post.content_hash.slice(0,16)!==expectedHash) return 'unreviewed';
         // Bounded Telegram request; release the row on failure, never mark failed delivery posted.
-        await deliver(post);
-        await c.query('UPDATE marketing_posts SET posted=TRUE,posted_at=NOW() WHERE id=$1', [postId]);
+        const delivered=await deliver(post);
+        const message=delivered?.result;
+        if(!Number.isSafeInteger(message?.message_id)||!message.chat?.id)throw Error('TELEGRAM_RECEIPT_MISSING');
+        await c.query(`UPDATE marketing_posts SET posted=TRUE,posted_at=NOW(),
+          telegram_chat_id=$2,telegram_message_id=$3,approved_by=$4,approved_at=NOW() WHERE id=$1`, [postId,String(message.chat.id),message.message_id,String(approvedBy)]);
         return 'posted';
       });
     },

@@ -10,6 +10,8 @@ const {PGlite} = require('@electric-sql/pglite');
 const {parseAmount,textCalculation,startTag} = require('../src/bot/input');
 const {createBotRequest,requireTelegramSuccess} = require('../src/bot/transport');
 const {createBotStore,schema} = require('../src/services/bot_foundation');
+const review = require('../src/services/marketing_review');
+const REVIEW_NOW=new Date('2026-10-10T12:00:00.000Z');
 const {createTelegramWebhook} = require('../src/routes/telegram-webhook');
 
 test('money parser accepts supported inputs and rejects ambiguity, invalid numbers and form identifiers',()=>{
@@ -56,21 +58,24 @@ test('bot foundation: real SQL and HTTP with synthetic Telegram delivery',async 
     CREATE TABLE tax_config(key TEXT,value TEXT);
     CREATE TABLE telegram_bind_token(token TEXT PRIMARY KEY,user_id UUID REFERENCES users(id),expires_at TIMESTAMPTZ,consumed_at TIMESTAMPTZ,consumed_chat_id TEXT,consumed_username TEXT);
     CREATE TABLE auth_security_log(user_id UUID,event TEXT,meta JSONB);
-    CREATE TABLE marketing_posts(id INT PRIMARY KEY,title TEXT,body TEXT,posted BOOLEAN DEFAULT false,posted_at TIMESTAMPTZ);
+    CREATE TABLE marketing_posts(id INT PRIMARY KEY,title TEXT,body TEXT,platform TEXT NOT NULL DEFAULT 'telegram',posted BOOLEAN DEFAULT false,posted_at TIMESTAMPTZ);
   `);
   await pg.exec(schema);await pg.exec(schema);
+  await pg.exec(review.schema);
   const store=createBotStore(db);await store.assertReady();
-  const calls=[],mutations=[];let sendFailure=null;
+  const calls=[],mutations=[];let sendFailure=null,scheduledTick;
   const context={module:{exports:{}},process:{env:{TELEGRAM_BOT_TOKEN:'fixture',TELEGRAM_ADMIN_CHAT_ID:'999',TELEGRAM_WEBHOOK_SECRET:'x'.repeat(32)}},
-    console:{log(){},error(){}},Buffer,setInterval(){throw Error('Unexpected scheduler');},
+    console:{log(){},error(){}},Buffer,setInterval(fn){scheduledTick=fn;return 1;},
     require(name){
       if(name==='../db')return db;
       if(name==='./marketing')return {markPosted:async id=>{mutations.push('posted');await pg.query('UPDATE marketing_posts SET posted=true WHERE id=$1',[id]);}};
       if(name==='./transport')return {requireTelegramSuccess,createBotRequest:()=>async(method,body)=>{
-        calls.push({method,...body});if(method==='sendMessage'&&sendFailure?.(body))return {ok:false,error_code:400};return {ok:true,result:{}};
+        calls.push({method,...body});if(method==='sendMessage'&&sendFailure?.(body))return {ok:false,error_code:400};return {ok:true,result:{message_id:calls.length,chat:{id:body.chat_id},text:body.text}};
       }};
       if(name==='../jobs/taxMonitor')return {revertLastAutoUpdate:async()=>{mutations.push('revert');return {ok:true};}};
       if(name==='../services/leads_db')return {detectIntent:s=>/бухгалтер|regime_buh/.test(s)?'b2b':'unknown'};
+      if(name==='../services/marketing_review')return {...review,canPublish:p=>review.canPublish(p,REVIEW_NOW)};
+      if(name==='../services/bot_foundation')return {createBotStore:d=>createBotStore(d,{now:()=>REVIEW_NOW})};
       const allowed={'./ui':'../src/bot/ui','./input':'../src/bot/input','../services/telegram_text':'../src/services/telegram_text','../services/bot_foundation':'../src/services/bot_foundation','../routes/telegram-webhook':'../src/routes/telegram-webhook'};
       if(!allowed[name])throw Error('Unexpected dependency '+name);return require(allowed[name]);
     }};
@@ -146,12 +151,29 @@ test('bot foundation: real SQL and HTTP with synthetic Telegram delivery',async 
     assert.equal((await pg.query('SELECT status FROM bot_updates WHERE update_id=$1',[u.update_id])).rows[0].status,'done');
   });
   await t.test('failed public post remains unpublished; admin can retry with a new callback',async()=>{
-    await pg.query("INSERT INTO marketing_posts(id,title,body,posted) VALUES(1,'A < B','C & D',false)");
-    sendFailure=b=>b.chat_id==='@esepfinancialsupport';await post(callback('pub_channel_1',999));sendFailure=null;
+    const p=review.VAT_POST;
+    await pg.query("INSERT INTO marketing_posts(id,title,body,platform,review_state,review_key,content_hash,reviewed_at,review_expires_at) VALUES(1,$1,$2,$3,$4,$5,$6,$7,$8)",[p.title,p.body,p.platform,p.review_state,p.review_key,p.content_hash,p.reviewed_at,p.review_expires_at]);
+    const publish='pub_channel_1_'+p.content_hash.slice(0,16);
+    const before=calls.length;await post(callback('pub_channel_1',999));
+    assert.equal(calls.slice(before).filter(c=>c.chat_id==='@esepfinancialsupport').length,0);
+    sendFailure=b=>b.chat_id==='@esepfinancialsupport';await post(callback(publish,999));sendFailure=null;
     assert.equal((await pg.query('SELECT posted FROM marketing_posts WHERE id=1')).rows[0].posted,false);
-    await post(callback('pub_channel_1',999));assert.equal((await pg.query('SELECT posted FROM marketing_posts WHERE id=1')).rows[0].posted,true);
+    await post(callback(publish,999));assert.equal((await pg.query('SELECT posted FROM marketing_posts WHERE id=1')).rows[0].posted,true);
     const count=calls.filter(c=>c.chat_id==='@esepfinancialsupport').length;
-    await post(callback('pub_channel_1',999));assert.equal(calls.filter(c=>c.chat_id==='@esepfinancialsupport').length,count);
+    await post(callback(publish,999));assert.equal(calls.filter(c=>c.chat_id==='@esepfinancialsupport').length,count);
+    const receipt=(await pg.query('SELECT telegram_chat_id,telegram_message_id FROM marketing_posts WHERE id=1')).rows[0];
+    assert.equal(receipt.telegram_chat_id,'@esepfinancialsupport');assert(receipt.telegram_message_id>0);
+  });
+  await t.test('old publish buttons, changed copies and legacy public commands cannot bypass review',async()=>{
+    await pg.query("INSERT INTO marketing_posts(id,title,body) VALUES(2,'Old VAT','12%')");
+    const count=calls.filter(c=>c.chat_id==='@esepfinancialsupport').length;
+    await post(callback('pub_channel_2',999));
+    for(const cmd of ['/post_tip','/post_deadline','/post_lead','/post_article','/post_custom 12%'])assert.equal((await post(message(cmd,999))).status,200);
+    await assert.rejects(bot.postToChannel('unreviewed'),/MARKETING_REVIEW_REQUIRED/);
+    await pg.query("UPDATE marketing_posts SET posted=false,body='changed' WHERE id=1");
+    await post(callback('pub_channel_1_'+review.VAT_POST.content_hash.slice(0,16),999));
+    assert.equal(calls.filter(c=>c.chat_id==='@esepfinancialsupport').length,count);
+    assert.equal((await pg.query('SELECT posted FROM marketing_posts WHERE id=2')).rows[0].posted,false);
   });
   await t.test('private files receive explanation, groups are ignored',async()=>{
     const file=message(undefined,109);file.message.document={file_id:'fixture'};await post(file);assert.match(responses(109).at(-1),/Фото, документы/);
@@ -258,5 +280,14 @@ test('bot foundation: real SQL and HTTP with synthetic Telegram delivery',async 
     assert.match(responses(135).at(-1),/Режим самозанятого/);assert.match(responses(136).at(-1),/Расчёт зарплаты/);
     await post(callback('obsolete_button',135));assert.match(responses(135).at(-1),/С чего начнём/);
     for(const data of ['ui:reference','ui:form910','ui:commands','ui:help','ui:link','ui:menu'])assert.equal((await post(callback(data,135))).status,200);
+  });
+  await t.test('old public posting hours no longer publish directly to the channel',async()=>{
+    bot.startChannelScheduler();assert.equal(typeof scheduledTick,'function');
+    const count=calls.filter(c=>c.chat_id==='@esepfinancialsupport').length;
+    for(const timestamp of ['2026-11-01T04:00:00Z','2026-10-12T05:00:00Z','2026-10-14T07:00:00Z','2026-10-12T09:00:00Z']){
+      context.Date=class extends Date{constructor(...args){super(...(args.length?args:[timestamp]));}};
+      await scheduledTick();
+    }
+    assert.equal(calls.filter(c=>c.chat_id==='@esepfinancialsupport').length,count);
   });
 });
