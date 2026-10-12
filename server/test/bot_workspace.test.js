@@ -35,6 +35,26 @@ test('saved document workflow, reminders and consented requests use real SQL',as
  async function remind(id,taskId,date='11.10.2026'){await act(id,`ws:remind:${taskId}`);return act(id,date);}
  async function request(id,taskId=0){let v=await act(id,`ws:request:${taskId}`);v=await click(id,v,/6–20/);return act(id,'Хочу видеть, что осталось собрать по 8 клиентам.');}
 
+ await t.test('welcome persists explicit role, preserves direct tasks and replays updates',async()=>{
+  let v=await act(808,'/start');assert.match(v.text,/Как будете пользоваться/);
+  const updateId=sequence++;v=await act(808,'ws:welcomeRole:clients',updateId);
+  assert.match(v.text,/Документы клиентов/);
+  assert.deepEqual(await act(808,'ws:welcomeRole:clients',updateId),v);
+  app=createWorkspace(db,options);
+  assert.match((await act(808,'/start')).text,/Документы клиентов/);
+  v=await act(808,'как перейти в Esep?');
+  const url=v.extra.reply_markup.inline_keyboard.flat().find(b=>b.url).url;
+  assert.equal(url,'https://app.esepkz.com/#/welcome?role=clients');
+  assert.match(v.text,/не переносятся автоматически/);
+  assert.equal(await act(808,'/start bind_private'),null);
+  assert.equal(await act(808,'/start calc_300000'),null);
+  assert.equal(await act(808,'/start CALC_300000'),null);
+  await act(808,'/docs');await act(808,'Мой клиент');
+  v=await act(808,'что умеешь');assert.match(v.text,/месяц|ММ.ГГГГ|Не получилось/);
+  assert.equal((await row("SELECT role FROM bot_work_profiles WHERE chat_id='808'")).role,'clients');
+  await act(809,'/start');await act(809,'ws:welcomeRole:unknown');
+  assert.match((await act(809,'/start')).text,/Начните с одной полезной задачи/);
+ });
  let first;
  await t.test('draft validates, survives reload, escapes user text and saves one durable result',async()=>{
   let v=await act(101,'/start docs_ig');assert.match(v.text,/Для кого/);

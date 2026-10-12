@@ -34,9 +34,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       icon: Iconsax.heart,
       color: EsepColors.primary,
       title: 'Добро пожаловать в Esep',
-      subtitle: 'Мы поможем разобраться с налогами.\n'
-          'Даже если вы в этом ничего не понимаете —\n'
-          'это нормально.',
+      subtitle: 'Начните с одной понятной задачи:\n'
+          'добавьте операцию своего бизнеса\n'
+          'или карточку клиента.',
     ),
     _PageData(
       icon: Iconsax.arrow_right_3,
@@ -46,15 +46,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       // а не ручной ввод: обещание на первом экране должно совпадать с тем,
       // что предлагает экран «Начало работы».
       subtitle: 'Загрузите выписку из банка\n'
-          'Esep разнесёт доходы и расходы\n'
-          'и посчитает налог — останется оплатить',
+          'Проверьте распознанные операции\n'
+          'перед использованием в учёте',
     ),
     _PageData(
       icon: Iconsax.shield_tick,
       color: EsepColors.warning,
-      title: 'Никаких штрафов',
-      subtitle: 'Мы напомним о каждом платеже заранее.\n'
-          'Вы точно ничего не пропустите.',
+      title: 'Понятный следующий шаг',
+      subtitle: 'Сохраняйте рабочие данные и возвращайтесь к ним.\n'
+          'Налоговые обязательства зависят от вашей ситуации.',
     ),
   ];
 

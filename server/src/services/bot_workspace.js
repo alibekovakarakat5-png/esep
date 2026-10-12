@@ -1,5 +1,6 @@
 'use strict';
 const {escapeTelegramText:esc}=require('./telegram_text');
+const guide=require('../bot/guide');
 
 // Additive migration, explicitly applied before a release. No visitor or legacy lead is reclassified.
 const schema=`
@@ -127,6 +128,22 @@ function createWorkspace(db,{now=()=>new Date(),adminId=''}={}){
  await event(c,id,updateId,'visit');
  const save=async out=>{await c.query('INSERT INTO bot_work_operations(chat_id,update_id,response) VALUES($1,$2,$3::jsonb)',[id,updateId,out==null?null:JSON.stringify(out)]);return out;};
  let a=data.split(':'),out;
+ const plainStart=/^\/start(?:\s+(?!bind_|calc_|self_|reset|docs|social$|rates$|deadlines$|buh$|buhgalter$|firma$|partner$)[\w-]+)?$/i.test(text);
+ const guideTopic=!s?.active?guide.intent(text):null;
+ if(plainStart||data==='ws:welcome'||data==='ws:home'||data.startsWith('ws:welcomeRole:')||data.startsWith('ws:guide:')||guideTopic){
+  await pause(c,id);
+  if(a[1]==='welcomeRole'){
+   if(!Object.hasOwn(roles,a[2]))return save(view('Выберите роль с помощью актуальных кнопок.'));
+   await c.query('UPDATE bot_work_profiles SET role=$2 WHERE chat_id=$1',[id,a[2]]);
+   await event(c,id,updateId,'role_selected');
+   out=guide.home(a[2]);
+  }else if(a[1]==='guide'||guideTopic){out=guide.answer(guideTopic||a[2],profile.role);await event(c,id,updateId,'guide_opened');}
+  else {
+   const alreadyChose=plainStart&&profile.role==='unknown'?(await c.query("SELECT 1 FROM bot_work_events WHERE chat_id=$1 AND event='role_selected' LIMIT 1",[id])).rows.length>0:false;
+   out=data==='ws:welcome'||(plainStart&&profile.role==='unknown'&&!alreadyChose)?guide.welcome():guide.home(profile.role);
+  }
+  return save(out);
+ }
  if(adminAction){
   if(text==='/audience'){
    const rolesCount=(await c.query('SELECT role,COUNT(*)::int AS n FROM bot_work_profiles WHERE chat_id<>$1 GROUP BY role',[String(adminId)])).rows;

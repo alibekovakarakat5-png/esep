@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import '../../features/auth/screens/auth_screen.dart';
 import '../../features/onboarding/screens/onboarding_screen.dart';
 import '../../features/onboarding/screens/first_run_screen.dart';
+import '../../features/onboarding/screens/welcome_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/invoices/screens/invoices_screen.dart';
 import '../../features/invoices/screens/invoice_detail_screen.dart';
@@ -90,6 +91,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final seenOnboarding = ref.read(hasSeenOnboardingProvider);
       final tier          = ref.read(subscriptionProvider).tier;
       final location      = state.matchedLocation;
+      if (location == '/welcome') return null;
 
       if (authState == AuthState.loading) return null;
 
@@ -123,6 +125,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Logged in, on auth or onboarding → pick mode or home
       if (authState == AuthState.authenticated &&
           (location == '/auth' || location == '/onboarding')) {
+        if (state.uri.queryParameters.containsKey('welcome')) {
+          return '/welcome?role=${welcomeRole(state.uri.queryParameters['welcome'])}';
+        }
         return mode == null
             ? '/mode-select'
             : _homeForMode(mode);
@@ -156,10 +161,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     // краш приложения.
     errorBuilder: (context, state) => _NotFoundScreen(location: state.uri.path),
     routes: [
+      GoRoute(path: '/welcome', builder: (_, state) => WelcomeScreen(roleHint: state.uri.queryParameters['role'])),
       // ── Onboarding ──────────────────────────────────────────────────────
       GoRoute(
         path: '/onboarding',
-        builder: (_, __) => const OnboardingScreen(),
+        builder: (_, __) => const WelcomeScreen(),
       ),
 
       // ── Первый запуск после входа (вне shell — без нижнего меню) ────────
@@ -176,7 +182,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // ── Mode select (outside of shell = no bottom nav) ───────────────────
       GoRoute(
         path: '/mode-select',
-        builder: (_, __) => const ModeSelectScreen(),
+        builder: (_, state) => ModeSelectScreen(ownBusiness: state.uri.queryParameters['role'] == 'own'),
       ),
 
       // ── Юридические документы (доступны и до входа) ──────────────────────

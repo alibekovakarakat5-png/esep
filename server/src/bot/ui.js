@@ -26,6 +26,7 @@ function home(name) {
       '<b>С чего начнём?</b> Нажмите кнопку под этим сообщением.',
     extra:{reply_markup:{inline_keyboard:[
       [callback('📋 Запросить документы','ws:new'),callback('📂 Мои задачи','ws:list')],
+      [callback('Что мне даст Esep?','ws:guide:value'),callback('Мой первый шаг','ws:home')],
       [callback(labels.calculators,'ui:calculators'),callback(labels.deadlines,'ui:deadlines')],
       [callback(labels.accountant,'ui:accountant'),callback(labels.account,'ui:account')],
       [callback(labels.reference,'ui:reference'),callback(labels.support,'ui:support')],

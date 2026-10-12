@@ -7,7 +7,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/user_mode_provider.dart';
 
 class ModeSelectScreen extends ConsumerWidget {
-  const ModeSelectScreen({super.key});
+  const ModeSelectScreen({super.key, this.ownBusiness = false});
+  final bool ownBusiness;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,10 +26,10 @@ class ModeSelectScreen extends ConsumerWidget {
                 subtitle: 'Работаю на себя как ИП',
                 color: EsepColors.primary,
                 features: const [
-                  (Iconsax.wallet_2,    'Доходы и расходы'),
-                  (Iconsax.receipt_2,   'Счета клиентам'),
-                  (Iconsax.calculator,  'Калькулятор налогов'),
-                  (Iconsax.people,      'База контрагентов'),
+                  (Iconsax.wallet_2, 'Доходы и расходы'),
+                  (Iconsax.receipt_2, 'Счета клиентам'),
+                  (Iconsax.calculator, 'Калькулятор налогов'),
+                  (Iconsax.people, 'База контрагентов'),
                 ],
                 onTap: () => _select(context, ref, UserMode.ip),
               ),
@@ -36,43 +37,60 @@ class ModeSelectScreen extends ConsumerWidget {
                 mode: UserMode.too,
                 icon: Iconsax.building,
                 title: 'ТОО (компания)',
-                subtitle: 'Есть совладельцы или сотрудники',
+                subtitle: 'Веду учёт своего ТОО',
                 color: const Color(0xFF0D9488),
                 features: const [
-                  (Iconsax.wallet_2,    'Доходы и расходы'),
-                  (Iconsax.calculator,  'КПН 20% и НДС 16%'),
-                  (Iconsax.receipt_2,   'Счета и акты'),
-                  (Iconsax.money_send,  'Зарплата и соцплатежи'),
+                  (Iconsax.wallet_2, 'Доходы и расходы'),
+                  (Iconsax.calculator, 'Расчёты с учётом режима'),
+                  (Iconsax.receipt_2, 'Счета и акты'),
+                  (Iconsax.money_send, 'Зарплата и соцплатежи'),
                 ],
                 onTap: () => _select(context, ref, UserMode.too),
               ),
-              _ModeCard(
-                mode: UserMode.accountant,
-                icon: Iconsax.briefcase,
-                title: 'Бухгалтер',
-                subtitle: 'Веду нескольких клиентов',
-                color: const Color(0xFF7B2FBE),
-                features: const [
-                  (Iconsax.people,        'ИП и ТОО под управлением'),
-                  (Iconsax.calendar_1,    'Единый календарь дедлайнов'),
-                  (Iconsax.document_text, 'Чеклисты документов'),
-                  (Iconsax.money_send,    'Расчёт ФОТ и соцплатежей'),
-                ],
-                onTap: () => _select(context, ref, UserMode.accountant),
-              ),
+              if (!ownBusiness)
+                _ModeCard(
+                  mode: UserMode.accountant,
+                  icon: Iconsax.briefcase,
+                  title: 'Бухгалтер',
+                  subtitle: 'Веду нескольких клиентов',
+                  color: const Color(0xFF7B2FBE),
+                  features: const [
+                    (Iconsax.people, 'ИП и ТОО под управлением'),
+                    (Iconsax.calendar_1, 'Единый календарь дедлайнов'),
+                    (Iconsax.document_text, 'Чеклисты документов'),
+                    (Iconsax.money_send, 'Расчёт ФОТ и соцплатежей'),
+                  ],
+                  onTap: () => _select(context, ref, UserMode.accountant),
+                ),
             ];
 
             final header = Column(
-              crossAxisAlignment: isWide ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  isWide ? CrossAxisAlignment.center : CrossAxisAlignment.start,
               children: [
                 SizedBox(height: isWide ? 80 : 48),
-                const Text('Esep', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: EsepColors.primary, letterSpacing: -0.5)),
+                const Text('Esep',
+                    style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                        color: EsepColors.primary,
+                        letterSpacing: -0.5)),
                 const SizedBox(height: 4),
-                const Text('Кто вы?', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: EsepColors.textPrimary)),
+                Text(
+                    ownBusiness
+                        ? 'Какая форма у вашего бизнеса?'
+                        : 'Выберите рабочий кабинет',
+                    style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                        color: EsepColors.textPrimary)),
                 const SizedBox(height: 6),
                 Text(
-                  'Выберите режим — интерфейс подстроится под ваши задачи',
-                  style: const TextStyle(fontSize: 14, color: EsepColors.textSecondary, height: 1.4),
+                  'Это выбор интерфейса. Налоговый режим указывается отдельно; ИП и ТОО не определяют его автоматически.',
+                  style: const TextStyle(
+                      fontSize: 14,
+                      color: EsepColors.textSecondary,
+                      height: 1.4),
                   textAlign: isWide ? TextAlign.center : TextAlign.start,
                 ),
                 SizedBox(height: isWide ? 48 : 36),
@@ -81,26 +99,31 @@ class ModeSelectScreen extends ConsumerWidget {
 
             if (isWide) {
               // Desktop: 3 cards in a row, centered
-              return Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1100),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Column(
-                      children: [
-                        header,
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            for (int i = 0; i < cards.length; i++) ...[
-                              if (i > 0) const SizedBox(width: 20),
-                              Expanded(child: cards[i]),
+              return SingleChildScrollView(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1100),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Column(
+                        children: [
+                          header,
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              for (int i = 0; i < cards.length; i++) ...[
+                                if (i > 0) const SizedBox(width: 20),
+                                Expanded(child: cards[i]),
+                              ],
                             ],
-                          ],
-                        ),
-                        const SizedBox(height: 32),
-                        const Text('Режим можно сменить в Настройках', style: TextStyle(fontSize: 12, color: EsepColors.textDisabled)),
-                      ],
+                          ),
+                          const SizedBox(height: 32),
+                          const Text('Режим можно сменить в Настройках',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: EsepColors.textDisabled)),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -108,21 +131,28 @@ class ModeSelectScreen extends ConsumerWidget {
             }
 
             // Mobile: vertical stack
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  header,
-                  cards[0],
-                  const SizedBox(height: 14),
-                  cards[1],
-                  const SizedBox(height: 14),
-                  cards[2],
-                  const Spacer(),
-                  const Center(child: Text('Режим можно сменить в Настройках', style: TextStyle(fontSize: 12, color: EsepColors.textDisabled))),
-                  const SizedBox(height: 24),
-                ],
+            return SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    header,
+                    cards[0],
+                    const SizedBox(height: 14),
+                    cards[1],
+                    if (cards.length > 2) ...[
+                      const SizedBox(height: 14),
+                      cards[2]
+                    ],
+                    const SizedBox(height: 24),
+                    const Center(
+                        child: Text('Режим можно сменить в Настройках',
+                            style: TextStyle(
+                                fontSize: 12, color: EsepColors.textDisabled))),
+                    const SizedBox(height: 24),
+                  ],
+                ),
               ),
             );
           },
@@ -175,7 +205,8 @@ class _ModeCard extends StatelessWidget {
             // Icon + title
             Row(children: [
               Container(
-                width: 48, height: 48,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
@@ -184,15 +215,19 @@ class _ModeCard extends StatelessWidget {
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(title,
-                      style: TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w700, color: color)),
-                  const SizedBox(height: 2),
-                  Text(subtitle,
-                      style: const TextStyle(
-                          fontSize: 12, color: EsepColors.textSecondary)),
-                ]),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: color)),
+                      const SizedBox(height: 2),
+                      Text(subtitle,
+                          style: const TextStyle(
+                              fontSize: 12, color: EsepColors.textSecondary)),
+                    ]),
               ),
               Icon(Icons.arrow_forward_ios_rounded, color: color, size: 16),
             ]),
@@ -203,11 +238,13 @@ class _ModeCard extends StatelessWidget {
             Wrap(
               spacing: 8,
               runSpacing: 6,
-              children: features.map((f) => _FeatureChip(
-                icon: f.$1,
-                label: f.$2,
-                color: color,
-              )).toList(),
+              children: features
+                  .map((f) => _FeatureChip(
+                        icon: f.$1,
+                        label: f.$2,
+                        color: color,
+                      ))
+                  .toList(),
             ),
           ],
         ),
@@ -217,23 +254,27 @@ class _ModeCard extends StatelessWidget {
 }
 
 class _FeatureChip extends StatelessWidget {
-  const _FeatureChip({required this.icon, required this.label, required this.color});
+  const _FeatureChip(
+      {required this.icon, required this.label, required this.color});
   final IconData icon;
   final String label;
   final Color color;
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.1),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(icon, size: 12, color: color),
-      const SizedBox(width: 5),
-      Text(label,
-          style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w500)),
-    ]),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 12, color: color, fontWeight: FontWeight.w500)),
+          ),
+        ]),
+      );
 }

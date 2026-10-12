@@ -633,6 +633,11 @@ async function handleUpdate(update) {
   const b2b = cb?.data === 'regime_buh' || cb?.data === 'ui:accountant' || navigation === 'accountant' || (cmd === '/start' && /^(buh|buhgalter|firma|partner)$/i.test(args));
   const intent = b2b ? 'b2b' : detectIntent(cb?.data || text);
   const visitor = await store.trackVisitor(chatId,from,payload,intent);
+  if (visitor.isNew && String(chatId) !== String(ADMIN_ID)) {
+    await sendAdmin('🤖 <b>Новый пользователь бота</b>\nИмя: ' +
+      escapeTelegramText([from.first_name,from.last_name].filter(Boolean).join(' ')) +
+      '\nUsername: @' + escapeTelegramText(from.username || '—') + '\nChat ID: <code>' + chatId + '</code>');
+  }
   // Persist workspace mutations before sending. A delivery retry reuses its saved response.
   const workData=cb?.data==='remind_on'?'ws:list':cb?.data==='remind_off'?'ws:offAll':cb?.data||'';
   const workText=text.startsWith('/')?cmd+(args?' '+args:''):text;
@@ -643,11 +648,6 @@ async function handleUpdate(update) {
     const receipt=await sendView(chatId,workView);
     try{await workspace.recordDelivered(chatId,update.update_id,receipt);}catch(e){console.error('[workspace] Delivery metric not saved:',e.code||'DATABASE_ERROR');}
     return receipt;
-  }
-  if (visitor.isNew && String(chatId) !== String(ADMIN_ID)) {
-    await sendAdmin('🤖 <b>Новый пользователь бота</b>\nИмя: ' +
-      escapeTelegramText([from.first_name,from.last_name].filter(Boolean).join(' ')) +
-      '\nUsername: @' + escapeTelegramText(from.username || '—') + '\nChat ID: <code>' + chatId + '</code>');
   }
   const explicitKind = ({'/calc':'calc','/self':'self','/salary':'salary'})[cmd];
   const startMatch=cmd==='/start'&&args.match(/^(calc|self)_(.+)$/i);

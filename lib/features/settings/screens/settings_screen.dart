@@ -208,7 +208,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final mode = ref.watch(userModeProvider) ?? UserMode.ip;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Настройки')),
+      appBar: AppBar(title: const Text('Настройки'), actions: [IconButton(icon: const Icon(Icons.help_outline), tooltip: 'С чего начать', onPressed: () => context.push('/welcome'))]),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

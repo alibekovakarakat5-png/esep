@@ -106,7 +106,7 @@ test('bot foundation: real SQL and HTTP with synthetic Telegram delivery',async 
     const count=calls.length;assert.equal((await post(u)).status,200);assert.equal(calls.length,count);
     await post(message('/start'));
     assert.equal(calls.filter(c=>c.chat_id==='999'&&c.text.includes('Новый пользователь')).length,1);
-    assert(responses(101).some(s=>s.includes('A &lt; B &amp; C')));
+    assert(responses(101).some(s=>s.includes('Как будете пользоваться Esep')));
     assert.equal((await pg.query('SELECT count(*)::int AS n FROM leads')).rows[0].n,1);
   });
   await t.test('old lead without bot_users is not announced as new, sales fields survive',async()=>{
@@ -219,7 +219,7 @@ test('bot foundation: real SQL and HTTP with synthetic Telegram delivery',async 
     await post(message('/menu',130));
     const home=calls.filter(c=>c.chat_id===130&&c.method==='sendMessage').at(-1);
     assert.equal(home.reply_markup.keyboard,undefined);
-    const buttons=home.reply_markup.inline_keyboard.flat();assert.equal(buttons.length,8);
+    const buttons=home.reply_markup.inline_keyboard.flat();assert.equal(buttons.length,10);
     assert.match(home.text,/кнопку под этим сообщением/);
     assert(!home.text.includes('/salary'));
     for(const button of buttons){

@@ -52,6 +52,7 @@ class _AccountantDashboardScreenState
       appBar: AppBar(
         title: const Text('Бухгалтерия'),
         actions: [
+          IconButton(icon: const Icon(Icons.help_outline), tooltip: 'С чего начать', onPressed: () => context.push('/welcome?role=clients')),
           IconButton(
             icon: const Icon(Iconsax.document_download),
             tooltip: 'Экспорт в Excel',

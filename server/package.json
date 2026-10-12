@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "test": "node --test \"test/*.test.js\"",
+    "test": "node scripts/run_tests.js",
     "build:tax-core": "node scripts/build_tax_core.js"
   },
   "dependencies": {
