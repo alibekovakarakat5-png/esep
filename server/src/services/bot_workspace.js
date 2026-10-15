@@ -130,7 +130,7 @@ function createWorkspace(db,{now=()=>new Date(),adminId=''}={}){
  let a=data.split(':'),out;
  const plainStart=/^\/start(?:\s+(?!bind_|calc_|self_|reset|docs|social$|rates$|deadlines$|buh$|buhgalter$|firma$|partner$)[\w-]+)?$/i.test(text);
  const guideTopic=!s?.active?guide.intent(text):null;
- if(plainStart||data==='ws:welcome'||data==='ws:home'||data.startsWith('ws:welcomeRole:')||data.startsWith('ws:guide:')||guideTopic){
+ if(plainStart||data==='ui:menu'||['/menu','/help','/cancel','меню','главное меню','назад','отмена'].includes(text.toLowerCase())||data==='ws:welcome'||data==='ws:home'||data.startsWith('ws:welcomeRole:')||data.startsWith('ws:guide:')||guideTopic){
   await pause(c,id);
   if(a[1]==='welcomeRole'){
    if(!Object.hasOwn(roles,a[2]))return save(view('Выберите роль с помощью актуальных кнопок.'));

@@ -201,7 +201,7 @@ test('bot foundation: real SQL and HTTP with synthetic Telegram delivery',async 
   await t.test('button and deep-link calculations obey the limit; reference help remains available',async()=>{
     for(let i=0;i<5;i++)await post(callback('demo_calc_5000000',120));
     await post(message('/start calc_5000000',120));assert.match(responses(120).at(-1),/Лимит/);
-    await post(message('/help',120));assert.match(responses(120).at(-1),/С чего начнём/);
+    await post(message('/help',120));assert.match(responses(120).at(-1),/разберёмся по шагам/);
     assert.equal((await pg.query("SELECT queries_today FROM bot_users WHERE chat_id='120'")).rows[0].queries_today,5);
   });
   await t.test('binding rollback leaves account and token unchanged if audit persistence fails',async()=>{
@@ -219,14 +219,14 @@ test('bot foundation: real SQL and HTTP with synthetic Telegram delivery',async 
     await post(message('/menu',130));
     const home=calls.filter(c=>c.chat_id===130&&c.method==='sendMessage').at(-1);
     assert.equal(home.reply_markup.keyboard,undefined);
-    const buttons=home.reply_markup.inline_keyboard.flat();assert.equal(buttons.length,10);
+    const buttons=home.reply_markup.inline_keyboard.flat();assert.equal(buttons.length,3);
     assert.match(home.text,/кнопку под этим сообщением/);
     assert(!home.text.includes('/salary'));
     for(const button of buttons){
       const pressed=callback(button.callback_data,130);
       assert.equal((await post(pressed)).status,200,button.text);
       assert(calls.some(c=>c.method==='answerCallbackQuery'&&c.callback_query_id===pressed.callback_query.id));
-      assert(!responses(130).at(-1).includes('С чего начнём'),button.text);
+      assert(!responses(130).at(-1).includes('разберёмся по шагам'),button.text);
     }
     for(const label of Object.values(ui.labels))assert.equal((await post(message(label,130))).status,200,label);
     assert.equal((await pg.query("SELECT queries_today FROM bot_users WHERE chat_id='130'")).rows[0].queries_today,0);
@@ -281,7 +281,7 @@ test('bot foundation: real SQL and HTTP with synthetic Telegram delivery',async 
     await post(callback('prompt_self',135));await post(callback('prompt_salary',136));
     await post(message('300000',135));await post(message('300000',136));
     assert.match(responses(135).at(-1),/Режим самозанятого/);assert.match(responses(136).at(-1),/Расчёт зарплаты/);
-    await post(callback('obsolete_button',135));assert.match(responses(135).at(-1),/С чего начнём/);
+    await post(callback('obsolete_button',135));assert.match(responses(135).at(-1),/разберёмся по шагам/);
     for(const data of ['ui:reference','ui:form910','ui:commands','ui:help','ui:link','ui:menu'])assert.equal((await post(callback(data,135))).status,200);
   });
   await t.test('document flow through HTTP persists before receipt, survives failed delivery and resumes after reload',async()=>{

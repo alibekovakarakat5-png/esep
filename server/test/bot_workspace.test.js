@@ -22,7 +22,7 @@ test('saved document workflow, reminders and consented requests use real SQL',as
  const options={adminId:'999',now:()=>clock};let app=createWorkspace(db,options);
  await app.assertReady();
  const row=async(q,p)=>(await db.query(q,p)).rows[0];
- const act=(id,input,updateId=sequence++)=>app.handle({chatId:id,updateId,username:'fixture_user',...(typeof input==='string'?(input.startsWith('ws:')||input.startsWith('wa:')?{data:input}:{text:input}):input)});
+ const act=(id,input,updateId=sequence++)=>app.handle({chatId:id,updateId,username:'fixture_user',...(typeof input==='string'?(input.startsWith('ui:')||input.startsWith('ws:')||input.startsWith('wa:')?{data:input}:{text:input}):input)});
  const button=(v,pattern)=>{const b=v.extra.reply_markup.inline_keyboard.flat().find(b=>pattern.test(b.text));assert(b,'button '+pattern+' in '+v.text);return b.callback_data;};
  const click=(id,v,p)=>act(id,button(v,p));
  async function newTask(id,name='Клиент <А>'){
@@ -38,10 +38,10 @@ test('saved document workflow, reminders and consented requests use real SQL',as
  await t.test('welcome persists explicit role, preserves direct tasks and replays updates',async()=>{
   let v=await act(808,'/start');assert.match(v.text,/Как будете пользоваться/);
   const updateId=sequence++;v=await act(808,'ws:welcomeRole:clients',updateId);
-  assert.match(v.text,/Документы клиентов/);
+  assert.match(v.text,/расчётом для клиента/);
   assert.deepEqual(await act(808,'ws:welcomeRole:clients',updateId),v);
   app=createWorkspace(db,options);
-  assert.match((await act(808,'/start')).text,/Документы клиентов/);
+  assert.match((await act(808,'/start')).text,/расчётом для клиента/);
   v=await act(808,'как перейти в Esep?');
   const url=v.extra.reply_markup.inline_keyboard.flat().find(b=>b.url).url;
   assert.equal(url,'https://app.esepkz.com/#/welcome?role=clients');
@@ -53,7 +53,25 @@ test('saved document workflow, reminders and consented requests use real SQL',as
   v=await act(808,'что умеешь');assert.match(v.text,/месяц|ММ.ГГГГ|Не получилось/);
   assert.equal((await row("SELECT role FROM bot_work_profiles WHERE chat_id='808'")).role,'clients');
   await act(809,'/start');await act(809,'ws:welcomeRole:unknown');
-  assert.match((await act(809,'/start')).text,/Начните с одной полезной задачи/);
+  assert.match((await act(809,'/start')).text,/Выберите, с чем нужна помощь/);
+ });
+ await t.test('three-action menu keeps role on return and every guide branch has a next step',async()=>{
+  let v=await act(810,'/start');await act(810,'ws:welcomeRole:clients');
+  for(const entry of ['/menu','ui:menu','ws:home','/start']){
+   v=await act(810,entry);
+   assert.match(v.text,/расчётом для клиента/);
+   assert.deepEqual(v.extra.reply_markup.inline_keyboard.flat().map(b=>b.callback_data),['ui:calculators','ws:guide:question','ws:guide:next']);
+  }
+  for(const topic of ['question','next','payments','reporting','value','docs','app']){
+   v=await act(810,'ws:guide:'+topic);
+   const buttons=v.extra.reply_markup.inline_keyboard.flat();
+   assert(buttons.length>=2);
+   assert(!buttons.some(b=>['ws:new','ws:list'].includes(b.callback_data)));
+   assert(buttons.some(b=>b.callback_data==='ws:home'));
+  }
+  assert.match((await act(810,'что мне нужно сделать?')).text,/Что сейчас нужно решить/);
+  assert.match((await act(810,'задать вопрос')).text,/С чем нужна помощь/);
+  assert.match((await act(810,'ws:guide:reporting')).text,/не полный календарь/);
  });
  let first;
  await t.test('draft validates, survives reload, escapes user text and saves one durable result',async()=>{
@@ -91,7 +109,7 @@ test('saved document workflow, reminders and consented requests use real SQL',as
  });
  await t.test('pause returns numeric input to the calculator; draft can be resumed after process reload',async()=>{
   await act(303,'/docs');let v=await act(303,'ws:role:1:own');v=await act(303,'Мой магазин');
-  assert.equal(await act(303,'/menu'),null);assert.equal(await act(303,'300000'),null);
+  assert.match((await act(303,'/menu')).text,/разберёмся по шагам/);assert.equal(await act(303,'300000'),null);
   app=createWorkspace(db,options);v=await act(303,'/my');v=await click(303,v,/Продолжить черновик/);assert.match(v.text,/За какой месяц/);
  });
  await t.test('requests require explicit consent and survive retries and failed owner notification',async()=>{

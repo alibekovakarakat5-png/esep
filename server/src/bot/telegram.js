@@ -1490,8 +1490,6 @@ async function setupWebhook(baseUrl) {
   requireTelegramSuccess(await botRequest('setMyCommands', {
     commands: [
       { command: 'menu',      description: 'Главное меню' },
-      { command: 'my',        description: 'Мои задачи и обращения' },
-      { command: 'docs',      description: 'Подготовить запрос документов' },
       { command: 'cancel',    description: 'Отменить выбор расчёта' },
       { command: 'salary',    description: 'Рассчитать зарплату' },
       { command: 'calc',      description: 'Рассчитать налог 910' },
